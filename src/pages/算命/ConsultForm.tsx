@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
