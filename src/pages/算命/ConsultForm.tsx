@@ -83,7 +83,7 @@ export default function ConsultForm() {
         report: message,
       }
       saveReport(payload)
-      navigate('/report', { state: payload })
+      navigate('/算命/report', { state: payload })
     } catch {
       setError('网络异常，请稍后再试')
       setPending(false)

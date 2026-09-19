@@ -47,7 +47,7 @@
   letter-spacing: 0.72em;
 }
 
-h1 {
+.suanming h1 {
   display: flex;
   gap: 0.16em;
   margin: 0;
@@ -166,7 +166,7 @@ h1 {
   transform-origin: 300px 300px;
 }
 
-figcaption {
+.suanming figcaption {
   display: flex;
   justify-content: center;
   align-items: baseline;
@@ -639,7 +639,7 @@ figcaption {
     padding-left: 0.62em;
   }
 
-  h1 {
+  .suanming h1 {
     justify-content: center;
     font-size: clamp(72px, 22vw, 104px);
   }
@@ -696,7 +696,7 @@ figcaption {
     overflow: hidden;
   }
 
-  figcaption {
+  .suanming figcaption {
     gap: 10px;
     letter-spacing: 0.12em;
     font-size: 13px;
@@ -790,7 +790,7 @@ figcaption {
     width: min(62vw, 240px);
   }
 
-  h1 {
+  .suanming h1 {
     font-size: 68px;
   }
 }
