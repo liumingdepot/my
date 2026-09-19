@@ -6,12 +6,13 @@ import './home.css'
 type Lang = keyof typeof I18N
 
 const NAV = [
-  { id: 'about', key: 'about', n: '01' },
-  { id: 'skills', key: 'skills', n: '02' },
-  { id: 'projects', key: 'projects', n: '03' },
-  { id: 'experience', key: 'experience', n: '04' },
-  { id: 'contact', key: 'contact', n: '05' },
-  { id: 'works', key: 'works', n: '06' },
+  { id: 'top', key: 'intro', n: '01' },
+  { id: 'works', key: 'works', n: '02' },
+  { id: 'about', key: 'about', n: '03' },
+  { id: 'skills', key: 'skills', n: '04' },
+  { id: 'projects', key: 'projects', n: '05' },
+  { id: 'experience', key: 'experience', n: '06' },
+  { id: 'contact', key: 'contact', n: '07' },
 ] as const
 
 function lead(text: string) {
@@ -207,8 +208,46 @@ export default function Home() {
           ))}
         </section>
 
+        <section className="section works reveal" id="works">
+          <div className="section__watermark">02</div>
+          <p className="section__label">{ui.sectionWorks}</p>
+          <h2 className="section__title">{ui.worksTitle}</h2>
+          <ul className="works-grid">
+            {t.works.map((work, index) => {
+              const card = (
+                <>
+                  <div className="work-card__top">
+                    <span className="work-card__index">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="work-card__tag">{work.tag}</span>
+                  </div>
+                  <h3 className="work-card__name">{work.name}</h3>
+                  <p className="work-card__desc">{work.desc}</p>
+                  <span className="work-card__go">{ui.workOpen}</span>
+                  <span className="work-card__mark" aria-hidden="true">
+                    {work.glyph}
+                  </span>
+                </>
+              )
+              const className = `work-card work-card--${work.tone}`
+              return (
+                <li key={work.href}>
+                  {work.href.startsWith('/') ? (
+                    <Link className={className} to={work.href}>
+                      {card}
+                    </Link>
+                  ) : (
+                    <a className={className} href={work.href} target="_blank" rel="noreferrer">
+                      {card}
+                    </a>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+
         <section className="section reveal" id="about">
-          <div className="section__watermark">01</div>
+          <div className="section__watermark">03</div>
           <p className="section__label">{ui.sectionAbout}</p>
           <h2 className="section__title">{t.about.title}</h2>
           <div className="about__grid">
@@ -231,7 +270,7 @@ export default function Home() {
         </section>
 
         <section className="section reveal" id="skills">
-          <div className="section__watermark">02</div>
+          <div className="section__watermark">04</div>
           <p className="section__label">{ui.sectionSkills}</p>
           <h2 className="section__title">{ui.skillsTitle}</h2>
           <div className="skills-grid">
@@ -251,7 +290,7 @@ export default function Home() {
         </section>
 
         <section className="section reveal" id="projects">
-          <div className="section__watermark">03</div>
+          <div className="section__watermark">05</div>
           <p className="section__label">{ui.sectionProjects}</p>
           <h2 className="section__title">{ui.projectsTitle}</h2>
           {featured ? (
@@ -301,7 +340,7 @@ export default function Home() {
         </section>
 
         <section className="section reveal" id="experience">
-          <div className="section__watermark">04</div>
+          <div className="section__watermark">06</div>
           <p className="section__label">{ui.sectionExperience}</p>
           <h2 className="section__title">{ui.experienceTitle}</h2>
           <ol className="exp-list">
@@ -323,7 +362,7 @@ export default function Home() {
         </section>
 
         <section className="section contact reveal" id="contact">
-          <div className="section__watermark">05</div>
+          <div className="section__watermark">07</div>
           <p className="section__label">{ui.sectionContact}</p>
           <h2 className="section__title">{ui.contactTitle}</h2>
           <div className="contact__card card">
@@ -341,53 +380,15 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="section works reveal" id="works">
-          <div className="section__watermark">06</div>
-          <p className="section__label">{ui.sectionWorks}</p>
-          <h2 className="section__title">{ui.worksTitle}</h2>
-          <ul className="works-grid">
-            {t.works.map((work, index) => {
-              const card = (
-                <>
-                  <div className="work-card__top">
-                    <span className="work-card__index">{String(index + 1).padStart(2, '0')}</span>
-                    <span className="work-card__tag">{work.tag}</span>
-                  </div>
-                  <h3 className="work-card__name">{work.name}</h3>
-                  <p className="work-card__desc">{work.desc}</p>
-                  <span className="work-card__go">{ui.workOpen}</span>
-                  <span className="work-card__mark" aria-hidden="true">
-                    {work.glyph}
-                  </span>
-                </>
-              )
-              const className = `work-card work-card--${work.tone}`
-              return (
-                <li key={work.href}>
-                  {work.href.startsWith('/') ? (
-                    <Link className={className} to={work.href}>
-                      {card}
-                    </Link>
-                  ) : (
-                    <a className={className} href={work.href} target="_blank" rel="noreferrer">
-                      {card}
-                    </a>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-
         <footer className="footer">
           <span>
             © {new Date().getFullYear()} {ui.footerCopy}
           </span>
           <div className="footer__links">
+            <a href="#works">{ui.nav.works}</a>
             <a href="#about">{ui.nav.about}</a>
             <a href="#projects">{ui.nav.projects}</a>
             <a href="#contact">{ui.nav.contact}</a>
-            <a href="#works">{ui.nav.works}</a>
           </div>
         </footer>
       </div>

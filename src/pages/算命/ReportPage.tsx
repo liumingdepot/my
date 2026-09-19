@@ -51,7 +51,7 @@ export default function ReportPage() {
             <p className="eyebrow">命盘</p>
             <h1>还没有报告</h1>
             <p className="report-empty">先填写姓名、八字和问题，再来看这一页。</p>
-            <Link className="back-link" to="/算命">
+            <Link className="back-link" to="/fortune">
               返回填写
             </Link>
           </div>
@@ -72,7 +72,7 @@ export default function ReportPage() {
           </p>
           <div className="report-body">{payload.report}</div>
           <p className="report-author">作者：刘铭</p>
-          <Link className="back-link" to="/算命">
+          <Link className="back-link" to="/fortune">
             返回
           </Link>
         </article>

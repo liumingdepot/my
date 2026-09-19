@@ -192,24 +192,19 @@ html[data-theme="dark"] .blob-c { background: #155e75; opacity: 0.3; }
 
 .nav__links a {
   font-size: 0.86rem;
-  color: var(--text-soft);
+  color: var(--purple-soft);
   font-weight: 500;
-  transition: color 0.2s;
-  min-width: 7.5rem;
   text-align: center;
-  padding: 0.35rem 0.25rem;
+  padding: 0.35rem 0.45rem;
   box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .nav__links a em {
   font-style: normal;
   color: var(--purple-soft);
   font-weight: 600;
-  margin-right: 0.1rem;
-}
-
-.nav__links a:hover {
-  color: var(--text);
+  margin-right: 0.45rem;
 }
 
 .nav__actions {
@@ -1055,8 +1050,12 @@ html[data-theme="dark"] .badge {
 
 .work-card--violet {
   background:
-    radial-gradient(360px 180px at 100% 0%, rgba(124, 92, 252, 0.18), transparent 60%),
+    radial-gradient(280px 160px at 100% 0%, rgba(124, 92, 252, 0.14), transparent 62%),
     var(--bg-elevated);
+}
+
+.work-card--violet .work-card__name {
+  color: var(--text);
 }
 
 .work-card--cyan {
@@ -1065,38 +1064,10 @@ html[data-theme="dark"] .badge {
     var(--bg-elevated);
 }
 
-.works-grid:has(> :only-child) {
-  grid-template-columns: 1fr;
-}
-
-.works-grid:has(> :only-child) .work-card {
-  min-height: 220px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "top mark"
-    "name mark"
-    "desc mark"
-    "go mark";
-  column-gap: 2.5rem;
-  align-content: center;
-  padding: 1.85rem 2rem 1.7rem;
-}
-
-.works-grid:has(> :only-child) .work-card__top { grid-area: top; }
-.works-grid:has(> :only-child) .work-card__name { grid-area: name; margin-top: 1rem; }
-.works-grid:has(> :only-child) .work-card__desc { grid-area: desc; }
-.works-grid:has(> :only-child) .work-card__go { grid-area: go; }
-
-.works-grid:has(> :only-child) .work-card__mark {
-  position: static;
-  grid-area: mark;
-  align-self: center;
-  writing-mode: vertical-rl;
-  font-size: clamp(3.4rem, 6vw, 4.6rem);
-  letter-spacing: 0.28em;
-  opacity: 0.22;
-  line-height: 1.05;
+.work-card--emerald {
+  background:
+    radial-gradient(360px 180px at 100% 0%, rgba(46, 196, 160, 0.18), transparent 60%),
+    var(--bg-elevated);
 }
 
 /* Footer */
@@ -1134,6 +1105,15 @@ html[data-theme="dark"] .badge {
   transform: none;
 }
 
+@media (max-width: 1120px) {
+  .nav__links {
+    display: none;
+  }
+  .nav__burger {
+    display: flex;
+  }
+}
+
 /* Responsive */
 @media (max-width: 980px) {
   .nav__links {
@@ -1168,10 +1148,6 @@ html[data-theme="dark"] .badge {
   .works-grid {
     grid-template-columns: 1fr 1fr;
   }
-
-  .works-grid:has(> :only-child) {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1181,23 +1157,8 @@ html[data-theme="dark"] .badge {
   .about__grid,
   .skills-grid,
   .projects-grid,
-  .works-grid,
-  .works-grid:has(> :only-child) {
+  .works-grid {
     grid-template-columns: 1fr;
-  }
-
-  .works-grid:has(> :only-child) .work-card {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "top"
-      "name"
-      "desc"
-      "go";
-    padding: 1.4rem 1.25rem 1.3rem;
-  }
-
-  .works-grid:has(> :only-child) .work-card__mark {
-    display: none;
   }
   .stats {
     grid-template-columns: 1fr 1fr;

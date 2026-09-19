@@ -5,12 +5,13 @@ export const I18N = {
       brand: "LiuMing",
       brandSuffix: ".dev",
       nav: {
+        intro: "简介",
+        works: "个人作品",
         about: "关于",
         skills: "技能",
         projects: "项目",
         experience: "经历",
-        contact: "联系",
-        works: "个人作品"
+        contact: "联系"
       },
       resume: "简历",
       hireMe: "联系我",
@@ -21,17 +22,17 @@ export const I18N = {
       theme: "切换主题",
       lang: "EN",
       langTitle: "Switch to English",
-      sectionAbout: "01 — 关于",
-      sectionSkills: "02 — 技能",
-      sectionProjects: "03 — 项目",
-      sectionExperience: "04 — 经历",
-      sectionContact: "05 — 联系",
-      sectionWorks: "06 — 个人作品",
+      sectionWorks: "02 — 个人作品",
+      sectionAbout: "03 — 关于",
+      sectionSkills: "04 — 技能",
+      sectionProjects: "05 — 项目",
+      sectionExperience: "06 — 经历",
+      sectionContact: "07 — 联系",
       skillsTitle: "我使用的工具与技术。",
       projectsTitle: "我做过的事。",
       experienceTitle: "我工作过的地方。",
       contactTitle: "一起合作。",
-      worksTitle: "可以点开的东西。",
+      worksTitle: "个人开发者作品，仅供学习交流",
       workOpen: "打开 →",
       contactEyebrow: "Let's build something",
       contactHeading: "有合适的机会想聊聊？",
@@ -47,10 +48,26 @@ export const I18N = {
       {
         name: "算命",
         desc: "填写生辰与问题，生成一份周易命盘解读。观象于天，仅作传统文化与娱乐参考。",
-        href: "/算命",
+        href: "/fortune",
         tag: "已上线",
-        tone: "ink",
+        tone: "violet",
         glyph: "周易"
+      },
+      {
+        name: "音乐",
+        desc: "搜索歌曲、浏览推荐与排行榜，在线听歌并同步歌词。兼容手机与电脑。",
+        href: "/music",
+        tag: "已上线",
+        tone: "cyan",
+        glyph: "♪"
+      },
+      {
+        name: "视频",
+        desc: "搜索影视、浏览分类与短剧，多线路播放与本地收藏。兼容手机与电脑。",
+        href: "/video",
+        tag: "已上线",
+        tone: "emerald",
+        glyph: "▶"
       }
     ],
     profile: {
@@ -185,12 +202,13 @@ export const I18N = {
       brand: "LiuMing",
       brandSuffix: ".dev",
       nav: {
+        intro: "Intro",
+        works: "Works",
         about: "About",
         skills: "Skills",
         projects: "Projects",
         experience: "Experience",
-        contact: "Contact",
-        works: "Works"
+        contact: "Contact"
       },
       resume: "Resume",
       hireMe: "Hire Me",
@@ -201,12 +219,12 @@ export const I18N = {
       theme: "Toggle theme",
       lang: "中文",
       langTitle: "切换到中文",
-      sectionAbout: "01 — About",
-      sectionSkills: "02 — Skills",
-      sectionProjects: "03 — Projects",
-      sectionExperience: "04 — Experience",
-      sectionContact: "05 — Contact",
-      sectionWorks: "06 — Works",
+      sectionWorks: "02 — Works",
+      sectionAbout: "03 — About",
+      sectionSkills: "04 — Skills",
+      sectionProjects: "05 — Projects",
+      sectionExperience: "06 — Experience",
+      sectionContact: "07 — Contact",
       skillsTitle: "Tools I work with.",
       projectsTitle: "Things I've built.",
       experienceTitle: "Where I've worked.",
@@ -226,10 +244,26 @@ export const I18N = {
       {
         name: "Fortune",
         desc: "Enter a birth chart and a question, then read an I Ching report. Cultural entertainment, not professional advice.",
-        href: "/算命",
+        href: "/fortune",
         tag: "Live",
-        tone: "ink",
+        tone: "violet",
         glyph: "周易"
+      },
+      {
+        name: "Music",
+        desc: "Search tracks, browse playlists and charts, play online with synced lyrics. Works on phone and desktop.",
+        href: "/music",
+        tag: "Live",
+        tone: "cyan",
+        glyph: "♪"
+      },
+      {
+        name: "Video",
+        desc: "Search shows, browse categories and shorts, multi-source playback with local favorites. Phone and desktop.",
+        href: "/video",
+        tag: "Live",
+        tone: "emerald",
+        glyph: "▶"
       }
     ],
     profile: {
