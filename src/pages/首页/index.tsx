@@ -45,6 +45,17 @@ function MoonIcon() {
   )
 }
 
+function AdminIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  )
+}
+
 export default function Home() {
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem('lang') === 'en' ? 'en' : 'zh'))
   const [theme, setTheme] = useState(() => (localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'))
@@ -136,6 +147,9 @@ export default function Home() {
             <SunIcon />
             <MoonIcon />
           </button>
+          <Link className="admin-entry" to="/admin" title={ui.admin} aria-label={ui.admin}>
+            <AdminIcon />
+          </Link>
           <a className="btn btn--outline" href={t.profile.resume} target="_blank" rel="noreferrer">
             {ui.resume}
           </a>

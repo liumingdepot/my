@@ -121,6 +121,63 @@ html[data-theme='dark'] .vod::after {
   margin-bottom: 14px;
 }
 
+.vod-modes {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 4px;
+  margin: 10px 0 6px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+.vod-modes button {
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  padding: 0.42rem 0.95rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.vod-modes button:hover {
+  color: var(--ink);
+}
+
+.vod-modes button.is-active {
+  color: #fff;
+  background: var(--grad-btn);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.24);
+}
+
+.vod.is-live .vod-modes button.is-active {
+  background: linear-gradient(90deg, #0f766e, #14b8a6);
+  box-shadow: 0 6px 14px rgba(13, 148, 136, 0.24);
+}
+
+.vod.is-live::after {
+  background:
+    radial-gradient(420px 420px at 92% -6%, #99f6e4, transparent 68%),
+    radial-gradient(360px 360px at -6% 24%, #a5f3fc, transparent 70%),
+    radial-gradient(300px 300px at 72% 96%, #bbf7d0, transparent 68%);
+}
+
+html[data-theme='dark'] .vod.is-live::after {
+  background:
+    radial-gradient(420px 420px at 92% -6%, #134e4a, transparent 68%),
+    radial-gradient(360px 360px at -6% 24%, #164e63, transparent 70%),
+    radial-gradient(300px 300px at 72% 96%, #14532d, transparent 68%);
+}
+
 .vod-brand__head {
   display: flex;
   align-items: center;
@@ -161,6 +218,14 @@ html[data-theme='dark'] .vod::after {
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+.vod.is-live .vod-brand p {
+  color: #14b8a6;
+}
+
+html[data-theme='dark'] .vod.is-live .vod-brand p {
+  color: #5eead4;
 }
 
 .vod-tabs {

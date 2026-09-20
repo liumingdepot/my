@@ -25,8 +25,7 @@ export function VideoDetail({ item, onClose, onOpenRelated, actions }: Props) {
 
   const currentSource = sources[sourceIndex] || sources[0]
   const currentEp = currentSource?.episodes[episodeIndex] || currentSource?.episodes[0]
-  const isSeries =
-    item.type_name.includes('剧') || (currentSource?.episodes.length ?? 0) > 8
+  const isSeries = item.type_name.includes('剧') || (currentSource?.episodes.length ?? 0) > 8
 
   useEffect(() => {
     const video = videoRef.current
@@ -102,7 +101,9 @@ export function VideoDetail({ item, onClose, onOpenRelated, actions }: Props) {
 
         <aside className="vod-meta">
           <div className="vod-meta__head">
-            <img src={item.vod_pic} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            {item.vod_pic ? (
+              <img src={item.vod_pic} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            ) : null}
             <div>
               <h3>{item.vod_name}</h3>
               <p>
@@ -172,11 +173,7 @@ export function VideoDetail({ item, onClose, onOpenRelated, actions }: Props) {
           </div>
 
           {onOpenRelated && (
-            <button
-              type="button"
-              className="vod-related"
-              onClick={() => onOpenRelated(item.vod_name)}
-            >
+            <button type="button" className="vod-related" onClick={() => onOpenRelated(item.vod_name)}>
               {t.related}
             </button>
           )}

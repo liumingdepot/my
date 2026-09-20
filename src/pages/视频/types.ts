@@ -1,7 +1,17 @@
+export type Mode = 'vod' | 'live'
+
 export type Tab = 'search' | 'category' | 'short' | 'fav'
 
 export type VideoSource = {
   name: string
+}
+
+export type LiveChannel = {
+  name: string
+  url: string
+  logo: string
+  group: string
+  tvgId: string
 }
 
 export type PlayEpisode = {

@@ -8,5 +8,24 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	/**
+	 * D1 / KV 均在 Cloudflare 控制台创建，名称为 my。
+	 * 远程建表：pnpm db:migrate:remote
+	 */
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "my",
+			"database_id": "5e328951-67c8-4328-b541-d705c6b9458f",
+			"migrations_dir": "migrations"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "33fbab1ffc804003a01662f6587df57c",
+			"preview_id": "33fbab1ffc804003a01662f6587df57c"
+		}
+	]
 }

@@ -1,20 +1,15 @@
+import type { AdminEnv } from '../admin/types.js'
+import { ensureVideoSourcesTable, listEnabledVideoSources } from '../admin/videoSources.js'
+import { FALLBACK_VIDEO_SOURCES } from './defaults.js'
+
+const LIVE_PLAYLIST_URL = 'https://live.zbds.top/tv/iptv4.m3u'
+
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
 }
 
-/** MacCMS-style public sources */
-export const VIDEO_SOURCES = [
-  { name: '量子', url: 'https://cj.lziapi.com/api.php/provide/vod/' },
-  { name: '红牛', url: 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/at/json/' },
-  { name: '新浪', url: 'https://api.xinlangapi.com/xinlangapi.php/provide/vod/' },
-  { name: '非凡', url: 'https://ffzy4.tv/api.php/provide/vod/' },
-  { name: '无尽', url: 'https://api.wujinapi.com/api.php/provide/vod/' },
-  { name: '金鹰', url: 'https://jinyingzy.com/provide/vod/' },
-  { name: '茅台', url: 'https://caiji.maotai999.vip/api.php/provide/vod/from/mtm3u8/at/json/' },
-  { name: '福利1', url: 'https://lbapi9.com/api.php/provide/vod/' },
-  { name: '福利2', url: 'http://fhapi9.com/api.php/provide/vod/' },
-] as const
+type SourceEntry = { name: string; url: string }
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: jsonHeaders })
@@ -24,9 +19,22 @@ function bad(message: string, status = 400) {
   return json({ error: message }, status)
 }
 
-function findSource(name: string | null) {
-  if (!name) return VIDEO_SOURCES[0]
-  return VIDEO_SOURCES.find((s) => s.name === name) ?? VIDEO_SOURCES[0]
+async function loadSources(env: AdminEnv): Promise<SourceEntry[]> {
+  try {
+    await ensureVideoSourcesTable(env.DB)
+    const rows = await listEnabledVideoSources(env.DB)
+    if (rows.length) {
+      return rows.map((row) => ({ name: row.name, url: row.url }))
+    }
+  } catch {
+    /* fall through to hardcoded fallback */
+  }
+  return FALLBACK_VIDEO_SOURCES.map((s) => ({ name: s.name, url: s.url }))
+}
+
+function findSource(sources: SourceEntry[], name: string | null) {
+  if (!name) return sources[0]!
+  return sources.find((s) => s.name === name) ?? sources[0]!
 }
 
 async function fetchUpstream(url: string) {
@@ -100,8 +108,48 @@ function rewritePlaylist(body: string, playlistUrl: string, proxyBase: string) {
     .join('\n')
 }
 
+type LiveChannel = {
+  name: string
+  url: string
+  logo: string
+  group: string
+  tvgId: string
+}
+
+function attr(line: string, key: string) {
+  return new RegExp(`${key}="([^"]*)"`).exec(line)?.[1] ?? ''
+}
+
+/** Parse IPTV #EXTINF playlist into channel list (http/https only). */
+function parseIptvM3u(text: string): LiveChannel[] {
+  const lines = text.split(/\r?\n/)
+  const list: LiveChannel[] = []
+  let pending: Omit<LiveChannel, 'url'> | null = null
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (trimmed.startsWith('#EXTINF:')) {
+      const name = trimmed.includes(',') ? trimmed.slice(trimmed.lastIndexOf(',') + 1).trim() : ''
+      pending = {
+        name,
+        logo: attr(trimmed, 'tvg-logo'),
+        group: attr(trimmed, 'group-title') || '未分组',
+        tvgId: attr(trimmed, 'tvg-id') || attr(trimmed, 'tvg-name') || name,
+      }
+      continue
+    }
+    if (trimmed.startsWith('#') || !pending) continue
+    if (/^https?:\/\//i.test(trimmed)) {
+      list.push({ ...pending, url: trimmed })
+    }
+    pending = null
+  }
+  return list
+}
+
 /** 茅台采集接口禁止 wd 搜索，用站内联想拿 id，再拉 m3u8 详情。 */
-async function searchMaotai(source: { name: string; url: string }, q: string, pg: number) {
+async function searchMaotai(source: SourceEntry, q: string, pg: number) {
   const pageSize = 20
   const suggestUrl = new URL('/index.php/ajax/suggest', source.url)
   suggestUrl.searchParams.set('mid', '1')
@@ -126,7 +174,7 @@ async function searchMaotai(source: { name: string; url: string }, q: string, pg
   return { ...normalized, page: pg, pagecount, total: hits.length }
 }
 
-export async function handleVideoApi(request: Request, url: URL): Promise<Response> {
+export async function handleVideoApi(request: Request, url: URL, env: AdminEnv): Promise<Response> {
   if (request.method !== 'GET') {
     return bad('请使用 GET', 405)
   }
@@ -135,14 +183,17 @@ export async function handleVideoApi(request: Request, url: URL): Promise<Respon
 
   try {
     switch (path) {
-      case 'sources':
-        return json({ list: VIDEO_SOURCES.map((s) => ({ name: s.name })) })
+      case 'sources': {
+        const sources = await loadSources(env)
+        return json({ list: sources.map((s) => ({ name: s.name })) })
+      }
 
       case 'search': {
         const q = url.searchParams.get('q')?.trim()
         if (!q) return bad('请输入关键词')
         const pg = Number(url.searchParams.get('pg') || '1') || 1
-        const source = findSource(url.searchParams.get('source'))
+        const sources = await loadSources(env)
+        const source = findSource(sources, url.searchParams.get('source'))
         if (source.name === '茅台') {
           return json(await searchMaotai(source, q, pg))
         }
@@ -156,7 +207,8 @@ export async function handleVideoApi(request: Request, url: URL): Promise<Respon
         const t = url.searchParams.get('t')?.trim()
         if (!t) return bad('缺少分类')
         const pg = Number(url.searchParams.get('pg') || '1') || 1
-        const source = findSource(url.searchParams.get('source'))
+        const sources = await loadSources(env)
+        const source = findSource(sources, url.searchParams.get('source'))
         const data = await fetchUpstream(`${source.url}?ac=videolist&t=${encodeURIComponent(t)}&pg=${pg}`)
         return json(normalizeList(data, source.name))
       }
@@ -164,14 +216,37 @@ export async function handleVideoApi(request: Request, url: URL): Promise<Respon
       case 'detail': {
         const ids = url.searchParams.get('ids')?.trim()
         if (!ids) return bad('缺少 id')
-        const source = findSource(url.searchParams.get('source'))
+        const sources = await loadSources(env)
+        const source = findSource(sources, url.searchParams.get('source'))
         const data = await fetchUpstream(`${source.url}?ac=detail&ids=${encodeURIComponent(ids)}`)
         return json(normalizeList(data, source.name))
+      }
+
+      case 'live': {
+        const upstream = await fetch(LIVE_PLAYLIST_URL, {
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            accept: 'application/vnd.apple.mpegurl,audio/x-mpegurl,text/plain,*/*',
+          },
+          signal: AbortSignal.timeout(30_000),
+        })
+        if (!upstream.ok) return bad('直播源拉取失败', 502)
+        const text = await upstream.text()
+        const list = parseIptvM3u(text)
+        const groups = [...new Set(list.map((c) => c.group))]
+        return new Response(JSON.stringify({ list, groups }), {
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'public, max-age=300',
+          },
+        })
       }
 
       case 'stream': {
         const target = url.searchParams.get('url')?.trim()
         if (!target || !isAllowedStreamUrl(target)) return bad('无效地址')
+        const forcePlaylist = url.searchParams.get('playlist') === '1'
         const upstream = await fetch(target, {
           headers: {
             'user-agent':
@@ -185,6 +260,7 @@ export async function handleVideoApi(request: Request, url: URL): Promise<Respon
 
         const contentType = upstream.headers.get('content-type') || ''
         const isPlaylist =
+          forcePlaylist ||
           contentType.includes('mpegurl') ||
           contentType.includes('m3u8') ||
           target.includes('.m3u8')

@@ -1,4 +1,4 @@
-import type { PlaySource, VodItem } from './types'
+import type { LiveChannel, PlaySource, VodItem } from './types'
 
 async function getJson<T>(path: string, params?: Record<string, string | number>): Promise<T> {
   const url = new URL(path, window.location.origin)
@@ -79,12 +79,17 @@ export function listVideos(t: string | number, source: string, pg = 1) {
   }))
 }
 
-export function streamUrl(raw: string) {
+export function streamUrl(raw: string, opts?: { playlist?: boolean }) {
   if (!raw) return ''
   if (raw.includes('.mp4') && !raw.includes('.m3u8')) return raw
   const u = new URL('/api/video/stream', window.location.origin)
   u.searchParams.set('url', raw)
+  if (opts?.playlist) u.searchParams.set('playlist', '1')
   return u.toString()
+}
+
+export function fetchLiveChannels() {
+  return getJson<{ list: LiveChannel[]; groups: string[] }>('/api/video/live')
 }
 
 /** Merge same title across sources (like video-master search) */

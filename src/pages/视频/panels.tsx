@@ -68,6 +68,9 @@ export const CATEGORIES: CategoryNode[] = [
 const SHORT_TYPE = 46
 const LIST_SOURCE = '量子'
 
+/** Shown until /api/video/sources returns admin config. */
+const FALLBACK_SOURCES = [{ name: '量子' }, { name: '红牛' }] as const
+
 type GridProps = {
   list: VodItem[]
   loading?: boolean
@@ -123,7 +126,7 @@ export function SearchPanel({ initialQuery, onOpen, onConsumedQuery }: SearchPro
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [history, setHistory] = useState(getSearchHistory)
-  const [sources, setSources] = useState<{ name: string }[]>([])
+  const [sources, setSources] = useState<{ name: string }[]>(() => [...FALLBACK_SOURCES])
   const [active, setActive] = useState(getActiveSources)
   const [editing, setEditing] = useState(false)
   const [showResult, setShowResult] = useState(!!initialQuery)
@@ -132,7 +135,13 @@ export function SearchPanel({ initialQuery, onOpen, onConsumedQuery }: SearchPro
   const [gateError, setGateError] = useState(false)
 
   useEffect(() => {
-    void fetchSources().then((res) => setSources(res.list)).catch(() => {})
+    void fetchSources()
+      .then((res) => {
+        if (res.list?.length) setSources(res.list)
+      })
+      .catch(() => {
+        /* keep FALLBACK_SOURCES */
+      })
   }, [])
 
   useEffect(() => {
@@ -228,7 +237,7 @@ export function SearchPanel({ initialQuery, onOpen, onConsumedQuery }: SearchPro
       <div className="vod-sources">
         <p>{t.sources}</p>
         <div className="vod-chips">
-          {(sources.length ? sources : active.map((name) => ({ name }))).map((s) => (
+          {sources.map((s) => (
             <button
               key={s.name}
               type="button"
