@@ -5,7 +5,7 @@ import { ApiError, SEED_ACCOUNT, fetchMe, login } from '../auth'
 
 export default function AdminLoginPage() {
   const navigate = useNavigate()
-  const [username, setUsername] = useState(SEED_ACCOUNT.username)
+  const [username, setUsername] = useState<string>(SEED_ACCOUNT.username)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
