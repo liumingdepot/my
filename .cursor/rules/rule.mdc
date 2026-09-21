@@ -1,0 +1,8 @@
+---
+description: 
+alwaysApply: true
+---
+
+每次修改  /src/pages/首页  都会自动把首页内容 同步到 README.md 并在顶部 切换
+中文README_CN.md 
+英文README.md
