@@ -1,5 +1,5 @@
 import type { AdminEnv } from './types.js'
-import { ensureVideoSourcesTable } from './videoSources.js'
+import { ensureVideoSourcesTable } from '../video/sources.js'
 
 const SEED_USERNAME = 'admin'
 const SEED_PASSWORD = 'admin123'

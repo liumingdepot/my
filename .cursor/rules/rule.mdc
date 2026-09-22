@@ -6,3 +6,37 @@ alwaysApply: true
 每次修改  /src/pages/首页  都会自动把首页内容 同步到 README.md 并在顶部 切换
 中文README_CN.md 
 英文README.md
+
+
+目录模板
+例如
+目录名称
+    utils
+       server.ts // 接口相关
+       i18n 等等
+    model
+        // 其他组件等
+    index.tsx
+
+
+tsx css 模板
+import styled from 'styled-components'
+
+const App = () => {
+    return (
+        <Style>
+            <div className="text"></div>
+            // 其他内容
+        </Style>
+    )
+}
+
+const Style = styled.div`
+    // css 样式
+
+    .text{
+       // css 样式
+    }
+
+    // 其他字类样式
+`

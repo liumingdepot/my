@@ -1,15 +1,15 @@
-import type { AdminEnv } from '../admin/types.js'
-import { ensureVideoSourcesTable, listEnabledVideoSources } from '../admin/videoSources.js'
-import { FALLBACK_VIDEO_SOURCES } from './defaults.js'
-
-const LIVE_PLAYLIST_URL = 'https://live.zbds.top/tv/iptv4.m3u'
+import {
+  DEFAULT_VIDEO_SOURCES,
+  loadEnabledSourceEntries,
+  type SourceEntry,
+} from './sources.js'
 
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
 }
 
-type SourceEntry = { name: string; url: string }
+type VideoEnv = { DB: D1Database }
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: jsonHeaders })
@@ -19,22 +19,13 @@ function bad(message: string, status = 400) {
   return json({ error: message }, status)
 }
 
-async function loadSources(env: AdminEnv): Promise<SourceEntry[]> {
-  try {
-    await ensureVideoSourcesTable(env.DB)
-    const rows = await listEnabledVideoSources(env.DB)
-    if (rows.length) {
-      return rows.map((row) => ({ name: row.name, url: row.url }))
-    }
-  } catch {
-    /* fall through to hardcoded fallback */
+function findSource(sources: SourceEntry[], name: string | null, primary: string) {
+  if (!sources.length) {
+    const fallback = DEFAULT_VIDEO_SOURCES[0]!
+    return { name: fallback.name, url: fallback.url }
   }
-  return FALLBACK_VIDEO_SOURCES.map((s) => ({ name: s.name, url: s.url }))
-}
-
-function findSource(sources: SourceEntry[], name: string | null) {
-  if (!name) return sources[0]!
-  return sources.find((s) => s.name === name) ?? sources[0]!
+  if (!name) return sources.find((s) => s.name === primary) ?? sources[0]!
+  return sources.find((s) => s.name === name) ?? sources.find((s) => s.name === primary) ?? sources[0]!
 }
 
 async function fetchUpstream(url: string) {
@@ -50,6 +41,329 @@ async function fetchUpstream(url: string) {
   return res.json() as Promise<Record<string, unknown>>
 }
 
+/** 腾讯视频频道页：只取片名/封面，前端点进站内搜索 */
+async function fetchQqChannel(pageId: string) {
+  const guid = 'video-home-qq'
+  const url =
+    `https://pbaccess.video.qq.com/trpc.vector_layout.page_view.PageService/getPage` +
+    `?video_appid=3000010&vversion_platform=2&vdevice_guid=${guid}`
+  const body = {
+    page_params: {
+      page_type: 'channel',
+      page_id: pageId,
+      scene: 'channel',
+      new_mark_label_enabled: '1',
+      skip_privacy_types: '0',
+      support_click_scan: '1',
+    },
+    page_bypass_params: {
+      params: {
+        platform_id: '2',
+        caller_id: '3000010',
+        data_mode: 'default',
+        user_mode: 'default',
+        page_type: 'channel',
+        page_id: pageId,
+        scene: 'channel',
+        new_mark_label_enabled: '1',
+      },
+      scene: 'channel',
+      app_version: '',
+      abtest_bypass_id: guid,
+    },
+    page_context: null,
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: 'https://v.qq.com',
+      referer: 'https://v.qq.com/',
+      'user-agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) throw new Error(`qq ${res.status}`)
+  const data = (await res.json()) as Record<string, unknown>
+  if (data.ret !== 0 && data.ret !== '0') {
+    throw new Error(String(data.msg || '腾讯频道失败'))
+  }
+  return {
+    list: extractQqTitles(data.data),
+    menus: extractQqMenus(data.data),
+    page_id: pageId,
+  }
+}
+
+function cleanQqTitle(raw: string) {
+  return raw.split('|')[0]!.replace(/\s+/g, ' ').trim()
+}
+
+function extractQqMenus(root: unknown) {
+  type Menu = { title: string; filter: string }
+  const menus: Menu[] = []
+  const seen = new Set<string>()
+
+  function walk(obj: unknown, moduleType: string) {
+    if (!obj || typeof obj !== 'object') return
+    if (Array.isArray(obj)) {
+      for (const item of obj) walk(item, moduleType)
+      return
+    }
+    const rec = obj as Record<string, unknown>
+    const type = typeof rec.type === 'string' ? rec.type : ''
+    const nextType = type.startsWith('pc_') ? type : moduleType
+
+    if (nextType === 'pc_hot_filter_child') {
+      const params =
+        rec.params && typeof rec.params === 'object'
+          ? (rec.params as Record<string, unknown>)
+          : null
+      if (params) {
+        const title = String(params.label_title || '').trim()
+        const filter = String(params.filter_value || '').trim()
+        const key = `${title}|${filter}`
+        if (title && filter && !seen.has(key)) {
+          seen.add(key)
+          menus.push({ title, filter })
+        }
+      }
+    }
+
+    for (const value of Object.values(rec)) walk(value, nextType)
+  }
+
+  walk(root, '')
+  return menus
+}
+
+function normalizeQqFilter(filter: string) {
+  const raw = filter.trim()
+  if (!raw) return 'sort=75'
+  if (!/(?:^|&)sort=/.test(raw)) return `sort=75&${raw}`
+  return raw
+}
+
+function encodeQqCtx(obj: unknown) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj))
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function decodeQqCtx(raw: string) {
+  const b64 = raw.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+  const bin = atob(padded)
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0))
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown
+}
+
+/**
+ * 腾讯视频频道筛选列表
+ * https://pbaccess.video.qq.com/.../MVLPageHTTPService/getMVLPage
+ */
+async function fetchQqFilterList(channelId: string, filter: string, pageContext?: unknown) {
+  const url =
+    'https://pbaccess.video.qq.com/trpc.multi_vector_layout.mvl_controller.MVLPageHTTPService/getMVLPage' +
+    '?&vversion_platform=2'
+  const body: Record<string, unknown> = {
+    page_params: {
+      channel_id: channelId,
+      filter_params: normalizeQqFilter(filter),
+      page_type: 'operation',
+      page_id: 'channel_list',
+    },
+  }
+  if (pageContext && typeof pageContext === 'object') {
+    body.page_context = pageContext
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      origin: 'https://v.qq.com',
+      referer: 'https://v.qq.com/',
+      'user-agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) throw new Error(`qq mvl ${res.status}`)
+  const data = (await res.json()) as Record<string, unknown>
+  if (data.ret !== 0 && data.ret !== '0') {
+    throw new Error(String(data.msg || '腾讯列表失败'))
+  }
+  const root = data.data as Record<string, unknown> | undefined
+  return {
+    list: extractMvlPosters(root),
+    filters: extractMvlFilters(root),
+    has_next: Boolean(root?.has_next_page),
+    next_page_context: root?.page_context ?? null,
+    channel_id: channelId,
+    filter: normalizeQqFilter(filter),
+  }
+}
+
+function extractMvlFilters(root: unknown) {
+  type Opt = { n: string; v: string }
+  type Group = { key: string; name: string; options: Opt[] }
+  const order: string[] = []
+  const map = new Map<string, Group>()
+
+  function walk(obj: unknown) {
+    if (!obj || typeof obj !== 'object') return
+    if (Array.isArray(obj)) {
+      for (const item of obj) walk(item)
+      return
+    }
+    const rec = obj as Record<string, unknown>
+    if (rec.type === 'searchlist_filter_card' && rec.params && typeof rec.params === 'object') {
+      const p = rec.params as Record<string, unknown>
+      const key = String(p.index_item_key || '').trim()
+      const name = String(p.index_name || '').trim()
+      const n = String(p.option_name || '').trim()
+      const v = String(p.option_value || '').trim()
+      if (key && name && n && v) {
+        let group = map.get(key)
+        if (!group) {
+          group = { key, name, options: [] }
+          map.set(key, group)
+          order.push(key)
+        }
+        if (!group.options.some((o) => o.v === v)) {
+          group.options.push({ n, v })
+        }
+      }
+    }
+    for (const value of Object.values(rec)) walk(value)
+  }
+
+  walk(root)
+  return order.map((k) => map.get(k)!)
+}
+
+function extractMvlPosters(root: unknown) {
+  const list: {
+    title: string
+    pic: string
+    sub: string
+    cid: string
+    year: string
+    score: string
+    badge: string
+  }[] = []
+  const seen = new Set<string>()
+
+  function parseMark(raw: unknown) {
+    try {
+      const mark = JSON.parse(String(raw || '{}')) as Record<
+        string,
+        { info?: { text?: string } }
+      >
+      return {
+        year: String(mark['1']?.info?.text || '').trim(),
+        badge: String(mark['2']?.info?.text || '').trim(),
+        score: String(mark['4']?.info?.text || '').trim(),
+      }
+    } catch {
+      return { year: '', badge: '', score: '' }
+    }
+  }
+
+  function walk(obj: unknown) {
+    if (!obj || typeof obj !== 'object') return
+    if (Array.isArray(obj)) {
+      for (const item of obj) walk(item)
+      return
+    }
+    const rec = obj as Record<string, unknown>
+    if (rec.type === 'searchlist_poster_card' && rec.params && typeof rec.params === 'object') {
+      const p = rec.params as Record<string, unknown>
+      const cid = String(p.cid || '').trim()
+      const title = cleanQqTitle(String(p.mz_title || p.title || ''))
+      const pic = String(p.new_pic_vt || p.pic_1280x720 || p.new_pic_hz || p.image_url || '').trim()
+      const sub = String(p.sub_title || p.protagonist_name || p.second_title || '')
+        .replace(/^\[|\]$/g, '')
+        .trim()
+      const mark = parseMark(p.latest_mark_label)
+      const year = String(p.year || mark.year || '').trim()
+      const badge = mark.badge && mark.badge !== year ? mark.badge : ''
+      const score = mark.score
+      if (cid && title && !seen.has(cid)) {
+        seen.add(cid)
+        list.push({ title, pic, sub, cid, year, score, badge })
+      }
+    }
+    for (const value of Object.values(rec)) walk(value)
+  }
+
+  walk(root)
+  return list
+}
+
+function extractQqTitles(root: unknown) {
+  type Hit = { title: string; pic: string; sub: string; cid: string; prefer: number }
+  const byCid = new Map<string, Hit>()
+
+  function preferOf(moduleType: string) {
+    if (moduleType === 'pc_video' || moduleType === 'pc_shelves') return 3
+    if (moduleType === 'pc_chasing') return 2
+    if (moduleType === 'pc_carousel') return 1
+    return 0
+  }
+
+  function walk(obj: unknown, moduleType: string) {
+    if (!obj || typeof obj !== 'object') return
+    if (Array.isArray(obj)) {
+      for (const item of obj) walk(item, moduleType)
+      return
+    }
+    const rec = obj as Record<string, unknown>
+    const type = typeof rec.type === 'string' ? rec.type : ''
+    const nextType = type.startsWith('pc_') ? type : moduleType
+    if (nextType === 'pc_card_ad') return
+
+    const params =
+      rec.params && typeof rec.params === 'object'
+        ? (rec.params as Record<string, unknown>)
+        : null
+    if (params) {
+      const title = cleanQqTitle(String(params.title || ''))
+      const cid = String(params.cid || '').trim()
+      const pic = String(params.pic_1280x720 || '').trim()
+      const sub = String(params.sub_title || '').trim()
+      const prefer = preferOf(nextType)
+      if (title && cid && prefer > 0) {
+        const prev = byCid.get(cid)
+        if (!prev || prefer > prev.prefer) {
+          byCid.set(cid, {
+            title,
+            pic: pic || prev?.pic || '',
+            sub: sub || prev?.sub || '',
+            cid,
+            prefer,
+          })
+        } else if (prev && !prev.pic && pic) {
+          prev.pic = pic
+        }
+      }
+    }
+
+    for (const value of Object.values(rec)) walk(value, nextType)
+  }
+
+  walk(root, '')
+  return [...byCid.values()]
+    .filter((i) => i.title.length >= 2)
+    .map(({ title, pic, sub, cid }) => ({ title, pic, sub, cid }))
+}
+
 function normalizeList(data: Record<string, unknown>, sourceName: string) {
   const list = Array.isArray(data.list) ? data.list : []
   return {
@@ -61,14 +375,19 @@ function normalizeList(data: Record<string, unknown>, sourceName: string) {
         vod_pic: String(item.vod_pic ?? ''),
         vod_remarks: String(item.vod_remarks ?? ''),
         vod_blurb: String(item.vod_blurb ?? item.vod_content ?? ''),
+        vod_content: String(item.vod_content ?? item.vod_blurb ?? ''),
         vod_actor: String(item.vod_actor ?? ''),
         vod_director: String(item.vod_director ?? ''),
         vod_area: String(item.vod_area ?? ''),
         vod_year: String(item.vod_year ?? item.vod_pubdate ?? ''),
         vod_en: String(item.vod_en ?? ''),
+        vod_class: String(item.vod_class ?? ''),
+        vod_score: String(item.vod_score ?? ''),
+        vod_douban_score: String(item.vod_douban_score ?? ''),
         type_id: item.type_id,
         type_name: String(item.type_name ?? ''),
         vod_play_url: String(item.vod_play_url ?? ''),
+        vod_play_from: String(item.vod_play_from ?? ''),
         source: sourceName,
       }
     }),
@@ -108,50 +427,11 @@ function rewritePlaylist(body: string, playlistUrl: string, proxyBase: string) {
     .join('\n')
 }
 
-type LiveChannel = {
-  name: string
-  url: string
-  logo: string
-  group: string
-  tvgId: string
-}
-
-function attr(line: string, key: string) {
-  return new RegExp(`${key}="([^"]*)"`).exec(line)?.[1] ?? ''
-}
-
-/** Parse IPTV #EXTINF playlist into channel list (http/https only). */
-function parseIptvM3u(text: string): LiveChannel[] {
-  const lines = text.split(/\r?\n/)
-  const list: LiveChannel[] = []
-  let pending: Omit<LiveChannel, 'url'> | null = null
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-    if (trimmed.startsWith('#EXTINF:')) {
-      const name = trimmed.includes(',') ? trimmed.slice(trimmed.lastIndexOf(',') + 1).trim() : ''
-      pending = {
-        name,
-        logo: attr(trimmed, 'tvg-logo'),
-        group: attr(trimmed, 'group-title') || '未分组',
-        tvgId: attr(trimmed, 'tvg-id') || attr(trimmed, 'tvg-name') || name,
-      }
-      continue
-    }
-    if (trimmed.startsWith('#') || !pending) continue
-    if (/^https?:\/\//i.test(trimmed)) {
-      list.push({ ...pending, url: trimmed })
-    }
-    pending = null
-  }
-  return list
-}
-
-/** 茅台采集接口禁止 wd 搜索，用站内联想拿 id，再拉 m3u8 详情。 */
+/** 茅台采集接口禁止 wd 搜索，用站内联想拿 id，再拉详情 */
 async function searchMaotai(source: SourceEntry, q: string, pg: number) {
   const pageSize = 20
-  const suggestUrl = new URL('/index.php/ajax/suggest', source.url)
+  const origin = new URL(source.url).origin
+  const suggestUrl = new URL('/index.php/ajax/suggest', origin)
   suggestUrl.searchParams.set('mid', '1')
   suggestUrl.searchParams.set('wd', q)
   suggestUrl.searchParams.set('limit', '60')
@@ -174,7 +454,11 @@ async function searchMaotai(source: SourceEntry, q: string, pg: number) {
   return { ...normalized, page: pg, pagecount, total: hits.length }
 }
 
-export async function handleVideoApi(request: Request, url: URL, env: AdminEnv): Promise<Response> {
+export async function handleVideoApi(
+  request: Request,
+  url: URL,
+  env: VideoEnv,
+): Promise<Response> {
   if (request.method !== 'GET') {
     return bad('请使用 GET', 405)
   }
@@ -184,16 +468,31 @@ export async function handleVideoApi(request: Request, url: URL, env: AdminEnv):
   try {
     switch (path) {
       case 'sources': {
-        const sources = await loadSources(env)
-        return json({ list: sources.map((s) => ({ name: s.name })) })
+        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+        return json({
+          list: sources.map((s) => ({ name: s.name })),
+          primary,
+        })
+      }
+
+      case 'classes': {
+        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+        const source = findSource(
+          sources,
+          url.searchParams.get('source') || primary,
+          primary,
+        )
+        const data = await fetchUpstream(`${source.url}?ac=list`)
+        const classes = Array.isArray(data.class) ? data.class : []
+        return json({ list: classes, source: source.name })
       }
 
       case 'search': {
         const q = url.searchParams.get('q')?.trim()
         if (!q) return bad('请输入关键词')
         const pg = Number(url.searchParams.get('pg') || '1') || 1
-        const sources = await loadSources(env)
-        const source = findSource(sources, url.searchParams.get('source'))
+        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+        const source = findSource(sources, url.searchParams.get('source'), primary)
         if (source.name === '茅台') {
           return json(await searchMaotai(source, q, pg))
         }
@@ -207,39 +506,53 @@ export async function handleVideoApi(request: Request, url: URL, env: AdminEnv):
         const t = url.searchParams.get('t')?.trim()
         if (!t) return bad('缺少分类')
         const pg = Number(url.searchParams.get('pg') || '1') || 1
-        const sources = await loadSources(env)
-        const source = findSource(sources, url.searchParams.get('source'))
-        const data = await fetchUpstream(`${source.url}?ac=videolist&t=${encodeURIComponent(t)}&pg=${pg}`)
+        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+        const source = findSource(sources, url.searchParams.get('source'), primary)
+        const data = await fetchUpstream(
+          `${source.url}?ac=videolist&t=${encodeURIComponent(t)}&pg=${pg}`,
+        )
         return json(normalizeList(data, source.name))
       }
 
       case 'detail': {
         const ids = url.searchParams.get('ids')?.trim()
         if (!ids) return bad('缺少 id')
-        const sources = await loadSources(env)
-        const source = findSource(sources, url.searchParams.get('source'))
-        const data = await fetchUpstream(`${source.url}?ac=detail&ids=${encodeURIComponent(ids)}`)
+        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+        const source = findSource(sources, url.searchParams.get('source'), primary)
+        const data = await fetchUpstream(
+          `${source.url}?ac=detail&ids=${encodeURIComponent(ids)}`,
+        )
         return json(normalizeList(data, source.name))
       }
 
-      case 'live': {
-        const upstream = await fetch(LIVE_PLAYLIST_URL, {
-          headers: {
-            'user-agent':
-              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            accept: 'application/vnd.apple.mpegurl,audio/x-mpegurl,text/plain,*/*',
-          },
-          signal: AbortSignal.timeout(30_000),
-        })
-        if (!upstream.ok) return bad('直播源拉取失败', 502)
-        const text = await upstream.text()
-        const list = parseIptvM3u(text)
-        const groups = [...new Set(list.map((c) => c.group))]
-        return new Response(JSON.stringify({ list, groups }), {
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'public, max-age=300',
-          },
+      case 'qq': {
+        const pageId = url.searchParams.get('page_id')?.trim() || '100101'
+        if (!/^\d{4,8}$/.test(pageId)) return bad('无效 page_id')
+        return json(await fetchQqChannel(pageId))
+      }
+
+      case 'qq/list': {
+        const channelId = url.searchParams.get('channel_id')?.trim() || ''
+        if (!/^\d{4,8}$/.test(channelId)) return bad('无效 channel_id')
+        const filter = url.searchParams.get('filter')?.trim() || 'sort=75'
+        if (!/^[\w.=&\-,%]+$/.test(filter) || filter.length > 500) return bad('无效 filter')
+        let pageContext: unknown
+        const ctxRaw = url.searchParams.get('ctx')?.trim()
+        if (ctxRaw) {
+          try {
+            pageContext = decodeQqCtx(ctxRaw)
+          } catch {
+            return bad('无效 ctx')
+          }
+        }
+        const result = await fetchQqFilterList(channelId, filter, pageContext)
+        return json({
+          list: result.list,
+          filters: result.filters,
+          has_next: result.has_next,
+          next_ctx: result.next_page_context != null ? encodeQqCtx(result.next_page_context) : '',
+          channel_id: result.channel_id,
+          filter: result.filter,
         })
       }
 

@@ -4,11 +4,11 @@
 
 My live site: [http://www.liuming1234.xyz/](http://www.liuming1234.xyz/)
 
-Available for new opportunities · Xi'an / Frontend
+Open to new opportunities · Xi'an / Frontend
 
 **Scalable** **frontend** experiences, crafted with engineering care.
 
-Senior frontend engineer with 9 years of experience building micro-frontend platforms, multi-end apps, and data visualization. Strong in Vue / React / TypeScript, infrastructure from scratch, and leading teams on complex deliveries. Target role: Frontend Development Engineer · 20–25K · Xi'an.
+Senior frontend engineer with 10 years of experience in micro-frontend architecture, multi-end delivery, and data visualization. Strong in Vue / React / TypeScript; builds frontend infrastructure from scratch and leads teams on complex systems. Target role: Frontend Development Engineer · 20–25K · Xi'an.
 
 - Phone: [15332335062](tel:15332335062)
 - Resume: [liuming.pdf](http://www.liuming1234.xyz/resumes/liuming.pdf)
@@ -21,27 +21,27 @@ Senior frontend engineer with 9 years of experience building micro-frontend plat
 
 ## 02 — Works
 
-Things you can open.
+Personal developer works — for learning & exchange only
 
 ### [Fortune](http://www.liuming1234.xyz/fortune) · Live
 
-Enter a birth chart and a question, then read an I Ching report. Cultural entertainment, not professional advice.
+Enter birth details and a question, then get an I Ching reading. For traditional culture and entertainment only.
 
 ### [Music](http://www.liuming1234.xyz/music) · Live
 
-Search tracks, browse playlists and charts, play online with synced lyrics. Works on phone and desktop.
+Search tracks, browse recommendations and charts, play online with synced lyrics. Works on phone and desktop.
 
-### [Video](http://www.liuming1234.xyz/video) · Live
+### [Video](http://www.liuming1234.xyz/video) · Demo
 
-Search shows, browse categories and shorts, multi-source playback with local favorites. Phone and desktop.
+Static video site demo: home feed, category filters, detail and play pages, styled after a MacCMS template.
 
 ---
 
 ## 03 — About
 
-A decade of crafting interfaces & architecture.
+Nearly a decade of crafting interfaces & architecture.
 
-**Full-stack perspective & deep expertise:** 8+ years spanning mobile (UniApp, Flutter, HarmonyOS), desktop (Electron), and web admin systems (React, Vue). Able to quickly own and lead complex frontend deliveries end to end.
+**Full-stack perspective & deep expertise:** 10 years spanning mobile (UniApp, Flutter, HarmonyOS), desktop (Electron and other cross-platform stacks), and web admin systems (React, Vue). Able to quickly own and lead complex frontend deliveries end to end.
 
 **Engineering & architecture mindset:** Strong in micro-frontend design and performance optimization—modularization, build optimization, and standards that improve collaboration and maintainability. Experience building frontend infrastructure from scratch.
 
@@ -58,7 +58,7 @@ A decade of crafting interfaces & architecture.
 
 ## 04 — Skills
 
-Tools I work with.
+Tools & technologies I use.
 
 **Frameworks & Languages:** Vue 2/3 · React · TypeScript · JavaScript · HTML5 · CSS3
 
@@ -92,7 +92,7 @@ Provincial environmental monitoring core system—real-time water stations, AQI,
 
 1. qiankun micro-frontends: split water, atmosphere, and pollution-source modules into independent sub-apps with three-level drill-through and fine-grained permissions
 2. Built ECharts + Canvas / GIS dashboard library for province-wide map drill-down, linked charts, and realtime streams
-3. Lazy loading, Gzip, polling throttling: first paint 4.2s → under 1.5s; 7×24 monitoring hall stability
+3. Lazy loading, on-demand imports, Gzip, polling throttling: first paint 4.2s → under 1.5s; 7×24 monitoring hall stability
 4. Chart config tooling cut new chart development time by ~60%
 
 Stack: qiankun · Vue3 · TypeScript · ECharts · GIS · Vite · Axios
@@ -101,7 +101,7 @@ Stack: qiankun · Vue3 · TypeScript · ECharts · GIS · Vite · Axios
 
 Frontend Development Manager · Mar 2023 – Present
 
-20+ subsystems: monitoring, UniApp enforcement, Flutter enterprise app, OA, WebRTC meetings, emergency command, noise supervision. Unified portal + SSO; new subsystem 3 weeks → 1 week; portal 3.8s → 1.2s.
+20+ subsystems: monitoring, UniApp enforcement, Flutter enterprise app, OA, video meetings, emergency command, noise supervision. Unified portal + SSO; new subsystem 3 weeks → 1 week; portal 3.8s → 1.2s.
 
 Stack: qiankun · Vue/React · UniApp · Flutter · WebRTC · ECharts
 
@@ -134,8 +134,8 @@ Shaanxi Huanxin Henghui Electronic Technology Co., Ltd. · Xi'an
 - Lead architecture and R&D for environmental-informatization and smart-government products; manage a 4–6 person frontend team for multi-end delivery
 - Built qiankun / Module Federation platform base for independent deploy and seamless subsystem integration
 - Led UniApp / Flutter / HarmonyOS mobile and Electron desktop strategy—“one backend, multi-end reach”
-- Built ECharts + Canvas dashboard library; core page load +40%+; build time −60%
-- Introduced Cursor + AI workflows (+30% coding efficiency); scaffolding/CI/CD from scratch; team grew 3 → 10
+- Built ECharts + Canvas interactive dashboard library; core page load +40%+; build time −60%
+- Introduced Cursor + AI workflows (+30% coding efficiency); scaffolding from scratch; team grew 3 → 10
 
 ### Frontend Developer · Jun 2018 – Jun 2020
 

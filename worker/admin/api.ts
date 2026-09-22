@@ -23,11 +23,10 @@ import {
   createVideoSource,
   deleteVideoSource,
   findVideoSourceById,
-  findVideoSourceByName,
   listVideoSources,
+  patchVideoSourceEnabled,
   updateVideoSource,
-  updateVideoSourceEnabled,
-} from './videoSources.js'
+} from '../video/sources.js'
 
 function isSecure(request: Request) {
   return new URL(request.url).protocol === 'https:'
@@ -87,16 +86,20 @@ export async function handleAdminApi(request: Request, env: AdminEnv) {
     return handleCreateVideoSource(request, env)
   }
 
-  const videoSourceMatch = pathname.match(/^\/api\/admin\/video-sources\/([^/]+)$/)
-  if (videoSourceMatch) {
-    const id = decodeURIComponent(videoSourceMatch[1]!)
+  const sourceMatch = pathname.match(/^\/api\/admin\/video-sources\/([^/]+)$/)
+  if (sourceMatch) {
+    const id = decodeURIComponent(sourceMatch[1]!)
     if (method === 'PUT') return handleUpdateVideoSource(request, env, id)
     if (method === 'DELETE') return handleDeleteVideoSource(request, env, id)
   }
 
-  const videoSourceEnabledMatch = pathname.match(/^\/api\/admin\/video-sources\/([^/]+)\/enabled$/)
-  if (videoSourceEnabledMatch && method === 'PATCH') {
-    return handlePatchVideoSourceEnabled(request, env, decodeURIComponent(videoSourceEnabledMatch[1]!))
+  const sourceEnabledMatch = pathname.match(/^\/api\/admin\/video-sources\/([^/]+)\/enabled$/)
+  if (sourceEnabledMatch && method === 'PATCH') {
+    return handlePatchVideoSourceEnabled(
+      request,
+      env,
+      decodeURIComponent(sourceEnabledMatch[1]!),
+    )
   }
 
   return json({ error: 'Not found' }, 404)
@@ -304,13 +307,19 @@ async function handleDeleteUser(request: Request, env: AdminEnv, id: string) {
   return json({ ok: true })
 }
 
-function isValidSourceUrl(raw: string) {
-  try {
-    const u = new URL(raw)
-    return u.protocol === 'http:' || u.protocol === 'https:'
-  } catch {
-    return false
-  }
+type VideoSourceBody = {
+  name?: string
+  url?: string
+  enabled?: boolean
+  sortOrder?: number
+}
+
+function parseVideoSourceBody(body: VideoSourceBody | null) {
+  const name = body?.name?.trim() ?? ''
+  const url = body?.url?.trim() ?? ''
+  const enabled = body?.enabled !== false
+  const sortOrder = Number.isFinite(body?.sortOrder) ? Number(body?.sortOrder) : 0
+  return { name, url, enabled, sortOrder }
 }
 
 async function handleListVideoSources(request: Request, env: AdminEnv) {
@@ -324,33 +333,19 @@ async function handleCreateVideoSource(request: Request, env: AdminEnv) {
   const session = await requireSession(env, request)
   if (!session) return json({ error: '未登录' }, 401)
 
-  const body = await readJson<{
-    name?: string
-    url?: string
-    sortOrder?: number
-    enabled?: boolean
-  }>(request)
-
-  const name = body?.name?.trim() ?? ''
-  const url = body?.url?.trim() ?? ''
-  if (!name) return json({ error: '请填写名称' }, 400)
-  if (!url || !isValidSourceUrl(url)) return json({ error: '请填写有效的接口地址' }, 400)
-
-  const exists = await findVideoSourceByName(env.DB, name)
-  if (exists) return json({ error: '名称已存在' }, 409)
+  const body = await readJson<VideoSourceBody>(request)
+  const input = parseVideoSourceBody(body)
+  if (!input.name) return json({ error: '请填写名称' }, 400)
+  if (!input.url) return json({ error: '请填写接口地址' }, 400)
 
   try {
-    const source = await createVideoSource(env.DB, {
-      name,
-      url,
-      sortOrder: typeof body?.sortOrder === 'number' ? body.sortOrder : undefined,
-      enabled: body?.enabled,
-    })
+    const source = await createVideoSource(env.DB, input)
     return json({ source }, 201)
   } catch (error) {
-    const message = error instanceof Error ? error.message : ''
-    if (message.includes('UNIQUE')) return json({ error: '名称已存在' }, 409)
-    return json({ error: '创建失败' }, 500)
+    const message = error instanceof Error ? error.message : '创建失败'
+    if (message.includes('已存在')) return json({ error: message }, 409)
+    if (message.includes('URL')) return json({ error: message }, 400)
+    return json({ error: message }, 500)
   }
 }
 
@@ -359,37 +354,21 @@ async function handleUpdateVideoSource(request: Request, env: AdminEnv, id: stri
   if (!session) return json({ error: '未登录' }, 401)
 
   const existing = await findVideoSourceById(env.DB, id)
-  if (!existing) return json({ error: '视频源不存在' }, 404)
+  if (!existing) return json({ error: '采集源不存在' }, 404)
 
-  const body = await readJson<{
-    name?: string
-    url?: string
-    sortOrder?: number
-    enabled?: boolean
-  }>(request)
-
-  const name = body?.name?.trim() ?? ''
-  const url = body?.url?.trim() ?? ''
-  const sortOrder = body?.sortOrder
-  const enabled = body?.enabled
-
-  if (!name) return json({ error: '请填写名称' }, 400)
-  if (!url || !isValidSourceUrl(url)) return json({ error: '请填写有效的接口地址' }, 400)
-  if (typeof sortOrder !== 'number' || !Number.isFinite(sortOrder)) {
-    return json({ error: '排序无效' }, 400)
-  }
-  if (typeof enabled !== 'boolean') return json({ error: '启用状态无效' }, 400)
-
-  const conflict = await findVideoSourceByName(env.DB, name)
-  if (conflict && conflict.id !== id) return json({ error: '名称已存在' }, 409)
+  const body = await readJson<VideoSourceBody>(request)
+  const input = parseVideoSourceBody(body)
+  if (!input.name) return json({ error: '请填写名称' }, 400)
+  if (!input.url) return json({ error: '请填写接口地址' }, 400)
 
   try {
-    const source = await updateVideoSource(env.DB, id, { name, url, sortOrder, enabled })
+    const source = await updateVideoSource(env.DB, id, input)
     return json({ source })
   } catch (error) {
-    const message = error instanceof Error ? error.message : ''
-    if (message.includes('UNIQUE')) return json({ error: '名称已存在' }, 409)
-    return json({ error: '更新失败' }, 500)
+    const message = error instanceof Error ? error.message : '更新失败'
+    if (message.includes('已存在')) return json({ error: message }, 409)
+    if (message.includes('URL') || message.includes('不存在')) return json({ error: message }, 400)
+    return json({ error: message }, 500)
   }
 }
 
@@ -398,13 +377,18 @@ async function handlePatchVideoSourceEnabled(request: Request, env: AdminEnv, id
   if (!session) return json({ error: '未登录' }, 401)
 
   const existing = await findVideoSourceById(env.DB, id)
-  if (!existing) return json({ error: '视频源不存在' }, 404)
+  if (!existing) return json({ error: '采集源不存在' }, 404)
 
   const body = await readJson<{ enabled?: boolean }>(request)
-  if (typeof body?.enabled !== 'boolean') return json({ error: '启用状态无效' }, 400)
+  if (typeof body?.enabled !== 'boolean') return json({ error: '状态无效' }, 400)
 
-  const source = await updateVideoSourceEnabled(env.DB, id, body.enabled)
-  return json({ source })
+  try {
+    const source = await patchVideoSourceEnabled(env.DB, id, body.enabled)
+    return json({ source })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '操作失败'
+    return json({ error: message }, 500)
+  }
 }
 
 async function handleDeleteVideoSource(request: Request, env: AdminEnv, id: string) {
@@ -412,7 +396,7 @@ async function handleDeleteVideoSource(request: Request, env: AdminEnv, id: stri
   if (!session) return json({ error: '未登录' }, 401)
 
   const existing = await findVideoSourceById(env.DB, id)
-  if (!existing) return json({ error: '视频源不存在' }, 404)
+  if (!existing) return json({ error: '采集源不存在' }, 404)
 
   const ok = await deleteVideoSource(env.DB, id)
   if (!ok) return json({ error: '删除失败' }, 500)

@@ -29,26 +29,6 @@ export type SessionPayload = {
   role: UserRole
 }
 
-export type VideoSourceRow = {
-  id: string
-  name: string
-  url: string
-  sort_order: number
-  enabled: number
-  created_at: string
-  updated_at: string
-}
-
-export type PublicVideoSource = {
-  id: string
-  name: string
-  url: string
-  sortOrder: number
-  enabled: boolean
-  createdAt: string
-  updatedAt: string
-}
-
 export type AdminEnv = {
   DB: D1Database
   KV: KVNamespace

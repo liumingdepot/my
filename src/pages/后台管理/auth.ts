@@ -18,12 +18,6 @@ export type AdminSession = {
   userId: string
 }
 
-/** 首次空库时 Worker 会自动播种的账号。 */
-export const SEED_ACCOUNT = {
-  username: 'admin',
-  password: 'admin123',
-} as const
-
 type ApiErrorBody = { error?: string }
 type MeResponse = { user: AdminUser }
 type LoginResponse = { user: AdminUser; loggedInAt: string }
@@ -150,37 +144,37 @@ export type VideoSource = {
   id: string
   name: string
   url: string
-  sortOrder: number
   enabled: boolean
+  sortOrder: number
   createdAt: string
   updatedAt: string
-}
-
-type VideoSourcesResponse = { sources: VideoSource[] }
-type VideoSourceResponse = { source: VideoSource }
-
-export async function listVideoSources() {
-  const data = await request<VideoSourcesResponse>('/api/admin/video-sources')
-  return data.sources
 }
 
 export type VideoSourceInput = {
   name: string
   url: string
-  sortOrder?: number
-  enabled?: boolean
+  enabled: boolean
+  sortOrder: number
+}
+
+type SourcesResponse = { sources: VideoSource[] }
+type SourceResponse = { source: VideoSource }
+
+export async function listVideoSources() {
+  const data = await request<SourcesResponse>('/api/admin/video-sources')
+  return data.sources
 }
 
 export async function createVideoSource(input: VideoSourceInput) {
-  const data = await request<VideoSourceResponse>('/api/admin/video-sources', {
+  const data = await request<SourceResponse>('/api/admin/video-sources', {
     method: 'POST',
     body: JSON.stringify(input),
   })
   return data.source
 }
 
-export async function updateVideoSource(id: string, input: Required<VideoSourceInput>) {
-  const data = await request<VideoSourceResponse>(`/api/admin/video-sources/${encodeURIComponent(id)}`, {
+export async function updateVideoSource(id: string, input: VideoSourceInput) {
+  const data = await request<SourceResponse>(`/api/admin/video-sources/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify(input),
   })
@@ -188,7 +182,7 @@ export async function updateVideoSource(id: string, input: Required<VideoSourceI
 }
 
 export async function patchVideoSourceEnabled(id: string, enabled: boolean) {
-  const data = await request<VideoSourceResponse>(
+  const data = await request<SourceResponse>(
     `/api/admin/video-sources/${encodeURIComponent(id)}/enabled`,
     {
       method: 'PATCH',

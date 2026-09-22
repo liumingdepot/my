@@ -3,13 +3,13 @@ import { Navigate, Route, Routes } from 'react-router'
 import Home from './pages/首页'
 
 const MusicPage = lazy(() => import('./pages/音乐'))
-const VideoPage = lazy(() => import('./pages/视频'))
 const SuanmingPage = lazy(() => import('./pages/算命'))
-const ReportPage = lazy(() => import('./pages/算命/ReportPage'))
+const ReportPage = lazy(() => import('./pages/算命/model/ReportPage'))
+const VideoPage = lazy(() => import('./pages/视频'))
 const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
 const AdminUsersPage = lazy(() => import('./pages/后台管理/用户管理'))
-const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/视频源管理'))
+const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/采集源'))
 
 export default function App() {
   return (
@@ -20,7 +20,7 @@ export default function App() {
         <Route path="/fortune/report" element={<ReportPage />} />
         <Route path="/report" element={<Navigate to="/fortune/report" replace />} />
         <Route path="/music" element={<MusicPage />} />
-        <Route path="/video" element={<VideoPage />} />
+        <Route path="/video/*" element={<VideoPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="users" replace />} />
@@ -34,7 +34,7 @@ export default function App() {
         <Route path="/后台管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/登录" element={<Navigate to="/admin/login" replace />} />
         <Route path="/后台管理/用户管理" element={<Navigate to="/admin/users" replace />} />
-        <Route path="/后台管理/视频源管理" element={<Navigate to="/admin/video-sources" replace />} />
+        <Route path="/后台管理/采集源" element={<Navigate to="/admin/video-sources" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
