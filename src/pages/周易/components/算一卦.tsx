@@ -10,8 +10,5 @@ export default function Casual() {
 }
 
 const Style = styled.div`
-  && .consult {
-    border-top: 0;
-    min-height: calc(100svh - var(--fortune-nav-height, 64px));
-  }
+  height: 100%;
 `

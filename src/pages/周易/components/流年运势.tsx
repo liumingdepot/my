@@ -10,7 +10,7 @@ import ReportBody from '../model/ReportBody'
 import { saveReport } from '../utils/reportHistory'
 import styled from 'styled-components'
 
-export default function BaziDetail() {
+export default function LiunianFortune() {
   const [name, setName] = useState('')
   const [gender, setGender] = useState<Gender>('男')
   const [birth, setBirth] = useState<BirthSelection | null>(null)
@@ -42,7 +42,7 @@ export default function BaziDetail() {
     setPending(true)
     setError('')
     try {
-      const response = await fetch('/api/bazi', {
+      const response = await fetch('/api/liunian', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -64,8 +64,8 @@ export default function BaziDetail() {
       setSavedBazi(baziText)
       setReport(message)
       saveReport({
-        kind: 'bazi',
-        title: `${nextName} · ${t.navBazi}`,
+        kind: 'liunian',
+        title: `${nextName} · ${t.navLiunian}`,
         name: nextName,
         gender,
         bazi: baziText,
@@ -89,8 +89,8 @@ export default function BaziDetail() {
     <Style>
       {report ? (
         <article className="sheet">
-          <p className="eyebrow">{t.baziKicker}</p>
-          <h1>{t.navBazi}</h1>
+          <p className="eyebrow">{t.liunianKicker}</p>
+          <h1>{t.navLiunian}</h1>
           <div className="rule" />
           <p className="meta">
             <span>
@@ -106,23 +106,23 @@ export default function BaziDetail() {
           <ReportBody source={report} />
           <p className="author">{t.author}</p>
           <button type="button" className="again" onClick={reset}>
-            {t.baziAgain}
+            {t.liunianAgain}
           </button>
         </article>
       ) : (
         <ConsultFrame
-          kicker={t.baziAsideKicker}
-          title={t.baziTitle}
-          quote={t.baziQuote}
-          desc={t.baziDesc}
-          note={t.baziNote}
+          kicker={t.liunianAsideKicker}
+          title={t.liunianTitle}
+          quote={t.liunianQuote}
+          desc={t.liunianDesc}
+          note={t.liunianNote}
         >
           <form className="consult-form" onSubmit={onSubmit}>
             <div className="field">
-              <label htmlFor="bazi-name">{t.name}</label>
+              <label htmlFor="liunian-name">{t.name}</label>
               <div className="field-control">
                 <input
-                  id="bazi-name"
+                  id="liunian-name"
                   name="name"
                   autoComplete="name"
                   enterKeyHint="next"
@@ -138,7 +138,7 @@ export default function BaziDetail() {
               <span className="field-label">{t.gender}</span>
               <div className="field-control">
                 <GenderGroup
-                  name="bazi-gender"
+                  name="liunian-gender"
                   value={gender}
                   onChange={(next) => {
                     setGender(next)
@@ -148,10 +148,10 @@ export default function BaziDetail() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="bazi-birth">{t.bazi}</label>
+              <label htmlFor="liunian-birth">{t.bazi}</label>
               <div className="field-control">
                 <BirthPicker
-                  id="bazi-birth"
+                  id="liunian-birth"
                   ref={pickerRef}
                   value={birth}
                   onChange={(next) => {

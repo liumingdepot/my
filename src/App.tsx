@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Route, Routes, useParams } from 'react-router'
 import Home from './pages/首页'
 
 const ZhouyiPage = lazy(() => import('./pages/周易'))
@@ -8,12 +8,19 @@ const MusicPage = lazy(() => import('./pages/音乐'))
 const VideoPage = lazy(() => import('./pages/视频'))
 const GamePage = lazy(() => import('./pages/游戏'))
 const EducationPage = lazy(() => import('./pages/学习教育'))
+const MoreWorksPage = lazy(() => import('./pages/更多作品'))
+const PlaceholderPage = lazy(() => import('./pages/占位'))
 const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
 const AdminUsersPage = lazy(() => import('./pages/后台管理/用户管理'))
 const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/采集源'))
 const AdminGamesPage = lazy(() => import('./pages/后台管理/游戏管理'))
 const AdminEducationPage = lazy(() => import('./pages/后台管理/教育管理'))
+
+function PlaceholderAlias() {
+  const { id } = useParams()
+  return <Navigate to={`/placeholder/${id ?? ''}`} replace />
+}
 
 export default function App() {
   return (
@@ -29,6 +36,8 @@ export default function App() {
         <Route path="/short/*" element={<Navigate to="/video/short" replace />} />
         <Route path="/game/*" element={<GamePage />} />
         <Route path="/education/*" element={<EducationPage />} />
+        <Route path="/works" element={<MoreWorksPage />} />
+        <Route path="/placeholder/:id" element={<PlaceholderPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="users" replace />} />
@@ -47,6 +56,8 @@ export default function App() {
         <Route path="/游戏" element={<Navigate to="/game" replace />} />
         <Route path="/学习教育" element={<Navigate to="/education" replace />} />
         <Route path="/学习教育/*" element={<Navigate to="/education" replace />} />
+        <Route path="/更多作品" element={<Navigate to="/works" replace />} />
+        <Route path="/占位/:id" element={<PlaceholderAlias />} />
         <Route path="/后台管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/登录" element={<Navigate to="/admin/login" replace />} />
         <Route path="/后台管理/用户管理" element={<Navigate to="/admin/users" replace />} />

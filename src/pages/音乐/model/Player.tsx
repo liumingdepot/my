@@ -118,6 +118,8 @@ export function FullPlayer({
   const [lines, setLines] = useState<LyricLine[]>([])
   const [lyricErr, setLyricErr] = useState(false)
   const [showList, setShowList] = useState(false)
+  const lyricsRef = useRef<HTMLDivElement | null>(null)
+  const queueListRef = useRef<HTMLUListElement | null>(null)
   const activeRef = useRef<HTMLLIElement | null>(null)
   const queueActiveRef = useRef<HTMLButtonElement | null>(null)
 
@@ -140,12 +142,29 @@ export function FullPlayer({
     return idx
   })()
 
+  // 只在歌词/列表容器内滚动，避免 scrollIntoView 把整页顶上去
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const box = lyricsRef.current
+    const el = activeRef.current
+    if (!box || !el) return
+    const boxRect = box.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    const offset = elRect.top - boxRect.top + box.scrollTop
+    const top = offset - box.clientHeight / 2 + el.clientHeight / 2
+    box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
   }, [activeIndex])
 
   useEffect(() => {
-    queueActiveRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    const box = queueListRef.current
+    const el = queueActiveRef.current
+    if (!box || !el) return
+    const boxRect = box.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    if (elRect.top < boxRect.top) {
+      box.scrollBy({ top: elRect.top - boxRect.top, behavior: 'smooth' })
+    } else if (elRect.bottom > boxRect.bottom) {
+      box.scrollBy({ top: elRect.bottom - boxRect.bottom, behavior: 'smooth' })
+    }
   }, [index])
 
   if (!current) return null
@@ -164,7 +183,7 @@ export function FullPlayer({
             ×
           </button>
         </header>
-        <ul className="queue-list">
+        <ul className="queue-list" ref={queueListRef}>
           {queue.map((song, i) => (
             <li key={`${song.id}-${i}`}>
               <button
@@ -222,7 +241,7 @@ export function FullPlayer({
           />
         </div>
 
-        <div className="lyrics">
+        <div className="lyrics" ref={lyricsRef}>
           {lyricErr && <p className="state">暂无歌词</p>}
           {!lyricErr && !lines.length && <p className="state">歌词加载中…</p>}
           <ul>
@@ -466,13 +485,10 @@ const Dock = styled.div`
 
 const Full = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   width: 100%;
-  height: 100%;
   height: 100dvh;
+  max-height: 100dvh;
   z-index: 60;
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
@@ -480,22 +496,61 @@ const Full = styled.div`
   align-items: stretch;
   color: var(--ink);
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
 
   .bg {
     position: absolute;
-    inset: -24px;
-    background: var(--bg) center / cover no-repeat;
-    filter: blur(56px) brightness(0.35) saturate(1.1);
-    transform: scale(1.1);
+    inset: -48px;
+    z-index: 0;
+    background: var(--cover) center / cover no-repeat;
+    filter: blur(48px) saturate(1.35);
+    transform: scale(1.18);
+    opacity: 0.72;
+    pointer-events: none;
   }
 
   .shade {
     position: absolute;
     inset: 0;
+    z-index: 0;
+    pointer-events: none;
     background:
-      linear-gradient(90deg, color-mix(in srgb, var(--bg) 92%, transparent) 0%, color-mix(in srgb, var(--bg) 55%, transparent) 34%, color-mix(in srgb, var(--bg) 72%, transparent) 100%),
-      linear-gradient(180deg, color-mix(in srgb, var(--bg) 20%, transparent), color-mix(in srgb, var(--bg) 88%, transparent));
+      linear-gradient(
+        105deg,
+        color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+        color-mix(in srgb, var(--bg) 42%, transparent) 38%,
+        color-mix(in srgb, var(--bg) 28%, transparent) 62%,
+        color-mix(in srgb, var(--bg) 55%, transparent) 100%
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg) 35%, transparent) 0%,
+        color-mix(in srgb, var(--bg) 18%, transparent) 42%,
+        color-mix(in srgb, var(--bg) 72%, transparent) 100%
+      );
+  }
+
+  html[data-theme='dark'] & .bg {
+    opacity: 0.55;
+    filter: blur(52px) saturate(1.25) brightness(0.72);
+  }
+
+  html[data-theme='dark'] & .shade {
+    background:
+      linear-gradient(
+        105deg,
+        color-mix(in srgb, var(--bg) 82%, transparent) 0%,
+        color-mix(in srgb, var(--bg) 38%, transparent) 38%,
+        color-mix(in srgb, var(--bg) 22%, transparent) 62%,
+        color-mix(in srgb, var(--bg) 48%, transparent) 100%
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg) 30%, transparent) 0%,
+        color-mix(in srgb, var(--bg) 12%, transparent) 42%,
+        color-mix(in srgb, var(--bg) 78%, transparent) 100%
+      );
   }
 
   .mask {
@@ -515,9 +570,9 @@ const Full = styled.div`
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--line);
-    background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: color-mix(in srgb, var(--bg-elev) 72%, transparent);
+    backdrop-filter: blur(22px) saturate(1.2);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
   }
 
   .queue-head {
@@ -561,7 +616,9 @@ const Full = styled.div`
     margin: 0;
     padding: 8px 10px calc(16px + env(safe-area-inset-bottom, 0px));
     overflow: auto;
+    overscroll-behavior: contain;
     flex: 1;
+    min-height: 0;
   }
 
   .queue-list button {
@@ -717,6 +774,7 @@ const Full = styled.div`
 
   .lyrics {
     overflow: auto;
+    overscroll-behavior: contain;
     mask-image: linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
     padding: 0 28px;
     min-height: 0;
@@ -830,11 +888,9 @@ const Full = styled.div`
 
     .queue {
       position: fixed;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      height: 100%;
+      inset: 0 auto 0 0;
       height: 100dvh;
+      max-height: 100dvh;
       width: min(86vw, 340px);
       z-index: 3;
       transform: translateX(-105%);

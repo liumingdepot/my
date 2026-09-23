@@ -1,185 +1,205 @@
 import type { ReactNode } from 'react'
-import { t } from '../utils/i18n'
 import styled from 'styled-components'
 
 export default function ConsultFrame({
   kicker,
+  title,
   quote,
+  desc,
   note,
   children,
 }: {
   kicker: string
+  title: string
   quote: string
-  note: string
+  desc: string
+  note?: string
   children: ReactNode
 }) {
   return (
     <Style>
       <section className="consult" id="consult">
-        <aside className="consult-aside">
-          <div className="consult-ornament" aria-hidden="true">
-            <span>☰</span>
-            <span>☷</span>
-            <span>☵</span>
-            <span>☲</span>
-          </div>
-          <p className="consult-kicker">{kicker}</p>
-          <p className="consult-quote">{quote}</p>
-          <div className="consult-rule" />
-          <p className="consult-aside-note">{note}</p>
-          <p className="consult-aside-author">{t.author}</p>
-        </aside>
-        {children}
+        <div className="consult-layout">
+          <aside className="consult-aside">
+            <p className="consult-kicker">{kicker}</p>
+            <h1 className="consult-title">{title}</h1>
+            <p className="consult-quote">{quote}</p>
+            <div className="consult-rule" aria-hidden="true" />
+            <p className="consult-desc">{desc}</p>
+            {note ? <p className="consult-note">{note}</p> : null}
+          </aside>
+          <div className="consult-panel">{children}</div>
+        </div>
       </section>
     </Style>
   )
 }
 
 const Style = styled.div`
+  min-height: calc(100svh - var(--fortune-nav-height, 56px));
+
   .consult {
-    display: grid;
-    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-    align-items: center;
-    gap: 48px 64px;
     box-sizing: border-box;
-    min-height: calc(100svh - var(--fortune-nav-height, 64px));
-    padding:
-      72px
-      max(48px, env(safe-area-inset-right))
-      calc(72px + env(safe-area-inset-bottom))
-      max(48px, env(safe-area-inset-left));
-    border-top: 1px solid rgba(214, 186, 138, 0.22);
-    background:
-      radial-gradient(640px 420px at 18% 42%, rgba(196, 148, 72, 0.09), transparent 62%),
-      radial-gradient(520px 320px at 82% 18%, rgba(122, 36, 28, 0.08), transparent 68%),
-      #0b0a09;
-    scroll-margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: inherit;
+    padding: 24px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    background: var(--zy-bg0);
+    transition: background 0.35s ease;
+  }
+
+  .consult-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 56px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1400px;
   }
 
   .consult-aside {
-    position: relative;
-    max-width: 420px;
-    padding: 8px 8px 8px 12px;
-    transform: translateX(300px);
-  }
-
-  .consult-aside::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 1px;
-    background: linear-gradient(180deg, transparent, rgba(214, 186, 138, 0.5), transparent);
-  }
-
-  .consult-ornament {
+    box-sizing: border-box;
     display: flex;
-    gap: 18px;
-    margin: 0 0 28px;
-    color: rgba(196, 163, 106, 0.72);
-    font-size: 18px;
-    letter-spacing: 0.08em;
+    flex: 0 1 420px;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    max-width: 420px;
+    padding: 8px 0;
   }
 
   .consult-kicker {
     margin: 0;
-    color: #c4a36a;
-    font-size: 14px;
-    letter-spacing: 0.72em;
+    color: var(--zy-accent);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    padding-left: 0.28em;
+  }
+
+  .consult-title {
+    margin: 16px 0 0;
+    color: var(--zy-text-soft);
+    font: 500 clamp(32px, 4.5vw, 48px) / 1.2 var(--zy-serif, ui-serif, 'Songti SC', serif);
+    letter-spacing: 0.12em;
   }
 
   .consult-quote {
-    margin: 22px 0 0;
-    color: #f0e4cf;
-    font-size: clamp(22px, 2.2vw, 30px);
-    letter-spacing: 0.18em;
+    margin: 16px 0 0;
+    color: var(--zy-muted);
+    font-size: clamp(14px, 1.4vw, 16px);
+    letter-spacing: 0.08em;
     line-height: 1.7;
   }
 
   .consult-rule {
-    width: 64px;
-    height: 1px;
-    margin: 26px 0;
-    background: linear-gradient(90deg, #e7d3a4, transparent);
+    width: 36px;
+    height: 2px;
+    margin: 20px 0;
+    border-radius: 1px;
+    background: var(--zy-primary);
   }
 
-  .consult-aside-note {
+  .consult-desc {
     margin: 0;
-    color: rgba(232, 220, 198, 0.68);
+    max-width: 28em;
+    color: var(--zy-text);
     font-size: 15px;
-    letter-spacing: 0.28em;
+    line-height: 1.85;
+    letter-spacing: 0.02em;
   }
 
-  .consult-aside-author {
-    margin: 18px 0 0;
-    color: rgba(196, 163, 106, 0.62);
-    font-size: 12px;
-    letter-spacing: 0.28em;
+  .consult-note {
+    margin: 24px 0 0;
+    color: var(--zy-accent);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+  }
+
+  .consult-panel {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 450px;
+    min-width: 0;
+    height: auto;
+    padding: 32px 28px;
+    border: 1px solid var(--zy-border);
+    border-radius: 8px;
+    background: var(--zy-bg1);
+    box-shadow: var(--zy-shadow);
+  }
+
+  @media (max-width: 1100px) {
+    .consult-layout {
+      gap: 40px;
+    }
+
+    .consult-aside {
+      flex-basis: 360px;
+      max-width: 360px;
+    }
   }
 
   @media (max-width: 900px) {
     .consult {
-      display: flex;
+      align-items: flex-start;
+      padding: 20px 16px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .consult-layout {
       flex-direction: column;
-      justify-content: flex-start;
       align-items: stretch;
-      gap: 0;
-      grid-template-columns: none;
-      padding:
-        36px
-        max(24px, env(safe-area-inset-right))
-        calc(48px + env(safe-area-inset-bottom))
-        max(24px, env(safe-area-inset-left));
+      gap: 20px;
     }
 
     .consult-aside {
+      flex: none;
       max-width: none;
-      margin: 0 auto 28px;
-      padding: 8px 0 24px;
-      text-align: center;
-      transform: none;
+      padding: 4px 0 0;
+      justify-content: flex-start;
     }
 
-    .consult-aside::before {
-      display: none;
+    .consult-title {
+      font-size: clamp(28px, 8vw, 36px);
     }
 
-    .consult-ornament {
-      justify-content: center;
-      gap: 16px;
-      margin-bottom: 18px;
-      font-size: 16px;
+    .consult-desc {
+      max-width: none;
+      font-size: 14px;
     }
 
-    .consult-kicker {
-      font-size: 13px;
-      letter-spacing: 0.56em;
-      padding-left: 0.56em;
+    .consult-panel {
+      width: 100%;
+      max-width: 450px;
+      margin-inline: auto;
+      padding: 24px 20px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .consult {
+      padding: 16px 12px;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+
+    .consult-panel {
+      padding: 20px 16px;
     }
 
     .consult-quote {
-      margin-top: 14px;
-      font-size: 17px;
-      letter-spacing: 0.12em;
-      line-height: 1.75;
+      font-size: 14px;
     }
 
-    .consult-rule {
-      width: 48px;
-      margin: 16px auto;
-      background: linear-gradient(90deg, transparent, #e7d3a4 20%, #e7d3a4 80%, transparent);
-    }
-
-    .consult-aside-note {
-      font-size: 13px;
-      letter-spacing: 0.18em;
-    }
-
-    .consult-aside-author {
-      margin-top: 10px;
-      letter-spacing: 0.22em;
-      padding-left: 0.22em;
+    .consult-note {
+      margin-top: 16px;
+      font-size: 12px;
     }
   }
 `

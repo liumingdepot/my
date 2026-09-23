@@ -2,11 +2,15 @@ import type { FortuneEnv } from './api.js'
 import { nextAgnesApiKey } from './agnesKey.js'
 import { Solar } from 'lunar-javascript'
 
-type BaziBody = {
+type PersonBody = {
   name?: string
-  gender?: string
   timestamp?: number
   shichen?: string
+}
+
+type HehunBody = {
+  male?: PersonBody
+  female?: PersonBody
 }
 
 type ChatResponse = {
@@ -35,96 +39,92 @@ const SHICHEN_HOUR: Record<string, number> = {
   亥时: 21,
 }
 
-const GENDERS = new Set(['男', '女'])
+const SYSTEM_PROMPT = `你是「合婚配对」报告生成器：资深子平命理合婚顾问，依据《渊海子平》《三命通会》《滴天髓》《神峰通考》《千里命稿》等论合婚。
 
-const SYSTEM_PROMPT = `你是「八字精批」报告生成器：资深子平命理顾问，依据《渊海子平》《三命通会》《滴天髓》《穷通宝鉴》《子平真诠》《神峰通考》《千里命稿》论命。
+输入仅六行（不要追问、不要改写）：
+男方姓名 / 男方出生 / 男方八字
+女方姓名 / 女方出生 / 女方八字
+八字均为服务端已排好的四柱（年 月 日 时），一字不改，禁止重排或改柱。
 
-输入仅四行（不要追问、不要改写）：
-姓名：称呼用，不参与断命
-性别：男或女，用于定大运顺逆（阳男阴女顺行，阴男阳女逆行）
-出生：公历生辰说明
-八字：服务端已排好的四柱（年 月 日 时），一字不改，禁止重排或改柱
-
-收到后立即输出完整《八字精批》，不问出生地、咨询意向。
+收到后立即输出完整《合婚配对》报告。
 
 硬规则：
-1. 按性别与年干阴阳排大运：起运岁数、每步大运干支及大致年龄段写清楚；婚姻感情解读须与性别匹配（男看妻星妻宫，女看夫星夫宫）。
-2. 先摆排盘事实，再写推断，最后给可执行建议；三者不要混写。
-3. 引典必标书名篇目；吃不准写「不确定」，禁止绝对化与恐吓，禁止「克夫/克妻、短命、穷命、必离婚」等标签。
-4. 仅供传统文化与娱乐参考，不替代医疗、法律、投资决策。
-5. 每节写实、有据，忌空话堆砌；性格/事业/感情从用神喜忌、十神宫位与大运推导，不泛泛鸡汤。
+1. 先分别简述双方命局要点，再论合婚关系，最后给相处建议；三者不要混写。
+2. 从日主、用神喜忌、十神、刑冲合害、纳音等推导；忌空话鸡汤与绝对化恐吓。
+3. 引典必标书名篇目；吃不准写「不确定」。禁止「克夫/克妻、必离婚、短命」等标签。
+4. 仅供传统文化与娱乐参考，不替代婚姻、医疗、法律决策。
+5. 评分可给倾向区间，勿伪造精确百分比或宿命结论。
 
 输出结构（标题与顺序固定，用 Markdown）：
 
-# 八字精批
+# 合婚配对
 
-姓名：…
-性别：…
-八字：…
+男方：姓名 / 八字
+女方：姓名 / 八字
 
-## 一、命局总览
-（日主、气势、喜用一句话总括）
-## 二、四柱排盘
-表格列：柱位 | 天干 | 十神 | 地支 | 藏干 | 十神 | 纳音 | 十二长生
-## 三、五行旺衰与日主强弱
-## 四、格局、用神与喜忌
-## 五、十神宫位与刑冲合害
-## 六、大运走势
-（起运、顺逆、各步大运与年龄段）
-## 七、性格特征
-## 八、事业与财运
-## 九、婚姻与感情
-## 十、健康提示
-## 十一、六亲与晚年
-## 十二、流年提示
-（近 1～3 年倾向即可，勿编造精确日期事件）
-## 十三、综合建议
-## 十四、免责声明
+## 一、双方命局概览
+## 二、日主与五行生克
+## 三、用神喜忌对照
+## 四、刑冲合害与情感格局
+## 五、性格互补与相处难点
+## 六、婚姻稳定度与子女缘
+## 七、财运与事业互助
+## 八、综合匹配倾向
+## 九、相处建议
+## 十、免责声明
 
-文风：专业、温和、清晰；古雅而不晦涩，像正式交给客户的报告。`
+文风：专业、温和、清晰；古雅而不晦涩，像正式交给客户的合婚报告。`
 
-export async function handleBazi(request: Request, env: FortuneEnv) {
+export async function handleHehun(request: Request, env: FortuneEnv) {
   if (request.method !== 'POST') {
     return text('请使用 POST', 405)
   }
 
-  let body: BaziBody
+  let body: HehunBody
   try {
     body = await request.json()
   } catch {
     return text('请求格式不正确', 400)
   }
 
-  const name = body.name?.trim() ?? ''
-  const gender = body.gender?.trim() ?? ''
-  const shichen = body.shichen?.trim() ?? ''
-  const birth = parseTimestamp(body.timestamp)
-  const hour = SHICHEN_HOUR[shichen]
-  if (!name) {
-    return text('请填写姓名', 400)
-  }
-  if (!GENDERS.has(gender)) {
-    return text('请选择性别', 400)
-  }
-  if (!birth || hour == null) {
-    return text('请选择生辰', 400)
-  }
+  const male = parsePerson(body.male, '男方')
+  if (male instanceof Response) return male
+  const female = parsePerson(body.female, '女方')
+  if (female instanceof Response) return female
+
   const apiKey = await nextAgnesApiKey(env)
   if (!apiKey) {
     return text('报告服务未配置', 500)
   }
 
-  const bazi = pillarsFromBirth(birth.year, birth.month, birth.day, hour)
-  if (!bazi) {
-    return text('请选择生辰', 400)
-  }
-
   try {
-    const born = `公历${birth.year}年${birth.month}月${birth.day}日 ${shichen}（北京时间）`
-    const report = await createReport(apiKey, name, gender, born, bazi)
+    const report = await createReport(apiKey, male, female)
     return text(report)
   } catch {
     return text('报告生成失败，请稍后再试', 502)
+  }
+}
+
+function parsePerson(raw: PersonBody | undefined, label: string) {
+  const name = raw?.name?.trim() ?? ''
+  const shichen = raw?.shichen?.trim() ?? ''
+  const birth = parseTimestamp(raw?.timestamp)
+  const hour = SHICHEN_HOUR[shichen]
+  if (!name) {
+    return text(`请填写${label}姓名`, 400)
+  }
+  if (!birth || hour == null) {
+    return text(`请选择${label}生辰`, 400)
+  }
+  const bazi = pillarsFromBirth(birth.year, birth.month, birth.day, hour)
+  if (!bazi) {
+    return text(`请选择${label}生辰`, 400)
+  }
+  return {
+    name,
+    shichen,
+    born: `公历${birth.year}年${birth.month}月${birth.day}日 ${shichen}（北京时间）`,
+    bazi,
   }
 }
 
@@ -139,7 +139,14 @@ function pillarsFromBirth(year: number, month: number, day: number, hour: number
   }
 }
 
-async function createReport(apiKey: string, name: string, gender: string, born: string, bazi: string) {
+type PersonParsed = {
+  name: string
+  shichen: string
+  born: string
+  bazi: string
+}
+
+async function createReport(apiKey: string, male: PersonParsed, female: PersonParsed) {
   const response = await fetch('https://api.agnes-ai.cn/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -150,7 +157,17 @@ async function createReport(apiKey: string, name: string, gender: string, born: 
       model: 'agnes-2.5-flash',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `姓名：${name}\n性别：${gender}\n出生：${born}\n八字：${bazi}` },
+        {
+          role: 'user',
+          content: [
+            `男方姓名：${male.name}`,
+            `男方出生：${male.born}`,
+            `男方八字：${male.bazi}`,
+            `女方姓名：${female.name}`,
+            `女方出生：${female.born}`,
+            `女方八字：${female.bazi}`,
+          ].join('\n'),
+        },
       ],
     }),
     signal: AbortSignal.timeout(120_000),

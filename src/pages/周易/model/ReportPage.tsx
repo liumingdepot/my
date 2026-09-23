@@ -1,85 +1,117 @@
-import { useLayoutEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router'
+import { useLayoutEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import styled from 'styled-components'
+import { t } from '../utils/i18n'
+import {
+  clearHistory,
+  deleteReport,
+  getReport,
+  kindLabel,
+  readCurrentReport,
+  type ReportPayload,
+} from '../utils/reportHistory'
+import FortuneNav from './FortuneNav'
 import ReportBody from './ReportBody'
 
-const STORAGE_KEY = 'zhouyi-report'
+export type { ReportPayload } from '../utils/reportHistory'
 
-export type ReportPayload = {
-  name: string
-  bazi: string
-  question: string
-  report: string
-}
-
-export function saveReport(payload: ReportPayload) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-}
-
-function readReport(state: unknown): ReportPayload | null {
-  if (isReport(state)) return state
-  const saved = sessionStorage.getItem(STORAGE_KEY)
-  if (!saved) return null
-  try {
-    const parsed: unknown = JSON.parse(saved)
-    return isReport(parsed) ? parsed : null
-  } catch {
-    return null
+function resolvePayload(state: unknown, id: string | null): ReportPayload | null {
+  if (id) {
+    const fromHistory = getReport(id)
+    if (fromHistory) return fromHistory
   }
-}
-
-function isReport(value: unknown): value is ReportPayload {
-  if (!value || typeof value !== 'object') return false
-  const report = value as Partial<ReportPayload>
-  return Boolean(report.name && report.bazi && report.question && report.report)
+  const current = readCurrentReport(state)
+  if (current && (!id || current.id === id)) return current
+  return null
 }
 
 export default function ReportPage() {
   const location = useLocation()
-  const [payload] = useState(() => readReport(location.state))
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const id = searchParams.get('id')
+  const [payload, setPayload] = useState<ReportPayload | null>(() => resolvePayload(location.state, id))
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
-    document.title = payload ? `铭周易 · ${payload.name}的报告` : '铭周易 · 报告'
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0b0a09')
+    document.title = payload ? `铭周易 · ${payload.title}` : '铭周易 · 报告'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0c0f12')
   }, [payload])
 
-  if (!payload) {
-    return (
-      <Style>
-        <div className="zhouyi">
-          <main className="report-page">
-            <div className="report-sheet">
-              <p className="eyebrow">命盘</p>
-              <h1>还没有报告</h1>
-              <p className="report-empty">先填写姓名、八字和问题，再来看这一页。</p>
-              <Link className="back-link" to="/fortune">
-                返回填写
-              </Link>
-            </div>
-          </main>
-        </div>
-      </Style>
-    )
+  useLayoutEffect(() => {
+    setPayload(resolvePayload(location.state, id))
+    window.scrollTo(0, 0)
+  }, [location.state, id, location.key])
+
+  const metaItems = useMemo(() => {
+    if (!payload) return []
+    if (payload.meta?.length) return payload.meta
+    const items: string[] = []
+    if (payload.gender) items.push(payload.gender)
+    if (payload.bazi) items.push(payload.bazi)
+    if (payload.question) items.push(payload.question)
+    return items
+  }, [payload])
+
+  function onDeleteCurrent() {
+    if (!payload) return
+    const next = deleteReport(payload.id)
+    const fallback = next[0]
+    if (fallback) {
+      navigate(`/fortune/report?id=${fallback.id}`, { state: fallback, replace: true })
+      setPayload(fallback)
+    } else {
+      navigate('/fortune/report', { replace: true })
+      setPayload(null)
+    }
+  }
+
+  function onClearAll() {
+    clearHistory()
+    navigate('/fortune/report', { replace: true })
+    setPayload(null)
   }
 
   return (
     <Style>
-      <div className="zhouyi">
+      <div className="zhouyi" data-theme={payload?.kind ?? 'home'}>
+        <FortuneNav currentId={payload?.id ?? null} />
         <main className="report-page">
-          <article className="report-sheet">
-            <p className="eyebrow">命盘</p>
-            <h1>{payload.name}的报告</h1>
-            <p className="report-meta">
-              <span>{payload.bazi}</span>
-              <span>{payload.question}</span>
-            </p>
-            <ReportBody source={payload.report} />
-            <p className="report-author">作者：刘铭</p>
-            <Link className="back-link" to="/fortune">
-              返回
-            </Link>
-          </article>
+          {payload ? (
+            <article className="report-article">
+              <p className="eyebrow">{kindLabel(payload.kind)}</p>
+              <h1>{payload.title}</h1>
+              {metaItems.length ? (
+                <p className="report-meta">
+                  {metaItems.map((item, index) => (
+                    <span key={`${index}-${item}`}>{item}</span>
+                  ))}
+                </p>
+              ) : null}
+              <ReportBody source={payload.report} />
+              <p className="report-author">{t.author}</p>
+              <div className="report-actions">
+                <button type="button" className="action-btn" onClick={onDeleteCurrent}>
+                  {t.historyDeleteCurrent}
+                </button>
+                <button type="button" className="action-btn is-danger" onClick={onClearAll}>
+                  {t.historyClear}
+                </button>
+                <Link className="back-link" to="/fortune">
+                  {t.backFortune}
+                </Link>
+              </div>
+            </article>
+          ) : (
+            <div className="report-article">
+              <p className="eyebrow">命盘</p>
+              <h1>{t.reportEmpty}</h1>
+              <p className="report-empty">{t.reportEmptyHint}</p>
+              <Link className="back-link" to="/fortune">
+                {t.backFortune}
+              </Link>
+            </div>
+          )}
         </main>
       </div>
     </Style>
@@ -87,218 +119,244 @@ export default function ReportPage() {
 }
 
 const Style = styled.div`
-.eyebrow {
-  margin: 0 0 28px;
-  color: #c4a36a;
-  font-size: 14px;
-  letter-spacing: 0.72em;
-}
+  --fortune-nav-height: calc(56px + env(safe-area-inset-top));
 
-.zhouyi h1 {
-  display: flex;
-  gap: 0.16em;
-  margin: 0;
-  font-size: clamp(92px, 11vw, 168px);
-  font-weight: 500;
-  line-height: 0.9;
-  letter-spacing: 0;
-  background: linear-gradient(180deg, #f8f1e2 8%, #e0c48a 42%, #9a7344 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+  .zhouyi {
+    --zy-bg0: #0c0f12;
+    --zy-bg1: #161a1f;
+    --zy-glow: rgba(45, 212, 191, 0.1);
+    --zy-accent: #5eead4;
+    --zy-accent-strong: #2dd4bf;
+    --zy-primary: #14b8a6;
+    --zy-primary-hover: #2dd4bf;
+    --zy-border: #2a3038;
+    --zy-text: #d5d9df;
+    --zy-text-soft: #f1f3f5;
+    --zy-muted: #8b939e;
+    --zy-error: #f87171;
+    --zy-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.45);
+    --zy-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
+      'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    --zy-serif: ui-serif, 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', serif;
 
-.zhouyi figcaption {
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  gap: 18px;
-  margin-top: 8px;
-  color: #e7d7b8;
-  letter-spacing: 0.42em;
-  font-size: 14px;
-}
+    box-sizing: border-box;
+    min-height: 100svh;
+    padding-top: var(--fortune-nav-height);
+    background: var(--zy-bg0);
+    color: var(--zy-text);
+    font-family: var(--zy-font);
+    color-scheme: dark;
+  }
 
-.feedback.report {
-  padding: 16px;
-  border: 1px solid rgba(214, 186, 138, 0.45);
-  color: #f3e6c8;
-  letter-spacing: 0.04em;
-  text-align: left;
-  white-space: pre-wrap;
-}
+  .zhouyi[data-theme='lots'] {
+    --zy-accent: #fcd34d;
+    --zy-accent-strong: #fbbf24;
+    --zy-primary: #d97706;
+    --zy-primary-hover: #fbbf24;
+  }
 
-.report-page {
-  min-height: 100vh;
-  padding:
-    48px
-    max(20px, env(safe-area-inset-right))
-    calc(48px + env(safe-area-inset-bottom))
-    max(20px, env(safe-area-inset-left));
-  background:
-    radial-gradient(720px 420px at 50% 0%, rgba(196, 148, 72, 0.1), transparent 68%),
-    #0b0a09;
-}
+  .zhouyi[data-theme='casual'] {
+    --zy-accent: #93c5fd;
+    --zy-accent-strong: #60a5fa;
+    --zy-primary: #3b82f6;
+    --zy-primary-hover: #60a5fa;
+  }
 
-.report-sheet {
-  width: min(100%, 1400px);
-  margin: 0 auto;
-}
+  .zhouyi[data-theme='bazi'] {
+    --zy-accent: #fca5a5;
+    --zy-accent-strong: #f87171;
+    --zy-primary: #ef4444;
+    --zy-primary-hover: #f87171;
+  }
 
-.report-page h1 {
-  display: block;
-  margin: 0;
-  background: none;
-  -webkit-background-clip: border-box;
-  background-clip: border-box;
-  color: #f3e6c8;
-  font-size: clamp(36px, 6vw, 64px);
-  line-height: 1.15;
-  letter-spacing: 0.08em;
-}
+  .zhouyi[data-theme='hehun'] {
+    --zy-accent: #c4b5fd;
+    --zy-accent-strong: #a78bfa;
+    --zy-primary: #8b5cf6;
+    --zy-primary-hover: #a78bfa;
+  }
 
-.report-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-  margin: 18px 0 0;
-  color: #c4a36a;
-  font-size: 15px;
-  letter-spacing: 0.08em;
-}
+  .zhouyi[data-theme='liunian'] {
+    --zy-accent: #7dd3fc;
+    --zy-accent-strong: #38bdf8;
+    --zy-primary: #0ea5e9;
+    --zy-primary-hover: #38bdf8;
+  }
 
-.report-empty {
-  margin: 28px 0 0;
-  color: rgba(243, 230, 200, 0.9);
-  font-size: 16px;
-  line-height: 1.9;
-  letter-spacing: 0.04em;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+  .eyebrow {
+    margin: 0 0 12px;
+    color: var(--zy-accent);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+  }
 
-.report h2,
-.report h3,
-.report h4,
-.report h5,
-.report h6 {
-  margin: 28px 0 10px;
-  color: #e7d3a4;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-}
+  .report-page {
+    width: min(100%, 720px);
+    margin: 0 auto;
+    padding:
+      clamp(28px, 5vh, 48px)
+      max(20px, env(safe-area-inset-right))
+      calc(48px + env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+  }
 
-.report h2 {
-  font-size: 28px;
-}
+  .report-article {
+    width: 100%;
+  }
 
-.report h3 {
-  font-size: 20px;
-}
+  .report-page h1 {
+    margin: 0;
+    color: var(--zy-text-soft);
+    font: 500 clamp(28px, 5vw, 40px)/1.25 var(--zy-serif);
+    letter-spacing: 0.06em;
+  }
 
-.report h4 {
-  font-size: 17px;
-}
+  .report-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: 16px 0 8px;
+    color: var(--zy-muted);
+    font-size: 14px;
+  }
 
-.report h5,
-.report h6 {
-  font-size: 15px;
-  letter-spacing: 0.08em;
-}
+  .report-empty {
+    margin: 20px 0 0;
+    color: var(--zy-text);
+    font-size: 15px;
+    line-height: 1.8;
+  }
 
-.report p,
-.report li {
-  margin: 0 0 12px;
-  color: rgba(243, 230, 200, 0.9);
-  font-size: 16px;
-  line-height: 1.9;
-  letter-spacing: 0.04em;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+  .report h2,
+  .report h3,
+  .report h4,
+  .report h5,
+  .report h6 {
+    margin: 28px 0 10px;
+    color: var(--zy-text-soft);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
 
-.report ul {
-  margin: 0 0 12px;
-  padding: 0 0 0 1.2em;
-  list-style: disc;
-}
+  .report h2 {
+    font-size: 22px;
+  }
 
-.report li {
-  margin-bottom: 8px;
-}
+  .report h3 {
+    font-size: 18px;
+  }
 
-.report strong {
-  color: #f6edd8;
-  font-weight: 700;
-}
+  .report h4 {
+    font-size: 16px;
+  }
 
-.table-wrap {
-  margin: 8px 0 16px;
-  overflow-x: auto;
-}
+  .report h5,
+  .report h6 {
+    font-size: 15px;
+  }
 
-.report table {
-  width: 100%;
-  min-width: 720px;
-  border-collapse: collapse;
-  font-size: 14px;
-}
+  .report p,
+  .report li {
+    margin: 0 0 12px;
+    color: var(--zy-text);
+    font-size: 15px;
+    line-height: 1.85;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 
-.report th,
-.report td {
-  padding: 10px 8px;
-  border-bottom: 1px solid rgba(214, 186, 138, 0.22);
-  color: #f3e6c8;
-  letter-spacing: 0.04em;
-  text-align: center;
-  white-space: nowrap;
-}
+  .report ul {
+    margin: 0 0 12px;
+    padding: 0 0 0 1.2em;
+    list-style: disc;
+  }
 
-.report th {
-  color: #c4a36a;
-  font-weight: 500;
-}
+  .report li {
+    margin-bottom: 8px;
+  }
 
-.report-author {
-  margin: 28px 0 0;
-  color: rgba(196, 163, 106, 0.7);
-  font-size: 13px;
-  letter-spacing: 0.28em;
-}
+  .report strong {
+    color: var(--zy-text-soft);
+    font-weight: 600;
+  }
 
-.back-link {
-  display: inline-block;
-  margin-top: 32px;
-  color: #e7d3a4;
-  font-size: 15px;
-  letter-spacing: 0.28em;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(214, 186, 138, 0.45);
-}
+  .table-wrap {
+    margin: 8px 0 16px;
+    overflow-x: auto;
+    border: 1px solid var(--zy-border);
+    border-radius: 8px;
+  }
 
-@media (max-width: 900px) {
-.eyebrow {
-    margin-bottom: 16px;
+  .report table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
     font-size: 13px;
-    letter-spacing: 0.62em;
-    padding-left: 0.62em;
+    background: var(--zy-bg1);
   }
 
-.zhouyi h1 {
-    justify-content: center;
-    font-size: clamp(72px, 22vw, 104px);
+  .report th,
+  .report td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--zy-border);
+    color: var(--zy-text);
+    text-align: center;
+    white-space: nowrap;
   }
 
-.zhouyi figcaption {
-    gap: 10px;
+  .report th {
+    color: var(--zy-text-soft);
+    font-weight: 600;
+    background: color-mix(in srgb, var(--zy-bg0) 70%, var(--zy-bg1));
+  }
+
+  .report-author {
+    margin: 28px 0 0;
+    color: var(--zy-muted);
+    font-size: 13px;
     letter-spacing: 0.12em;
-    font-size: 13px;
   }
-}
 
-@media (max-width: 390px) {
-.zhouyi h1 {
-    font-size: 68px;
+  .report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    margin-top: 32px;
   }
-}
+
+  .action-btn {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--zy-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--zy-muted);
+    font: 13px/1 var(--zy-font);
+    letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+
+  .action-btn:hover {
+    color: var(--zy-text-soft);
+    border-color: color-mix(in srgb, var(--zy-border) 60%, var(--zy-text));
+  }
+
+  .action-btn.is-danger:hover {
+    color: var(--zy-error);
+    border-color: color-mix(in srgb, var(--zy-error) 45%, var(--zy-border));
+  }
+
+  .back-link {
+    color: var(--zy-primary);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--zy-primary) 35%, transparent);
+  }
+
+  .back-link:hover {
+    opacity: 0.8;
+  }
 `

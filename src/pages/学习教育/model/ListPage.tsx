@@ -224,7 +224,7 @@ export default function ListPage() {
     <Style>
       <header className="top">
         <div className="shell top__inner">
-          <Link to="/" className="brand" aria-label="铭教育">
+          <Link to="/education" className="brand" aria-label="铭教育">
             <span className="brand__mark">教</span>
             <span className="brand__text">铭教育</span>
           </Link>
@@ -279,6 +279,10 @@ export default function ListPage() {
               搜索
             </button>
           </form>
+
+          <Link to="/works" className="works-back">
+            返回作品集
+          </Link>
         </div>
       </header>
 
@@ -462,6 +466,28 @@ const Style = styled.div`
     font-size: 1.28rem;
     font-weight: 700;
     letter-spacing: 0.12em;
+  }
+
+  .works-back {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.1rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--text);
+      border-color: color-mix(in srgb, #c9a46a 45%, transparent);
+    }
   }
 
   .source-status {

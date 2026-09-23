@@ -20,6 +20,7 @@ import {
   type CalendarMode,
 } from '../utils/calendar'
 import { SHICHEN, shichenLabel, t } from '../utils/i18n'
+import { fortunePortalRoot } from '../utils/portal'
 import styled from 'styled-components'
 
 const MOBILE_QUERY = '(max-width: 900px)'
@@ -272,7 +273,7 @@ function PickerShell({
         </div>
       </div>
     </Style>,
-    document.body,
+    fortunePortalRoot(),
   )
 }
 
@@ -490,7 +491,7 @@ const Style = styled.div`
   @keyframes sheet-pop {
     from {
       opacity: 0;
-      transform: translateY(12px) scale(0.98);
+      transform: translateY(8px) scale(0.98);
     }
     to {
       opacity: 1;
@@ -503,9 +504,8 @@ const Style = styled.div`
     grid-template-columns: 1fr 1fr;
     flex: 0 0 auto;
     padding: 2px;
-    border: 1px solid rgba(214, 186, 138, 0.45);
-    border-radius: 999px;
-    background: rgba(255, 248, 235, 0.03);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .calendar-toggle button {
@@ -513,18 +513,20 @@ const Style = styled.div`
     min-height: 28px;
     padding: 0 10px;
     border: 0;
-    border-radius: 999px;
+    border-radius: 4px;
     background: transparent;
-    color: rgba(232, 220, 198, 0.55);
-    font: 13px/1 ui-serif, "Songti SC", "STSong", "SimSun", serif;
-    letter-spacing: 0.12em;
+    color: var(--zy-muted);
+    font: 13px/1 var(--zy-font, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif);
+    letter-spacing: 0.04em;
     cursor: pointer;
     touch-action: manipulation;
   }
 
   .calendar-toggle button.is-active {
-    background: rgba(196, 148, 72, 0.2);
-    color: #f6edd8;
+    background: var(--zy-bg1);
+    color: var(--zy-text-soft);
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 
   .sheet-calendar {
@@ -534,55 +536,59 @@ const Style = styled.div`
 
   .sheet-hour-range {
     margin: 12px 0 0;
-    color: #f6edd8;
-    font: 700 18px/1.45 ui-serif, "Songti SC", "STSong", "SimSun", serif;
-    letter-spacing: 0.06em;
+    color: var(--zy-text-soft, #f1f3f5);
+    font: 600 16px/1.45 var(--zy-font, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif);
+    letter-spacing: 0.02em;
     text-align: center;
   }
 
   .sheet-error {
     margin: 10px 0 0;
-    color: #d4786a;
+    color: var(--zy-error, #ff4d4f);
     font-size: 13px;
-    letter-spacing: 0.08em;
     text-align: center;
   }
 
   .picker-trigger {
     width: 100%;
-    min-height: 48px;
-    padding: 6px 36px 6px 14px;
-    border: 1px solid rgba(214, 186, 138, 0.45);
-    border-radius: 10px;
-    background-color: rgba(255, 248, 235, 0.03);
+    min-height: 40px;
+    padding: 4px 32px 4px 11px;
+    border: 1px solid var(--zy-border, #d9d9d9);
+    border-radius: 6px;
+    background-color: color-mix(in srgb, var(--zy-bg0) 55%, var(--zy-bg1));
     background-image:
-      linear-gradient(45deg, transparent 50%, #c4a36a 50%),
-      linear-gradient(135deg, #c4a36a 50%, transparent 50%);
+      linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.45) 50%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.45) 50%, transparent 50%);
     background-position:
-      calc(100% - 20px) 52%,
-      calc(100% - 14px) 52%;
+      calc(100% - 16px) 52%,
+      calc(100% - 11px) 52%;
     background-size:
-      6px 6px,
-      6px 6px;
+      5px 5px,
+      5px 5px;
     background-repeat: no-repeat;
-    color: #f6edd8;
-    font: 16px/1.4 ui-serif, "Songti SC", "STSong", "SimSun", serif;
-    letter-spacing: 0.08em;
+    color: var(--zy-text-soft);
+    font: 14px/1.4 var(--zy-font, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif);
     text-align: left;
     cursor: pointer;
     touch-action: manipulation;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .picker-trigger:hover {
+    border-color: var(--zy-border-hover, var(--zy-primary, #0f766e));
   }
 
   .picker-trigger.is-empty {
-    color: rgba(232, 220, 198, 0.38);
+    color: color-mix(in srgb, var(--zy-muted) 60%, transparent);
   }
 
   .picker-trigger:focus {
-    outline: 1px solid #e0c48a;
-    outline-offset: 2px;
+    outline: none;
+    border-color: var(--zy-primary, #0f766e);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--zy-primary, #0f766e) 12%, transparent);
   }
 
   .sheet-root {
@@ -605,7 +611,7 @@ const Style = styled.div`
     inset: 0;
     border: 0;
     padding: 0;
-    background: rgba(11, 10, 9, 0.62);
+    background: rgba(0, 0, 0, 0.72);
     cursor: pointer;
   }
 
@@ -615,38 +621,37 @@ const Style = styled.div`
     width: 100%;
     max-height: min(78vh, 620px);
     padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
-    border-top: 1px solid rgba(214, 186, 138, 0.35);
-    border-radius: 18px 18px 0 0;
-    background: #141210;
+    border-radius: 12px 12px 0 0;
+    background: var(--zy-bg1, #161a1f);
+    color: var(--zy-text-soft, #f1f3f5);
     animation: sheet-up 0.28s ease-out;
   }
 
   .sheet-root.is-center .sheet-panel {
-    width: min(100%, 480px);
+    width: min(100%, 420px);
     max-height: min(80vh, 640px);
-    padding: 22px 20px 18px;
-    border: 1px solid rgba(214, 186, 138, 0.35);
-    border-radius: 16px;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
-    animation: sheet-pop 0.22s ease-out;
+    padding: 20px 20px 16px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 3px 8px rgba(0, 0, 0, 0.35);
+    animation: sheet-pop 0.2s ease-out;
     overflow: auto;
   }
 
   .sheet-handle {
     width: 36px;
-    height: 3px;
+    height: 4px;
     margin: 0 auto 14px;
     border-radius: 999px;
-    background: rgba(214, 186, 138, 0.35);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .sheet-title {
     margin: 0 0 12px;
-    color: #c4a36a;
-    font-size: 14px;
-    letter-spacing: 0.36em;
+    color: var(--zy-text-soft, #f1f3f5);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     text-align: center;
-    padding-left: 0.36em;
   }
 
   .picker-actions {
@@ -659,31 +664,45 @@ const Style = styled.div`
   .picker-cancel,
   .picker-confirm {
     width: 100%;
-    min-height: 48px;
-    border: 1px solid rgba(214, 186, 138, 0.35);
-    border-radius: 12px;
-    background: transparent;
-    color: rgba(232, 220, 198, 0.78);
-    font: 16px/1 ui-serif, "Songti SC", "STSong", "SimSun", serif;
-    letter-spacing: 0.36em;
+    min-height: 40px;
+    border-radius: 6px;
+    font: 14px/1 var(--zy-font, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif);
+    letter-spacing: 0.08em;
     cursor: pointer;
     touch-action: manipulation;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+
+  .picker-cancel {
+    border: 1px solid var(--zy-border, #2a3038);
+    background: var(--zy-bg1, #161a1f);
+    color: var(--zy-text-soft, #f1f3f5);
+  }
+
+  .picker-cancel:hover {
+    border-color: var(--zy-primary, #0f766e);
+    color: var(--zy-primary, #0f766e);
   }
 
   .picker-confirm {
-    border-color: #d4ae62;
-    color: #f6edd8;
-    background: rgba(196, 148, 72, 0.14);
+    border: 1px solid var(--zy-primary, #0f766e);
+    background: var(--zy-primary, #0f766e);
+    color: #fff;
+  }
+
+  .picker-confirm:hover {
+    background: var(--zy-primary-hover, #0d9488);
+    border-color: var(--zy-primary-hover, #0d9488);
   }
 
   .date-wheel {
     position: relative;
     height: 220px;
     margin: 4px 0 2px;
-    border: 1px solid rgba(214, 186, 138, 0.22);
-    border-radius: 12px;
+    border: 1px solid var(--zy-border, #2a3038);
+    border-radius: 8px;
     overflow: hidden;
-    background: rgba(255, 248, 235, 0.02);
+    background: color-mix(in srgb, var(--zy-bg0, #0c0f12) 70%, var(--zy-bg1, #161a1f));
   }
 
   .date-wheel::before,
@@ -699,12 +718,20 @@ const Style = styled.div`
 
   .date-wheel::before {
     top: 0;
-    background: linear-gradient(180deg, #141210 18%, rgba(20, 18, 16, 0));
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--zy-bg0, #0c0f12) 70%, var(--zy-bg1, #161a1f)) 18%,
+      transparent
+    );
   }
 
   .date-wheel::after {
     bottom: 0;
-    background: linear-gradient(0deg, #141210 18%, rgba(20, 18, 16, 0));
+    background: linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--zy-bg0, #0c0f12) 70%, var(--zy-bg1, #161a1f)) 18%,
+      transparent
+    );
   }
 
   .date-wheel-mask {
@@ -715,9 +742,9 @@ const Style = styled.div`
     top: 50%;
     height: 44px;
     margin-top: -22px;
-    border-radius: 8px;
-    background: rgba(196, 148, 72, 0.12);
-    border: 1px solid rgba(214, 186, 138, 0.22);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--zy-primary, #14b8a6) 16%, var(--zy-bg1));
+    border: 1px solid color-mix(in srgb, var(--zy-primary, #0f766e) 18%, transparent);
     pointer-events: none;
   }
 
@@ -743,7 +770,7 @@ const Style = styled.div`
   }
 
   .wheel-column + .wheel-column {
-    border-left: 1px solid rgba(214, 186, 138, 0.12);
+    border-left: 1px solid var(--zy-border);
   }
 
   .wheel-scroller {
@@ -755,9 +782,8 @@ const Style = styled.div`
     align-items: center;
     justify-content: center;
     gap: 2px;
-    color: rgba(232, 220, 198, 0.38);
-    font: 16px/1.15 ui-serif, "Songti SC", "STSong", "SimSun", serif;
-    letter-spacing: 0.02em;
+    color: color-mix(in srgb, var(--zy-muted, #8b939e) 60%, transparent);
+    font: 15px/1.15 var(--zy-font, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif);
     font-variant-numeric: tabular-nums;
     user-select: none;
     pointer-events: none;
@@ -766,7 +792,8 @@ const Style = styled.div`
   }
 
   .wheel-item.is-active {
-    color: #f3e6c8;
+    color: var(--zy-text-soft, #f1f3f5);
+    font-weight: 500;
   }
 
   @media (prefers-reduced-motion: reduce) {

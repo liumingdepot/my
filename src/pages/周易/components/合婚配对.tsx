@@ -5,51 +5,68 @@ import { t } from '../utils/i18n'
 import { fortunePortalRoot } from '../utils/portal'
 import BirthPicker, { type BirthPickerHandle, type BirthSelection } from '../model/BirthPicker'
 import ConsultFrame from '../model/ConsultFrame'
-import GenderGroup, { type Gender } from '../model/GenderGroup'
 import ReportBody from '../model/ReportBody'
 import { saveReport } from '../utils/reportHistory'
 import styled from 'styled-components'
 
-export default function BaziDetail() {
-  const [name, setName] = useState('')
-  const [gender, setGender] = useState<Gender>('男')
-  const [birth, setBirth] = useState<BirthSelection | null>(null)
+export default function HehunMatch() {
+  const [maleName, setMaleName] = useState('')
+  const [femaleName, setFemaleName] = useState('')
+  const [maleBirth, setMaleBirth] = useState<BirthSelection | null>(null)
+  const [femaleBirth, setFemaleBirth] = useState<BirthSelection | null>(null)
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const [report, setReport] = useState('')
-  const [savedName, setSavedName] = useState('')
-  const [savedGender, setSavedGender] = useState('')
-  const [savedBazi, setSavedBazi] = useState('')
-  const pickerRef = useRef<BirthPickerHandle>(null)
-  const birthTimestamp = birth ? toTimestamp(birth.calendar, birth.birth, birth.shichen) : null
+  const [savedMale, setSavedMale] = useState({ name: '', bazi: '' })
+  const [savedFemale, setSavedFemale] = useState({ name: '', bazi: '' })
+  const malePickerRef = useRef<BirthPickerHandle>(null)
+  const femalePickerRef = useRef<BirthPickerHandle>(null)
+  const maleTimestamp = maleBirth
+    ? toTimestamp(maleBirth.calendar, maleBirth.birth, maleBirth.shichen)
+    : null
+  const femaleTimestamp = femaleBirth
+    ? toTimestamp(femaleBirth.calendar, femaleBirth.birth, femaleBirth.shichen)
+    : null
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const nextName = name.trim()
-    if (!nextName) {
-      setError('请填写姓名')
+    const nextMaleName = maleName.trim()
+    const nextFemaleName = femaleName.trim()
+    if (!nextMaleName) {
+      setError('请填写男方姓名')
       return
     }
-    if (!gender) {
-      setError(t.needGender)
+    if (!maleBirth || maleTimestamp == null) {
+      setError('请选择男方生辰')
+      malePickerRef.current?.open()
       return
     }
-    if (!birth || birthTimestamp == null) {
-      setError(t.needBirth)
-      pickerRef.current?.open()
+    if (!nextFemaleName) {
+      setError('请填写女方姓名')
+      return
+    }
+    if (!femaleBirth || femaleTimestamp == null) {
+      setError('请选择女方生辰')
+      femalePickerRef.current?.open()
       return
     }
     setPending(true)
     setError('')
     try {
-      const response = await fetch('/api/bazi', {
+      const response = await fetch('/api/hehun', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          name: nextName,
-          gender,
-          timestamp: birthTimestamp,
-          shichen: birth.shichen,
+          male: {
+            name: nextMaleName,
+            timestamp: maleTimestamp,
+            shichen: maleBirth.shichen,
+          },
+          female: {
+            name: nextFemaleName,
+            timestamp: femaleTimestamp,
+            shichen: femaleBirth.shichen,
+          },
         }),
       })
       const message = await response.text()
@@ -58,17 +75,24 @@ export default function BaziDetail() {
         setPending(false)
         return
       }
-      const baziText = formatBazi(birth.calendar, birth.birth, birth.shichen, birthTimestamp)
-      setSavedName(nextName)
-      setSavedGender(gender)
-      setSavedBazi(baziText)
+      const maleBazi = formatBazi(maleBirth.calendar, maleBirth.birth, maleBirth.shichen, maleTimestamp)
+      const femaleBazi = formatBazi(
+        femaleBirth.calendar,
+        femaleBirth.birth,
+        femaleBirth.shichen,
+        femaleTimestamp,
+      )
+      setSavedMale({ name: nextMaleName, bazi: maleBazi })
+      setSavedFemale({ name: nextFemaleName, bazi: femaleBazi })
       setReport(message)
       saveReport({
-        kind: 'bazi',
-        title: `${nextName} · ${t.navBazi}`,
-        name: nextName,
-        gender,
-        bazi: baziText,
+        kind: 'hehun',
+        title: `${nextMaleName} × ${nextFemaleName}`,
+        name: `${nextMaleName} × ${nextFemaleName}`,
+        meta: [
+          `${t.male}：${nextMaleName} · ${maleBazi}`,
+          `${t.female}：${nextFemaleName} · ${femaleBazi}`,
+        ],
         report: message,
       })
       setPending(false)
@@ -89,78 +113,95 @@ export default function BaziDetail() {
     <Style>
       {report ? (
         <article className="sheet">
-          <p className="eyebrow">{t.baziKicker}</p>
-          <h1>{t.navBazi}</h1>
+          <h1>{t.navHehun}</h1>
           <div className="rule" />
           <p className="meta">
             <span>
-              {t.name}：{savedName}
+              {t.male}：{savedMale.name} · {savedMale.bazi}
             </span>
             <span>
-              {t.gender}：{savedGender}
-            </span>
-            <span>
-              {t.bazi}：{savedBazi}
+              {t.female}：{savedFemale.name} · {savedFemale.bazi}
             </span>
           </p>
           <ReportBody source={report} />
           <p className="author">{t.author}</p>
           <button type="button" className="again" onClick={reset}>
-            {t.baziAgain}
+            {t.hehunAgain}
           </button>
         </article>
       ) : (
         <ConsultFrame
-          kicker={t.baziAsideKicker}
-          title={t.baziTitle}
-          quote={t.baziQuote}
-          desc={t.baziDesc}
-          note={t.baziNote}
+          kicker={t.hehunAsideKicker}
+          title={t.hehunTitle}
+          quote={t.hehunQuote}
+          desc={t.hehunDesc}
+          note={t.hehunNote}
         >
           <form className="consult-form" onSubmit={onSubmit}>
+            <p className="person-title">{t.male}</p>
             <div className="field">
-              <label htmlFor="bazi-name">{t.name}</label>
+              <label htmlFor="hehun-male-name">{t.name}</label>
               <div className="field-control">
                 <input
-                  id="bazi-name"
-                  name="name"
+                  id="hehun-male-name"
+                  name="maleName"
                   autoComplete="name"
                   enterKeyHint="next"
                   maxLength={20}
                   placeholder={t.namePh}
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  value={maleName}
+                  onChange={(event) => setMaleName(event.target.value)}
                   required
                 />
               </div>
             </div>
             <div className="field">
-              <span className="field-label">{t.gender}</span>
+              <label htmlFor="hehun-male-birth">{t.bazi}</label>
               <div className="field-control">
-                <GenderGroup
-                  name="bazi-gender"
-                  value={gender}
+                <BirthPicker
+                  id="hehun-male-birth"
+                  ref={malePickerRef}
+                  value={maleBirth}
                   onChange={(next) => {
-                    setGender(next)
+                    setMaleBirth(next)
                     setError('')
                   }}
+                />
+              </div>
+            </div>
+
+            <p className="person-title">{t.female}</p>
+            <div className="field">
+              <label htmlFor="hehun-female-name">{t.name}</label>
+              <div className="field-control">
+                <input
+                  id="hehun-female-name"
+                  name="femaleName"
+                  autoComplete="name"
+                  enterKeyHint="next"
+                  maxLength={20}
+                  placeholder={t.namePh}
+                  value={femaleName}
+                  onChange={(event) => setFemaleName(event.target.value)}
+                  required
                 />
               </div>
             </div>
             <div className="field">
-              <label htmlFor="bazi-birth">{t.bazi}</label>
+              <label htmlFor="hehun-female-birth">{t.bazi}</label>
               <div className="field-control">
                 <BirthPicker
-                  id="bazi-birth"
-                  ref={pickerRef}
-                  value={birth}
+                  id="hehun-female-birth"
+                  ref={femalePickerRef}
+                  value={femaleBirth}
                   onChange={(next) => {
-                    setBirth(next)
+                    setFemaleBirth(next)
                     setError('')
                   }}
                 />
               </div>
             </div>
+
             <button type="submit" className="submit-btn" disabled={pending}>
               {t.submit}
             </button>
@@ -190,23 +231,8 @@ const Style = styled.div`
     }
   }
 
-  .eyebrow {
-    margin: 0 0 8px;
-    text-align: center;
-    color: var(--zy-accent);
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.28em;
-    padding-left: 0.28em;
-  }
-
-  .sheet > .eyebrow {
-    text-align: left;
-    margin-bottom: 12px;
-    padding-left: 0;
-  }
-
   .consult-form {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -222,6 +248,27 @@ const Style = styled.div`
     letter-spacing: 0.1em;
   }
 
+  .person-title {
+    margin: 0 0 0;
+    padding: 0;
+    border-top: 0;
+    color: var(--zy-accent);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-align: left;
+  }
+
+  .person-title + .field {
+    margin-top: 12px;
+  }
+
+  .field + .person-title {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--zy-border);
+  }
+
   .field {
     display: flex;
     flex-direction: column;
@@ -231,11 +278,10 @@ const Style = styled.div`
   }
 
   .field + .field {
-    margin-top: 18px;
+    margin-top: 16px;
   }
 
-  .field > label,
-  .field > .field-label {
+  .field > label {
     margin: 0;
     color: var(--zy-text-soft);
     font-size: 14px;
@@ -248,7 +294,8 @@ const Style = styled.div`
     min-width: 0;
   }
 
-  .consult-form input {
+  .consult-form input,
+  && .consult-form .picker-trigger {
     width: 100%;
     max-width: 100%;
     min-height: 40px;
@@ -263,7 +310,29 @@ const Style = styled.div`
     transition: border-color 0.2s, box-shadow 0.2s;
   }
 
-  .consult-form input:hover {
+  && .consult-form .picker-trigger {
+    display: flex;
+    align-items: center;
+    padding: 0 32px 0 11px;
+    background-image:
+      linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.45) 50%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.45) 50%, transparent 50%);
+    background-position:
+      calc(100% - 16px) 52%,
+      calc(100% - 11px) 52%;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .consult-form input:hover,
+  && .consult-form .picker-trigger:hover {
     border-color: var(--zy-border-hover, var(--zy-primary));
   }
 
@@ -293,7 +362,7 @@ const Style = styled.div`
 
   .consult-form .submit-btn {
     width: 100%;
-    margin-top: 24px;
+    margin-top: 22px;
   }
 
   .consult-form .submit-btn:hover:not(:disabled),
@@ -313,7 +382,7 @@ const Style = styled.div`
   }
 
   .feedback {
-    margin: 16px 0 0;
+    margin: 12px 0 0;
     color: var(--zy-error, #ff4d4f);
     font-size: 13px;
     line-height: 1.6;
@@ -333,7 +402,7 @@ const Style = styled.div`
   }
 
   .sheet h1 {
-    font-size: clamp(28px, 5vw, 40px);
+    font-size: clamp(26px, 4.5vw, 36px);
   }
 
   .rule {
@@ -346,8 +415,8 @@ const Style = styled.div`
 
   .meta {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px 16px;
+    flex-direction: column;
+    gap: 6px;
     margin: 0 0 8px;
     color: var(--zy-muted);
     font-size: 14px;

@@ -127,7 +127,7 @@ export default function ListPage() {
       <header className="top">
         <div className="shell top__inner">
           <div className="top__row">
-            <Link to="/" className="brand" aria-label="铭游戏">
+            <Link to="/game" className="brand" aria-label="铭游戏">
               <span className="brand__mark">铭</span>
               <span className="brand__text">铭游戏</span>
             </Link>
@@ -154,8 +154,8 @@ export default function ListPage() {
 
             <div className="top__actions">
               <GameThemeToggle onToggle={toggleTheme} />
-              <Link to="/" className="back">
-                返回首页
+              <Link to="/works" className="back">
+                返回作品集
               </Link>
             </div>
           </div>

@@ -43,6 +43,8 @@ Placeholder for the games module — routing is live; content coming soon. For l
 
 Placeholder for the education module — routing is live; content coming soon. For learning & exchange only.
 
+[更多作品 →](http://www.liuming1234.xyz/works)
+
 ---
 
 ## 03 — About

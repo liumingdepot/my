@@ -1,6 +1,8 @@
 import { handleBazi } from './八字精批.js'
+import { handleHehun } from './合婚配对.js'
+import { handleLiunian } from './流年运势.js'
+import { handleLots } from './在线抽签.js'
 import { handleCasual } from './随便算算.js'
-import { handleHome } from './首页.js'
 
 export interface FortuneEnv {
   KV: KVNamespace
@@ -10,7 +12,9 @@ export interface FortuneEnv {
 
 export async function handleFortuneApi(request: Request, env: FortuneEnv) {
   const { pathname } = new URL(request.url)
-  if (pathname === '/api/home') return handleHome(request, env)
+  if (pathname === '/api/lots') return handleLots(request, env)
   if (pathname === '/api/bazi') return handleBazi(request, env)
+  if (pathname === '/api/hehun') return handleHehun(request, env)
+  if (pathname === '/api/liunian') return handleLiunian(request, env)
   return handleCasual(request, env)
 }

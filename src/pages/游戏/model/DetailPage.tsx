@@ -60,6 +60,9 @@ export default function DetailPage() {
             </Link>
             <div className="top__actions">
               <GameThemeToggle onToggle={toggleTheme} />
+              <Link to="/works" className="back">
+                返回作品集
+              </Link>
               <Link to="/game" className="back">
                 返回列表
               </Link>

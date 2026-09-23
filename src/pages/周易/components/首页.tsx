@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import AncientClock from '../model/AncientClock'
+import BaguaWheel from '../model/BaguaWheel'
 import { t } from '../utils/i18n'
 import styled from 'styled-components'
 
@@ -7,135 +8,207 @@ export default function Home({ onConsult }: { onConsult: () => void }) {
   return (
     <Style>
       <main className="page">
-        <p className="spine">{t.spine}</p>
+        <div className="aura" aria-hidden="true" />
+        <div className="bagua-wrap" aria-hidden="true">
+          <BaguaWheel className="bagua" />
+        </div>
+
+        <p className="spine enter enter-spine">{t.spine}</p>
         <section className="copy">
-          <p className="eyebrow">{t.eyebrow}</p>
+          <p className="eyebrow enter enter-1">{t.eyebrow}</p>
           <h1>
-            <span>{t.titleA}</span>
-            <span>{t.titleB}</span>
+            <span className="enter enter-title-a">{t.titleA}</span>
+            <span className="enter enter-title-b">{t.titleB}</span>
           </h1>
-          <p className="lead">{t.lead}</p>
-          <div className="rule" />
-          <p className="body">{t.body}</p>
-          <p className="source">{t.source}</p>
-          <p className="author">{t.author}</p>
-          <Link className="back-link" to="/">
-            {t.backHome}
-          </Link>
+          <p className="lead enter enter-2">{t.lead}</p>
+          <div className="rule enter enter-2" />
+          <p className="body enter enter-3">{t.body}</p>
+          <p className="source enter enter-3">{t.source}</p>
+          <p className="author enter enter-4">{t.author}</p>
+          <div className="actions enter enter-4">
+            <button type="button" className="cta" onClick={onConsult}>
+              {t.scroll}
+            </button>
+            <Link className="back-link" to="/works">
+              返回作品集
+            </Link>
+          </div>
         </section>
-        <section className="clock-pane" aria-label={t.clockLabel}>
+        <section className="clock-pane enter enter-clock" aria-label={t.clockLabel}>
           <AncientClock />
         </section>
-        <button type="button" className="scroll-cue" onClick={onConsult}>
-          {t.scroll}
-        </button>
       </main>
     </Style>
   )
 }
 
 const Style = styled.div`
+  min-height: calc(100svh - var(--fortune-nav-height, 56px));
+  background:
+    radial-gradient(720px 480px at 62% 42%, var(--zy-glow), transparent 64%),
+    radial-gradient(520px 400px at 28% 60%, var(--zy-glow-2), transparent 58%),
+    linear-gradient(180deg, #10151a 0%, var(--zy-bg0) 100%);
+
   .page {
-    min-height: calc(100svh - var(--fortune-nav-height, 64px));
-    height: calc(100svh - var(--fortune-nav-height, 64px));
+    --page-pad-x: clamp(16px, 4vw, 64px);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1400px;
+    min-height: calc(100svh - var(--fortune-nav-height, 56px));
+    height: calc(100svh - var(--fortune-nav-height, 56px));
+    margin-inline: auto;
     display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    grid-template-columns: auto auto auto;
+    justify-content: space-between;
     align-items: center;
     position: relative;
     overflow: hidden;
-    box-sizing: border-box;
-    background:
-      radial-gradient(820px 560px at 74% 48%, rgba(196, 148, 72, 0.1), transparent 62%),
-      radial-gradient(640px 480px at 16% 42%, rgba(122, 36, 28, 0.09), transparent 58%),
-      #0b0a09;
+    padding-inline: max(var(--page-pad-x), env(safe-area-inset-left))
+      max(var(--page-pad-x), env(safe-area-inset-right));
   }
 
-  .page::before {
-    content: '';
+  .aura {
     position: absolute;
-    inset: 0;
+    inset: 10% 18% 14% 18%;
     pointer-events: none;
-    background-image: radial-gradient(rgba(232, 214, 180, 0.035) 0.6px, transparent 0.6px);
-    background-size: 3px 3px;
-    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    background: radial-gradient(ellipse at 58% 45%, var(--zy-glow), transparent 68%);
+    animation: home-aura 10s ease-in-out infinite;
+  }
+
+  .bagua-wrap {
+    position: absolute;
+    left: 62%;
+    top: 48%;
+    width: min(64vmin, 460px);
+    height: min(64vmin, 460px);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    color: var(--zy-accent);
+    opacity: 0.12;
+    z-index: 0;
+  }
+
+  .bagua {
+    width: 100%;
+    height: 100%;
+    animation: home-bagua-spin 100s linear infinite;
   }
 
   .spine {
-    position: absolute;
+    position: relative;
     z-index: 1;
-    left: 2.4vw;
-    top: 50%;
+    align-self: center;
+    justify-self: start;
     margin: 0;
-    transform: translate(250px, -50%);
+    padding-inline: clamp(4px, 0.8vw, 12px);
     writing-mode: vertical-rl;
-    letter-spacing: 0.55em;
-    font-size: 13px;
-    color: rgba(214, 186, 138, 0.62);
+    letter-spacing: 0.4em;
+    font-size: clamp(11px, 1.1vw, 13px);
+    color: color-mix(in srgb, var(--zy-accent) 55%, transparent);
   }
 
   .copy {
     position: relative;
     z-index: 1;
-    padding: 6vh 8vw 8vh 7.5vw;
-    transform: translateX(250px);
+    min-width: 0;
+    justify-self: center;
+    padding: clamp(24px, 6vh, 64px) 0 clamp(32px, 6vh, 72px);
   }
 
   .eyebrow {
-    margin: 0 0 28px;
-    color: #c4a36a;
-    font-size: 14px;
-    letter-spacing: 0.72em;
+    margin: 0 0 clamp(14px, 2vw, 22px);
+    color: var(--zy-accent);
+    font-size: clamp(12px, 1.2vw, 13px);
+    font-weight: 500;
+    letter-spacing: 0.36em;
   }
 
   h1 {
     display: flex;
-    gap: 0.16em;
+    gap: 0.12em;
     margin: 0;
-    font-size: clamp(72px, 9vw, 140px);
+    font-size: clamp(52px, 7.5vw, 112px);
     font-weight: 500;
-    line-height: 0.9;
+    line-height: 0.92;
     letter-spacing: 0;
-    background: linear-gradient(180deg, #f8f1e2 8%, #e0c48a 42%, #9a7344 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    font-family: var(--zy-serif);
+    color: var(--zy-text-soft);
   }
 
   .lead {
-    margin: 36px 0 0;
-    color: #f0e4cf;
-    font-size: clamp(22px, 2vw, 30px);
-    letter-spacing: 0.34em;
+    margin: clamp(16px, 2.5vw, 28px) 0 0;
+    color: var(--zy-text);
+    font-size: clamp(16px, 1.8vw, 22px);
+    letter-spacing: 0.2em;
   }
 
   .rule {
-    width: 72px;
-    height: 1px;
-    margin: 28px 0;
-    background: linear-gradient(90deg, #e7d3a4, transparent);
+    width: clamp(40px, 5vw, 56px);
+    height: 2px;
+    margin: clamp(14px, 2vw, 22px) 0;
+    background: var(--zy-primary);
+    border-radius: 1px;
   }
 
   .body {
     margin: 0;
-    color: rgba(232, 220, 198, 0.78);
-    font-size: 18px;
-    line-height: 1.9;
-    letter-spacing: 0.18em;
-    white-space: nowrap;
+    color: var(--zy-muted);
+    font-size: clamp(14px, 1.3vw, 16px);
+    line-height: 1.85;
+    letter-spacing: 0.06em;
+    max-width: 28em;
   }
 
   .source {
-    margin: 22px 0 0;
-    color: rgba(196, 163, 106, 0.8);
-    font-size: 13px;
-    letter-spacing: 0.42em;
+    margin: clamp(12px, 1.8vw, 18px) 0 0;
+    color: var(--zy-accent);
+    font-size: 12px;
+    letter-spacing: 0.24em;
   }
 
   .author {
-    margin: 12px 0 0;
-    color: rgba(196, 163, 106, 0.62);
+    margin: 8px 0 0;
+    color: var(--zy-muted);
     font-size: 12px;
-    letter-spacing: 0.28em;
+    letter-spacing: 0.16em;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 24px;
+    margin-top: clamp(24px, 3.5vw, 36px);
+  }
+
+  .cta {
+    min-height: 40px;
+    padding: 0 22px;
+    border: 1px solid var(--zy-primary);
+    border-radius: 6px;
+    background: var(--zy-primary);
+    color: #fff;
+    font: 14px/1 var(--zy-font);
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .cta:hover {
+    background: var(--zy-primary-hover);
+    border-color: var(--zy-primary-hover);
+  }
+
+  .back-link {
+    color: var(--zy-accent);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--zy-accent) 35%, transparent);
+  }
+
+  .back-link:hover {
+    color: var(--zy-primary);
   }
 
   .clock-pane {
@@ -143,162 +216,207 @@ const Style = styled.div`
     z-index: 1;
     display: grid;
     place-items: center;
+    min-width: 0;
     min-height: 0;
-    align-self: stretch;
+    align-self: center;
+    justify-self: end;
+    padding-block: clamp(12px, 4vh, 48px);
   }
 
   .clock-pane::before {
     content: '';
     position: absolute;
-    top: 12vh;
-    bottom: 12vh;
+    top: 16%;
+    bottom: 16%;
     left: 0;
     width: 1px;
-    background: linear-gradient(180deg, transparent, rgba(214, 186, 138, 0.45), transparent);
+    background: linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in srgb, var(--zy-border) 90%, transparent),
+      transparent
+    );
   }
 
   figcaption {
     display: flex;
     justify-content: center;
     align-items: baseline;
-    gap: 18px;
-    margin-top: 8px;
-    color: #e7d7b8;
-    letter-spacing: 0.42em;
-    font-size: 14px;
+    gap: clamp(10px, 1.5vw, 18px);
+    margin-top: 10px;
+    color: var(--zy-text);
+    letter-spacing: 0.2em;
+    font-size: clamp(12px, 1.2vw, 14px);
   }
 
-  .scroll-cue {
-    position: absolute;
-    z-index: 2;
-    left: 50%;
-    bottom: max(20px, env(safe-area-inset-bottom));
-    transform: translateX(-50%);
-    border: 0;
-    padding: 0;
-    background: transparent;
-    color: #c4a36a;
-    font: 13px/1 ui-serif, "Songti SC", "STSong", "SimSun", serif;
-    letter-spacing: 0.28em;
-    white-space: nowrap;
-    cursor: pointer;
+  .enter {
+    opacity: 0;
+    animation: home-enter 0.75s ease forwards;
   }
 
-  .back-link {
+  .enter-spine {
+    transform: translateY(16px);
+    animation-delay: 0.04s;
+  }
+
+  .enter-1 {
+    transform: translateY(12px);
+    animation-delay: 0.1s;
+  }
+
+  .enter-title-a {
     display: inline-block;
-    margin-top: 32px;
-    color: #e7d3a4;
-    font-size: 15px;
-    letter-spacing: 0.28em;
-    text-decoration: none;
-    border-bottom: 1px solid rgba(214, 186, 138, 0.45);
+    transform: translateY(20px);
+    animation-delay: 0.18s;
   }
 
-  @media (max-width: 900px) {
+  .enter-title-b {
+    display: inline-block;
+    transform: translateY(24px);
+    animation-delay: 0.28s;
+  }
+
+  .enter-2 {
+    transform: translateY(12px);
+    animation-delay: 0.38s;
+  }
+
+  .enter-3 {
+    transform: translateY(10px);
+    animation-delay: 0.48s;
+  }
+
+  .enter-4 {
+    transform: translateY(8px);
+    animation-delay: 0.58s;
+  }
+
+  .enter-clock {
+    transform: scale(0.94);
+    animation-name: home-enter-clock;
+    animation-duration: 0.9s;
+    animation-delay: 0.22s;
+  }
+
+  @keyframes home-enter {
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes home-enter-clock {
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes home-aura {
+    0%,
+    100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.04);
+    }
+  }
+
+  @keyframes home-bagua-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .enter,
+    .enter-clock,
+    .aura,
+    .bagua {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (max-width: 1024px) {
     .page {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
       grid-template-columns: none;
-      align-content: stretch;
-      min-height: calc(100svh - var(--fortune-nav-height, 64px));
-      min-height: calc(100dvh - var(--fortune-nav-height, 64px));
-      height: calc(100svh - var(--fortune-nav-height, 64px));
-      height: calc(100dvh - var(--fortune-nav-height, 64px));
-      overflow: hidden;
+      height: auto;
+      min-height: calc(100svh - var(--fortune-nav-height, 56px));
+      overflow: visible;
+      padding-inline: 0;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
     }
 
     .spine {
       display: none;
     }
 
+    .bagua-wrap {
+      left: 50%;
+      top: 62%;
+      opacity: 0.1;
+    }
+
     .copy {
       width: 100%;
       flex: 0 0 auto;
-      padding: 4vh 32px 0;
-      padding-left: max(32px, env(safe-area-inset-left));
-      padding-right: max(32px, env(safe-area-inset-right));
+      padding: 4vh max(clamp(20px, 5vw, 32px), env(safe-area-inset-right)) 0
+        max(clamp(20px, 5vw, 32px), env(safe-area-inset-left));
       text-align: center;
-      transform: none;
     }
 
     .eyebrow {
-      margin-bottom: 16px;
-      font-size: 13px;
-      letter-spacing: 0.62em;
-      padding-left: 0.62em;
-    }
-
-    h1 {
-      justify-content: center;
-      font-size: clamp(56px, 18vw, 88px);
-    }
-
-    .lead {
-      margin-top: 18px;
-      font-size: 17px;
       letter-spacing: 0.28em;
       padding-left: 0.28em;
     }
 
+    h1 {
+      justify-content: center;
+      font-size: clamp(48px, 14vw, 80px);
+    }
+
+    .lead {
+      letter-spacing: 0.12em;
+      padding-left: 0.12em;
+    }
+
     .rule {
-      width: 56px;
-      margin: 18px auto;
-      background: linear-gradient(90deg, transparent, #e7d3a4 20%, #e7d3a4 80%, transparent);
+      margin-inline: auto;
     }
 
     .body {
       margin-inline: auto;
-      font-size: 14px;
-      letter-spacing: 0.08em;
-      line-height: 1.9;
-      white-space: normal;
+      letter-spacing: 0.04em;
       max-width: 22em;
     }
 
-    .source {
-      margin-top: 12px;
-      letter-spacing: 0.36em;
-      padding-left: 0.36em;
-    }
-
-    .author {
-      margin-top: 8px;
-      letter-spacing: 0.22em;
-      padding-left: 0.22em;
+    .actions {
+      justify-content: center;
     }
 
     .clock-pane {
       flex: 1 1 auto;
       width: 100%;
       min-height: 0;
-      padding: 12px 16px 4px;
-      overflow: hidden;
+      padding: 20px 16px 8px;
     }
 
     .clock-pane::before {
       display: none;
     }
-
-    figcaption {
-      gap: 10px;
-      letter-spacing: 0.12em;
-      font-size: 13px;
-    }
-
-    .scroll-cue {
-      position: static;
-      transform: none;
-      display: block;
-      flex: 0 0 auto;
-      padding: 4px 16px calc(16px + env(safe-area-inset-bottom));
-    }
   }
 
   @media (max-width: 390px) {
     h1 {
-      font-size: 52px;
+      font-size: 44px;
     }
   }
 `

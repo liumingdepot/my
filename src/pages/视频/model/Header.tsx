@@ -35,7 +35,7 @@ export default function Header({ active, hideSearch }: Props) {
     <Bar data-scrolled={scrolled ? '1' : '0'}>
       <div className="inner">
         <div className="top">
-          <Link to="/" className="brand">
+          <Link to="/video" className="brand">
             <span className="brand-mark">铭</span>
             <span className="brand-text">铭影视</span>
           </Link>
@@ -63,6 +63,10 @@ export default function Header({ active, hideSearch }: Props) {
               </button>
             </form>
           )}
+
+          <Link to="/works" className="works-back">
+            返回作品集
+          </Link>
         </div>
 
         <nav className="nav">
@@ -140,6 +144,35 @@ const Bar = styled.header`
 
     &:hover {
       color: #e8a54b;
+    }
+  }
+
+  .works-back {
+    flex-shrink: 0;
+    order: 4;
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(245, 242, 234, 0.78);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      color 0.2s,
+      border-color 0.2s,
+      background 0.2s;
+
+    &:hover {
+      color: #f5f2ea;
+      border-color: rgba(232, 165, 75, 0.45);
+      background: rgba(232, 165, 75, 0.12);
     }
   }
 

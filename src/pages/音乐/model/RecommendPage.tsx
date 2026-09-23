@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import styled from 'styled-components'
-import Banner, { type BannerSlide } from './Banner'
 import { RankBadge } from './RankBadge'
 import {
-  fetchArtistSongs,
-  fetchArtists,
   fetchCharts,
   fetchChartSongs,
   fetchPlaylistSongs,
@@ -23,7 +20,6 @@ type Board = {
 export default function RecommendPage() {
   const { play } = useMusic()
   const navigate = useNavigate()
-  const [banners, setBanners] = useState<BannerSlide[]>([])
   const [boards, setBoards] = useState<Board[]>([])
   const [playlists, setPlaylists] = useState<PlaylistCard[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,61 +47,6 @@ export default function RecommendPage() {
           }),
         )
         if (!cancelled) setBoards(boardsRes)
-
-        // banner：热歌 + 著名歌手
-        const hotChart =
-          charts.find((c) => /热歌|飙升|新歌|流行/.test(c.disname || c.name || '')) || charts[0]
-        const slides: BannerSlide[] = []
-
-        if (hotChart?.sourceid) {
-          try {
-            const hot = await fetchChartSongs(hotChart.sourceid, 8)
-            hot.list.slice(0, 3).forEach((song, i) => {
-              if (!song.cover) return
-              slides.push({
-                id: song.id,
-                title: song.title,
-                subtitle: song.artist,
-                cover: song.cover,
-                songs: hot.list,
-                songIndex: i,
-                kind: 'song',
-              })
-            })
-          } catch {
-            /* ignore */
-          }
-        }
-
-        try {
-          const artists = await fetchArtists({ category: 0, pn: 1, rn: 8 })
-          const top = artists.list.filter((a) => a.cover).slice(0, 3)
-          const artistSlides = await Promise.all(
-            top.map(async (artist) => {
-              try {
-                const songs = await fetchArtistSongs(artist.id, 1, 20)
-                return {
-                  id: artist.id,
-                  title: artist.name,
-                  subtitle: `${artist.musicNum || songs.list.length} 首热门作品`,
-                  cover: artist.cover,
-                  songs: songs.list,
-                  songIndex: 0,
-                  kind: 'artist' as const,
-                }
-              } catch {
-                return null
-              }
-            }),
-          )
-          for (const s of artistSlides) {
-            if (s?.songs.length) slides.push(s)
-          }
-        } catch {
-          /* ignore */
-        }
-
-        if (!cancelled) setBanners(slides.slice(0, 6))
       } catch {
         if (!cancelled) setError('排行榜加载失败')
       } finally {
@@ -145,8 +86,6 @@ export default function RecommendPage() {
 
   return (
     <Style>
-      <Banner items={banners} onPlay={play} />
-
       <section className="sec">
         <header className="sec-head">
           <h2>排行榜</h2>

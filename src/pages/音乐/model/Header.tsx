@@ -37,7 +37,7 @@ export default function Header({ active, onToggleTheme }: Props) {
   return (
     <Bar data-scrolled={scrolled ? '1' : '0'}>
       <div className="inner">
-        <Link to="/" className="brand" aria-label="返回首页">
+        <Link to="/music" className="brand" aria-label="铭音乐">
           <span className="brand-mark">铭</span>
           <span className="brand-text">铭音乐</span>
         </Link>
@@ -73,6 +73,9 @@ export default function Header({ active, onToggleTheme }: Props) {
         </form>
 
         <ThemeToggle className="theme-toggle" onClick={onToggleTheme} aria-label="切换深浅色" />
+        <Link to="/works" className="works-back">
+          返回作品集
+        </Link>
       </div>
     </Bar>
   )
@@ -278,6 +281,32 @@ const Bar = styled.header`
     flex-shrink: 0;
   }
 
+  .works-back {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg-elev);
+    color: var(--text-soft);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    transition:
+      color 0.2s,
+      border-color 0.2s,
+      box-shadow 0.2s;
+
+    &:hover {
+      color: var(--ink);
+      border-color: color-mix(in srgb, var(--purple) 45%, transparent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+  }
+
   @media (max-width: 900px) {
     height: 96px;
 
@@ -320,6 +349,13 @@ const Bar = styled.header`
       order: 3;
     }
 
+    .works-back {
+      order: 3;
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
     .nav {
       order: 4;
       flex: none;
@@ -346,6 +382,11 @@ const Bar = styled.header`
 
     .search .go {
       padding: 0 10px;
+      font-size: 11px;
+    }
+
+    .works-back {
+      padding: 0 8px;
       font-size: 11px;
     }
   }

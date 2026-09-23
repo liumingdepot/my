@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import styled, { createGlobalStyle } from 'styled-components'
+import { WORKS_HOME_LIMIT, WORKS_PATH } from '../更多作品/works'
 import { getLangMeta, I18N, LANG_OPTIONS, resolveLang, type Lang } from './utils/i18n'
 
 const NAV = [
@@ -153,6 +154,7 @@ export default function Home() {
 
   useLayoutEffect(() => {
     document.body.classList.add('site-home')
+    document.body.style.background = ''
     document.documentElement.lang = langMeta.htmlLang
     document.documentElement.dir = langMeta.dir
     document.documentElement.dataset.theme = theme
@@ -222,6 +224,7 @@ export default function Home() {
               {ui.nav[item.key]}
             </a>
           ))}
+          <Link to={WORKS_PATH}>更多作品</Link>
         </div>
         <div className="nav__actions">
           <LangSelect value={lang} label={ui.selectLang} onChange={setLang} />
@@ -263,6 +266,9 @@ export default function Home() {
             {ui.nav[item.key]}
           </a>
         ))}
+        <Link to={WORKS_PATH} onClick={closeMenu}>
+          更多作品
+        </Link>
         <a href={t.profile.resume} target="_blank" rel="noreferrer" onClick={closeMenu}>
           {ui.resume}
         </a>
@@ -322,7 +328,7 @@ export default function Home() {
           <p className="section__label">{ui.sectionWorks}</p>
           <h2 className="section__title">{ui.worksTitle}</h2>
           <ul className="works-grid">
-            {t.works.map((work, index) => {
+            {t.works.slice(0, WORKS_HOME_LIMIT).map((work, index) => {
               const platformLabel = work.href === '/game' ? ui.platformPc : ui.platformAll
               const card = (
                 <>
@@ -362,6 +368,11 @@ export default function Home() {
               )
             })}
           </ul>
+          <div className="works-more">
+            <Link className="works-more__link" to={WORKS_PATH}>
+              更多作品 →
+            </Link>
+          </div>
         </section>
 
         <section className="section reveal" id="about">
@@ -1767,6 +1778,38 @@ html[data-theme="dark"] & .badge {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
+}
+
+.works-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.works-more__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  color: var(--purple);
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  box-shadow: var(--shadow-soft);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    border-color 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+    border-color: color-mix(in srgb, var(--purple) 35%, transparent);
+  }
 }
 
 .work-card {

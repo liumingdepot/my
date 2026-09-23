@@ -181,13 +181,13 @@ export default function TypePage() {
               .filter((o) => o.label)
             if (!opts.length) return null
             const current = selected[group.key] ?? (group.key === 'sort' ? '75' : '-1')
-            const showLabel = group.key !== 'sort'
+            const label = group.key === 'sort' ? '排序' : group.name
             return (
               <div
                 key={group.key}
                 className={`row ${group.key.startsWith('type_') ? 'is-sub' : ''}`}
               >
-                {showLabel ? <span className="label">{group.name}</span> : <span className="label" />}
+                <span className="label">{label}</span>
                 <div className="opts">
                   {opts.map((o) => (
                     <button

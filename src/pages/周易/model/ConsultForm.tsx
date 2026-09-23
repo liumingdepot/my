@@ -3,16 +3,19 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
 import { formatBazi, toTimestamp } from '../utils/calendar'
 import { t } from '../utils/i18n'
+import { fortunePortalRoot } from '../utils/portal'
 import BirthPicker, { type BirthPickerHandle, type BirthSelection } from './BirthPicker'
 import ConsultFrame from './ConsultFrame'
-import { saveReport } from './ReportPage'
+import GenderGroup, { type Gender } from './GenderGroup'
+import { saveReport } from '../utils/reportHistory'
 import styled from 'styled-components'
 
 export default function ConsultForm() {
   const [name, setName] = useState('')
+  const [gender, setGender] = useState<Gender>('男')
   const [birth, setBirth] = useState<BirthSelection | null>(null)
   const [question, setQuestion] = useState('')
-  const [error, setError] = useState<'' | 'date' | 'hour' | 'fail' | 'network'>('')
+  const [error, setError] = useState<'' | 'date' | 'hour' | 'gender' | 'fail' | 'network'>('')
   const [serverError, setServerError] = useState('')
   const [pending, setPending] = useState(false)
   const pickerRef = useRef<BirthPickerHandle>(null)
@@ -22,6 +25,11 @@ export default function ConsultForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!gender) {
+      setServerError('')
+      setError('gender')
+      return
+    }
     if (!birth || birthTimestamp == null) {
       setServerError('')
       setError('date')
@@ -38,6 +46,7 @@ export default function ConsultForm() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
+          gender,
           timestamp: birthTimestamp,
           shichen: birth.shichen,
           question: question.trim(),
@@ -50,14 +59,17 @@ export default function ConsultForm() {
         setPending(false)
         return
       }
-      const payload = {
-        name: name.trim(),
+      const nextName = name.trim()
+      const payload = saveReport({
+        kind: 'casual',
+        title: `${nextName}的报告`,
+        name: nextName,
+        gender,
         bazi: formatBazi(birth.calendar, birth.birth, birth.shichen, birthTimestamp),
         question: question.trim(),
         report: message,
-      }
-      saveReport(payload)
-      navigate('/fortune/report', { state: payload })
+      })
+      navigate(`/fortune/report?id=${payload.id}`, { state: payload })
     } catch {
       setError('network')
       setPending(false)
@@ -66,57 +78,81 @@ export default function ConsultForm() {
 
   const errorText =
     serverError ||
-    (error === 'date' || error === 'hour'
-      ? t.needBirth
-      : error === 'network'
-        ? t.network
-        : error === 'fail'
-          ? t.fail
-          : '')
+    (error === 'gender'
+      ? t.needGender
+      : error === 'date' || error === 'hour'
+        ? t.needBirth
+        : error === 'network'
+          ? t.network
+          : error === 'fail'
+            ? t.fail
+            : '')
 
   return (
     <Style>
-      <ConsultFrame kicker={t.kicker} quote={t.quote} note={t.note}>
+      <ConsultFrame kicker={t.kicker} title={t.formTitle} quote={t.quote} desc={t.desc} note={t.note}>
         <form className="consult-form" onSubmit={onSubmit}>
-          <p className="eyebrow">{t.formEyebrow}</p>
-          <h2>{t.formTitle}</h2>
+          <div className="field">
+            <label htmlFor="name">{t.name}</label>
+            <div className="field-control">
+              <input
+                id="name"
+                name="name"
+                autoComplete="name"
+                enterKeyHint="next"
+                maxLength={20}
+                placeholder={t.namePh}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+              />
+            </div>
+          </div>
 
-          <label htmlFor="name">{t.name}</label>
-          <input
-            id="name"
-            name="name"
-            autoComplete="name"
-            enterKeyHint="next"
-            maxLength={20}
-            placeholder={t.namePh}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-          />
+          <div className="field">
+            <span className="field-label">{t.gender}</span>
+            <div className="field-control">
+              <GenderGroup
+                value={gender}
+                onChange={(next) => {
+                  setGender(next)
+                  setError('')
+                }}
+              />
+            </div>
+          </div>
 
-          <label htmlFor="birth">{t.bazi}</label>
-          <input type="hidden" name="timestamp" value={birthTimestamp ?? ''} />
-          <input type="hidden" name="shichen" value={birth?.shichen ?? ''} />
-          <BirthPicker
-            ref={pickerRef}
-            value={birth}
-            onChange={(next) => {
-              setBirth(next)
-              setError('')
-            }}
-          />
+          <div className="field">
+            <label htmlFor="birth">{t.bazi}</label>
+            <div className="field-control">
+              <input type="hidden" name="timestamp" value={birthTimestamp ?? ''} />
+              <input type="hidden" name="shichen" value={birth?.shichen ?? ''} />
+              <BirthPicker
+                ref={pickerRef}
+                value={birth}
+                onChange={(next) => {
+                  setBirth(next)
+                  setError('')
+                }}
+              />
+            </div>
+          </div>
 
-          <label htmlFor="question">{t.question}</label>
-          <textarea
-            id="question"
-            name="question"
-            enterKeyHint="done"
-            maxLength={300}
-            placeholder={t.questionPh}
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            required
-          />
+          <div className="field field-top">
+            <label htmlFor="question">{t.question}</label>
+            <div className="field-control">
+              <textarea
+                id="question"
+                name="question"
+                enterKeyHint="done"
+                maxLength={300}
+                placeholder={t.questionPh}
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                required
+              />
+            </div>
+          </div>
 
           <button type="submit" className="submit-btn" disabled={pending}>
             {t.submit}
@@ -134,7 +170,7 @@ export default function ConsultForm() {
                 <p>{t.loading}</p>
               </div>
             </Style>,
-            document.body,
+            fortunePortalRoot(),
           )
         : null}
     </Style>
@@ -142,88 +178,108 @@ export default function ConsultForm() {
 }
 
 const Style = styled.div`
+  min-height: calc(100svh - var(--fortune-nav-height, 56px));
+
   @keyframes spin {
     to {
       transform: rotate(360deg);
     }
   }
 
-  .eyebrow {
-    margin: 0 0 28px;
-    color: #c4a36a;
-    font-size: 14px;
-    letter-spacing: 0.72em;
-  }
-
   .consult-form {
-    width: min(100%, 520px);
-    justify-self: end;
-    margin-right: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
   }
 
-  .consult h2 {
+  .field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 0;
+  }
+
+  .field + .field {
+    margin-top: 18px;
+  }
+
+  .field > label,
+  .field > .field-label {
     margin: 0;
-    color: #f3e6c8;
-    font-size: clamp(32px, 8vw, 48px);
-    font-weight: 500;
-    letter-spacing: 0.16em;
+    color: var(--zy-text-soft);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    text-align: left;
+    line-height: 1.2;
   }
 
-  .consult-form label {
-    display: block;
-    margin: 22px 0 8px;
-    color: #c4a36a;
-    font-size: 14px;
-    letter-spacing: 0.22em;
+  .field-control {
+    width: 100%;
+    min-width: 0;
   }
 
   .consult-form input,
   .consult-form textarea {
     width: 100%;
     max-width: 100%;
-    border: 1px solid rgba(214, 186, 138, 0.45);
-    border-radius: 10px;
-    background: rgba(255, 248, 235, 0.03);
-    color: #f6edd8;
-    font: 16px/1.5 ui-serif, "Songti SC", "STSong", "SimSun", serif;
+    border: 1px solid var(--zy-border, #d9d9d9);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--zy-bg0) 55%, var(--zy-bg1));
+    color: var(--zy-text-soft);
+    font: 14px/1.5 var(--zy-font, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif);
     color-scheme: dark;
     box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
 
   .consult-form input {
-    min-height: 48px;
-    padding: 0 14px;
+    min-height: 40px;
+    padding: 0 11px;
   }
 
   .consult-form textarea {
-    min-height: 120px;
-    padding: 12px 14px;
+    min-height: 96px;
+    padding: 8px 11px;
     resize: vertical;
+  }
+
+  .consult-form input:hover,
+  .consult-form textarea:hover {
+    border-color: var(--zy-border-hover, var(--zy-primary));
   }
 
   .consult-form input:focus,
   .consult-form textarea:focus {
-    outline: 1px solid #e0c48a;
-    outline-offset: 2px;
+    outline: none;
+    border-color: var(--zy-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--zy-primary) 12%, transparent);
   }
 
   .consult-form input::placeholder,
   .consult-form textarea::placeholder {
-    color: rgba(232, 220, 198, 0.38);
+    color: color-mix(in srgb, var(--zy-muted) 60%, transparent);
   }
 
   .consult-form .submit-btn {
     width: 100%;
-    min-height: 48px;
-    margin-top: 28px;
-    border: 1px solid #d4ae62;
-    border-radius: 10px;
-    background: transparent;
-    color: #f6edd8;
-    font: 16px/1 ui-serif, "Songti SC", "STSong", "SimSun", serif;
-    letter-spacing: 0.36em;
+    min-height: 40px;
+    margin-top: 24px;
+    border: 1px solid var(--zy-primary);
+    border-radius: 6px;
+    background: var(--zy-primary);
+    color: #fff;
+    font: 14px/1 var(--zy-font, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif);
+    letter-spacing: 0.16em;
     cursor: pointer;
     touch-action: manipulation;
+    transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+  }
+
+  .consult-form .submit-btn:hover:not(:disabled) {
+    background: var(--zy-primary-hover);
+    border-color: var(--zy-primary-hover);
   }
 
   .consult-form .submit-btn:disabled {
@@ -238,75 +294,43 @@ const Style = styled.div`
     display: grid;
     place-content: center;
     justify-items: center;
-    gap: 18px;
-    background: rgba(11, 10, 9, 0.9);
+    gap: 16px;
+    background: color-mix(in srgb, var(--zy-bg0) 78%, transparent);
     backdrop-filter: blur(6px);
   }
 
   .loading p {
     margin: 0;
-    color: #e7d3a4;
-    font-size: 15px;
-    letter-spacing: 0.42em;
-    padding-left: 0.42em;
+    color: var(--zy-primary);
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    padding-left: 0.2em;
   }
 
   .loading-mark {
-    width: 76px;
-    height: 76px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    border: 1px solid rgba(214, 186, 138, 0.35);
-    border-top-color: #f3e6c8;
-    animation: spin 1s linear infinite;
-  }
-
-  .loading-mark::after {
-    content: '';
-    display: block;
-    width: 46px;
-    height: 46px;
-    margin: 14px;
-    border-radius: 50%;
-    border: 1px solid rgba(214, 186, 138, 0.55);
-    border-bottom-color: transparent;
-    animation: spin 1.6s linear infinite reverse;
+    border: 2px solid color-mix(in srgb, var(--zy-primary) 20%, transparent);
+    border-top-color: var(--zy-primary);
+    animation: spin 0.8s linear infinite;
   }
 
   .feedback {
-    margin: 22px 0 0;
-    line-height: 1.8;
+    margin: 16px 0 0;
+    line-height: 1.6;
     word-break: break-word;
+    font-size: 13px;
   }
 
   .feedback.error {
-    color: #d4786a;
-    letter-spacing: 0.08em;
+    color: var(--zy-error, #ff4d4f);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .loading-mark,
-    .loading-mark::after {
+    .loading-mark {
       animation: none;
     }
   }
 
-  @media (max-width: 900px) {
-    .eyebrow {
-      margin-bottom: 16px;
-      font-size: 13px;
-      letter-spacing: 0.62em;
-      padding-left: 0.62em;
-    }
-
-    .consult-form {
-      width: 100%;
-      justify-self: stretch;
-      margin-right: 0;
-    }
-
-    .consult h2,
-    .consult-form label {
-      letter-spacing: 0.08em;
-    }
-  }
 `

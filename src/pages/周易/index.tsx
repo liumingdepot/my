@@ -1,26 +1,29 @@
 import { useLayoutEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { useLocation } from 'react-router'
 import Home from './components/首页'
-import Casual from './components/随便算算'
+import OnlineLots from './components/在线抽签'
+import Casual from './components/算一卦'
 import BaziDetail from './components/八字精批'
+import HehunMatch from './components/合婚配对'
+import LiunianFortune from './components/流年运势'
+import FortuneNav, { TABS, type TabId } from './model/FortuneNav'
 import { t } from './utils/i18n'
 import styled from 'styled-components'
 
-const TABS = [
-  { id: 'home', label: t.navHome },
-  { id: 'casual', label: t.navCasual },
-  { id: 'bazi', label: t.navBazi },
-] as const
-
-type TabId = (typeof TABS)[number]['id']
+function readTab(state: unknown): TabId {
+  if (!state || typeof state !== 'object') return 'home'
+  const tab = (state as { tab?: string }).tab
+  return TABS.some((item) => item.id === tab) ? (tab as TabId) : 'home'
+}
 
 export default function ZhouyiPage() {
-  const [tab, setTab] = useState<TabId>('home')
+  const location = useLocation()
+  const [tab, setTab] = useState<TabId>(() => readTab(location.state))
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
     document.title = t.docTitle
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0b0a09')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0c0f12')
 
     const root = document.documentElement
     const previousBehavior = root.style.scrollBehavior
@@ -37,6 +40,11 @@ export default function ZhouyiPage() {
     }
   }, [])
 
+  useLayoutEffect(() => {
+    const next = readTab(location.state)
+    setTab(next)
+  }, [location.state])
+
   function switchTab(next: TabId) {
     setTab(next)
     window.scrollTo(0, 0)
@@ -44,157 +52,113 @@ export default function ZhouyiPage() {
 
   return (
     <Style>
-      <div className="zhouyi">
-        <header className="nav">
-          <Link to="/" className="brand" aria-label={t.docTitle}>
-            <span className="brand-mark">{t.titleA}</span>
-            <span className="brand-text">{t.docTitle}</span>
-          </Link>
-          <nav className="tabs" role="tablist" aria-label={t.navLabel}>
-            {TABS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={tab === item.id}
-                className={tab === item.id ? 'is-active' : undefined}
-                onClick={() => switchTab(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </header>
-        {tab === 'home' ? <Home onConsult={() => switchTab('casual')} /> : null}
+      <div className="zhouyi" data-theme={tab}>
+        <FortuneNav activeTab={tab} onSelectTab={switchTab} />
+        {tab === 'home' ? <Home onConsult={() => switchTab('lots')} /> : null}
+        {tab === 'lots' ? <OnlineLots /> : null}
         {tab === 'casual' ? <Casual /> : null}
         {tab === 'bazi' ? <BaziDetail /> : null}
+        {tab === 'hehun' ? <HehunMatch /> : null}
+        {tab === 'liunian' ? <LiunianFortune /> : null}
       </div>
     </Style>
   )
 }
 
 const Style = styled.div`
-  --fortune-nav-height: calc(64px + env(safe-area-inset-top));
+  --fortune-nav-height: calc(56px + env(safe-area-inset-top));
 
   .zhouyi {
-    min-height: 100svh;
-    background: #0b0a09;
-    overflow-x: hidden;
-  }
+    /* 墨夜 · 首页默认 · 青绿 */
+    --zy-bg0: #0c0f12;
+    --zy-bg1: #161a1f;
+    --zy-glow: rgba(45, 212, 191, 0.1);
+    --zy-glow-2: rgba(148, 163, 184, 0.05);
+    --zy-accent: #5eead4;
+    --zy-accent-strong: #2dd4bf;
+    --zy-primary: #14b8a6;
+    --zy-primary-hover: #2dd4bf;
+    --zy-border: #2a3038;
+    --zy-border-hover: #2dd4bf;
+    --zy-text: #d5d9df;
+    --zy-text-soft: #f1f3f5;
+    --zy-muted: #8b939e;
+    --zy-dot: rgba(255, 255, 255, 0.035);
+    --zy-ornament: rgba(45, 212, 191, 0.18);
+    --zy-error: #f87171;
+    --zy-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.45);
+    --zy-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
+      'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    --zy-serif: ui-serif, 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', serif;
 
-  .nav {
-    position: sticky;
-    top: 0;
-    z-index: 4;
-    display: flex;
-    align-items: center;
-    gap: 20px;
     box-sizing: border-box;
-    height: var(--fortune-nav-height);
-    padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0
-      max(16px, env(safe-area-inset-left));
-    background: rgba(11, 10, 9, 0.88);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(214, 186, 138, 0.18);
+    min-height: 100svh;
+    padding-top: var(--fortune-nav-height);
+    background: var(--zy-bg0);
+    color: var(--zy-text);
+    font-family: var(--zy-font);
+    overflow-x: hidden;
+    transition: background 0.35s ease;
+    color-scheme: dark;
   }
 
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-    text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
-
-    &:hover {
-      opacity: 0.88;
-    }
+  .zhouyi[data-theme='lots'] {
+    /* 琥珀 · 在线抽签 */
+    --zy-glow: rgba(251, 191, 36, 0.1);
+    --zy-glow-2: rgba(148, 163, 184, 0.05);
+    --zy-accent: #fcd34d;
+    --zy-accent-strong: #fbbf24;
+    --zy-primary: #d97706;
+    --zy-primary-hover: #fbbf24;
+    --zy-border-hover: #fbbf24;
+    --zy-ornament: rgba(251, 191, 36, 0.18);
   }
 
-  .brand-mark {
-    width: 32px;
-    height: 32px;
-    display: grid;
-    place-items: center;
-    border-radius: 9px;
-    background: linear-gradient(145deg, #f0b85c 0%, #e8a54b 45%, #c4782a 100%);
-    color: #0a0a0c;
-    font: 700 17px/1 ui-serif, 'Songti SC', 'STSong', 'SimSun', serif;
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.18) inset,
-      0 4px 14px rgba(232, 165, 75, 0.28);
+  .zhouyi[data-theme='casual'] {
+    /* 松烟 · 算一卦 */
+    --zy-glow: rgba(96, 165, 250, 0.1);
+    --zy-glow-2: rgba(148, 163, 184, 0.05);
+    --zy-accent: #93c5fd;
+    --zy-accent-strong: #60a5fa;
+    --zy-primary: #3b82f6;
+    --zy-primary-hover: #60a5fa;
+    --zy-border-hover: #60a5fa;
+    --zy-ornament: rgba(96, 165, 250, 0.18);
   }
 
-  .brand-text {
-    font: 700 21px/1 ui-serif, 'Songti SC', 'STSong', 'SimSun', serif;
-    letter-spacing: 0.1em;
-    color: #f5f2ea;
-    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+  .zhouyi[data-theme='bazi'] {
+    /* 朱砂 · 八字精批 */
+    --zy-glow: rgba(248, 113, 113, 0.1);
+    --zy-glow-2: rgba(148, 163, 184, 0.05);
+    --zy-accent: #fca5a5;
+    --zy-accent-strong: #f87171;
+    --zy-primary: #ef4444;
+    --zy-primary-hover: #f87171;
+    --zy-border-hover: #f87171;
+    --zy-ornament: rgba(248, 113, 113, 0.16);
   }
 
-  .tabs {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
+  .zhouyi[data-theme='hehun'] {
+    /* 绛紫 · 合婚配对 */
+    --zy-glow: rgba(167, 139, 250, 0.1);
+    --zy-glow-2: rgba(148, 163, 184, 0.05);
+    --zy-accent: #c4b5fd;
+    --zy-accent-strong: #a78bfa;
+    --zy-primary: #8b5cf6;
+    --zy-primary-hover: #a78bfa;
+    --zy-border-hover: #a78bfa;
+    --zy-ornament: rgba(167, 139, 250, 0.16);
   }
 
-  .tabs button {
-    flex-shrink: 0;
-    min-height: 36px;
-    padding: 0 14px;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: rgba(232, 220, 198, 0.55);
-    font: 15px/1 ui-serif, 'Songti SC', 'STSong', 'SimSun', serif;
-    letter-spacing: 0.22em;
-    cursor: pointer;
-  }
-
-  .tabs button.is-active {
-    background: rgba(196, 148, 72, 0.16);
-    color: #f6edd8;
-  }
-
-  @media (max-width: 900px) {
-    .nav {
-      gap: 12px;
-    }
-
-    .brand-mark {
-      width: 28px;
-      height: 28px;
-      font-size: 15px;
-      border-radius: 8px;
-    }
-
-    .brand-text {
-      font-size: 18px;
-    }
-
-    .tabs {
-      gap: 4px;
-    }
-
-    .tabs button {
-      padding: 0 10px;
-      font-size: 14px;
-      letter-spacing: 0.12em;
-    }
-  }
-
-  @media (max-width: 520px) {
-    .brand-text {
-      display: none;
-    }
+  .zhouyi[data-theme='liunian'] {
+    /* 黛蓝 · 流年运势 */
+    --zy-glow: rgba(56, 189, 248, 0.1);
+    --zy-glow-2: rgba(148, 163, 184, 0.05);
+    --zy-accent: #7dd3fc;
+    --zy-accent-strong: #38bdf8;
+    --zy-primary: #0ea5e9;
+    --zy-primary-hover: #38bdf8;
+    --zy-border-hover: #38bdf8;
+    --zy-ornament: rgba(56, 189, 248, 0.18);
   }
 `
