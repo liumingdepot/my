@@ -23,17 +23,25 @@ Senior frontend engineer with 10 years of experience in micro-frontend architect
 
 Personal developer works — for learning & exchange only
 
-### [Fortune](http://www.liuming1234.xyz/fortune) · Live
+### [Zhouyi](http://www.liuming1234.xyz/fortune) · Live
 
 Enter birth details and a question, then get an I Ching reading. For traditional culture and entertainment only.
 
 ### [Music](http://www.liuming1234.xyz/music) · Live
 
-Search tracks, browse recommendations and charts, play online with synced lyrics. Works on phone and desktop.
+Search, playlists, charts and tags — play with lyrics. Powered by public APIs; for learning & exchange only.
 
-### [Video](http://www.liuming1234.xyz/video) · Demo
+### [Video](http://www.liuming1234.xyz/video) · Live
 
-Static video site demo: home feed, category filters, detail and play pages, styled after a MacCMS template.
+Video site: home feed, short drama / movie / TV categories, search and playback. Public APIs; for learning & exchange only.
+
+### [Games](http://www.liuming1234.xyz/game) · Soon
+
+Placeholder for the games module — routing is live; content coming soon. For learning & exchange only.
+
+### [Education](http://www.liuming1234.xyz/education) · Soon
+
+Placeholder for the education module — routing is live; content coming soon. For learning & exchange only.
 
 ---
 

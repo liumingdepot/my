@@ -104,7 +104,7 @@ body:has(.admin) {
   margin: 0 !important;
   background: #f3f4f6 !important;
   color: #111827 !important;
-  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
   font-size: 14px !important;
   line-height: 1.5 !important;
   -webkit-font-smoothing: antialiased;
@@ -118,7 +118,7 @@ body:has(.admin) a {
 
 const Style = styled.div`
   min-height: 100dvh;
-  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: #111827;
@@ -145,22 +145,30 @@ const Style = styled.div`
   .admin-shell {
     display: flex;
     flex-direction: row;
+    height: 100dvh;
     min-height: 100dvh;
+    overflow: hidden;
     background: #f3f4f6;
   }
 
   .admin-main {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
   }
 
   .admin-content {
     flex: 1;
-    padding: 20px 24px 32px;
     min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 20px 24px 24px;
   }
 
   .admin-mask {

@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import styled from 'styled-components'
 import { categoryByPath, QQ_PAGES } from '../utils/categories'
-import { buildQqFilterParams, fetchQqList } from '../utils/server'
+import { buildQqFilterParams, fetchQqChannel, fetchQqList } from '../utils/server'
+import { matchPath } from '../utils/match'
 import type { QqFilterGroup, QqTitle } from '../utils/types'
-import { searchPath } from './TitleCard'
 
-const PRIMARY_KEYS = new Set(['sort', 'itype', 'iarea'])
+const PRIMARY_KEYS = new Set(['sort', 'itype', 'iarea', 'story', 'prefer', 'identity', 'attraction'])
 const HIDDEN_KEYS = new Set([
   'ipay',
   'producer',
@@ -41,6 +41,7 @@ function isPrimaryGroup(g: QqFilterGroup) {
 function optionLabel(group: QqFilterGroup, opt: { n: string; v: string }) {
   if (opt.v === '-1' && opt.n === group.name) return null
   if (opt.v === '-1') return '全部'
+  if (group.key === 'sort' && (opt.n === '限免中' || opt.v === '90')) return null
   return opt.n
 }
 
@@ -53,7 +54,7 @@ export default function TypePage() {
   const [list, setList] = useState<QqTitle[]>([])
   const [nextCtx, setNextCtx] = useState('')
   const [hasNext, setHasNext] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
@@ -75,7 +76,7 @@ export default function TypePage() {
     setSelected({ sort: '75' })
     setFilters([])
     setList([])
-    setExpanded(false)
+    setExpanded(true)
   }, [cat])
 
   useEffect(() => {
@@ -84,23 +85,42 @@ export default function TypePage() {
     setLoading(true)
     setError('')
     setNextCtx('')
-    fetchQqList(channelId, filterParams)
-      .then((data) => {
+    ;(async () => {
+      try {
+        const data = await fetchQqList(channelId, filterParams)
         if (cancelled) return
+        // 音乐等频道无筛选列表，回退频道页海报
+        if (!data.list.length && !data.filters.length) {
+          const channel = await fetchQqChannel(channelId)
+          if (cancelled) return
+          setFilters([])
+          setList(channel.list)
+          setHasNext(false)
+          setNextCtx('')
+          return
+        }
         setFilters(data.filters)
         setList(data.list)
         setHasNext(data.has_next)
         setNextCtx(data.next_ctx || '')
-      })
-      .catch((err) => {
-        if (!cancelled) {
+      } catch (err) {
+        if (cancelled) return
+        try {
+          const channel = await fetchQqChannel(channelId)
+          if (cancelled) return
+          setFilters([])
+          setList(channel.list)
+          setHasNext(false)
+          setNextCtx('')
+          setError('')
+        } catch {
           setError(err instanceof Error ? err.message : '加载失败')
           setList([])
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    })()
     return () => {
       cancelled = true
     }
@@ -217,7 +237,7 @@ export default function TypePage() {
 
 function PosterCard({ item }: { item: QqTitle }) {
   return (
-    <Card to={searchPath(item.title)}>
+    <Card to={matchPath(item)}>
       <div className="poster">
         {item.pic ? (
           <img src={item.pic} alt="" loading="lazy" referrerPolicy="no-referrer" />
@@ -229,7 +249,7 @@ function PosterCard({ item }: { item: QqTitle }) {
         {item.score ? <span className="score">{item.score}</span> : null}
       </div>
       <h3 title={item.title}>{item.title}</h3>
-      {item.sub ? <p>{item.sub}</p> : <p>点击搜索播放源</p>}
+      {item.sub ? <p>{item.sub}</p> : <p>匹配全网播放源</p>}
     </Card>
   )
 }
@@ -298,6 +318,7 @@ const Page = styled.div`
       font-weight: 600;
     }
   }
+
 
   .expand {
     display: flex;
@@ -414,11 +435,6 @@ const Page = styled.div`
       padding: 0 10px;
       font-size: 13px;
       flex-shrink: 0;
-    }
-
-    .expand {
-      padding: 6px;
-      font-size: 12px;
     }
 
     .container {

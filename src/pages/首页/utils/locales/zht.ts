@@ -31,7 +31,9 @@ export const zht = {
     experienceTitle: "我工作過的地方。",
     contactTitle: "一起合作。",
     worksTitle: "個人開發者作品，僅供學習交流",
-    workOpen: "打開 →",
+    platformPc: "PC",
+    platformAll: "PC + 移動",
+    workOpen: "打開",
     contactEyebrow: "Let's build something",
     contactHeading: "有合適的機會想聊聊？",
     contactText: "目前開放全職前端開發 / 前端管理機會，也可交流微前端與 AI 工程化實踐。歡迎直接聯繫。",
@@ -44,29 +46,46 @@ export const zht = {
   },
   works: [
     {
-      name: "算命",
+      name: "周易",
       desc: "填寫生辰與問題，生成一份周易命盤解讀。觀象於天，僅作傳統文化與娛樂參考。",
       href: "/fortune",
       tag: "已上線",
       tone: "violet",
-      glyph: "周易"
+      glyph: "易",
     },
     {
       name: "音樂",
-      desc: "搜尋歌曲、瀏覽推薦與排行榜，線上聽歌並同步歌詞。相容手機與電腦。",
+      desc: "搜尋、推薦歌單、排行榜與分類標籤，支援播放與歌詞。資料來自公開介面，僅供學習交流。",
       href: "/music",
       tag: "已上線",
-      tone: "cyan",
-      glyph: "♪"
+      tone: "rose",
+      glyph: "音",
     },
     {
       name: "影片",
-      desc: "影視站靜態演示：首頁推薦、分類篩選、詳情與播放頁，樣式參考蘋果 CMS 模板。",
+      desc: "影視站：首頁熱播、短劇/電影/電視劇等分類篩選、搜尋與播放，資料來自公開介面，僅供學習交流。",
       href: "/video",
-      tag: "演示",
-      tone: "amber",
-      glyph: "影"
+      tag: "已上線",
+      tone: "ink",
+      glyph: "影",
+    },
+    {
+      name: "遊戲",
+      desc: "遊戲模組佔位頁，路由與入口已打通，內容後續補充。僅供學習交流。",
+      href: "/game",
+      tag: "佔位",
+      tone: "emerald",
+      glyph: "游",
+    },
+    {
+      name: "學習教育",
+      desc: "教育模組佔位頁，路由與入口已打通，內容後續補充。僅供學習交流。",
+      href: "/education",
+      tag: "佔位",
+      tone: "sky",
+      glyph: "教",
     }
+
   ],
   profile: {
     name: "劉銘",

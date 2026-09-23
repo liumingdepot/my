@@ -9,6 +9,7 @@ import {
   updateVideoSource,
   type VideoSource,
 } from '../auth'
+import ListPagination, { LIST_PAGE_SIZE } from '../model/ListPagination'
 
 type Draft = {
   name: string
@@ -47,9 +48,10 @@ export default function VideoSourcesPage() {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [page, setPage] = useState(1)
 
   useLayoutEffect(() => {
-    document.title = '采集源 · 后台管理'
+    document.title = '视频管理 · 后台管理'
   }, [])
 
   useEffect(() => {
@@ -87,6 +89,21 @@ export default function VideoSourcesPage() {
         source.name.toLowerCase().includes(q) || source.url.toLowerCase().includes(q),
     )
   }, [sources, query])
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = useMemo(
+    () => filtered.slice((safePage - 1) * LIST_PAGE_SIZE, safePage * LIST_PAGE_SIZE),
+    [filtered, safePage],
+  )
+
+  useEffect(() => {
+    setPage(1)
+  }, [query])
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount)
+  }, [page, pageCount])
 
   const primaryName = useMemo(
     () => sources.find((source) => source.enabled)?.name ?? '—',
@@ -211,7 +228,7 @@ export default function VideoSourcesPage() {
 
       <div className="head">
         <div>
-          <h1 className="title">采集源</h1>
+          <h1 className="title">视频管理</h1>
           <p className="desc">
             管理视频站可用的采集接口；停用后前台不再使用。排序最靠前的启用源为主源（当前：
             {primaryName}）
@@ -274,7 +291,7 @@ export default function VideoSourcesPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((source) => (
+                paged.map((source) => (
                   <tr key={source.id}>
                     <td>
                       <div className="name">
@@ -323,6 +340,13 @@ export default function VideoSourcesPage() {
             </tbody>
           </table>
         </div>
+
+        <ListPagination
+          page={safePage}
+          pageCount={pageCount}
+          total={filtered.length}
+          onChange={setPage}
+        />
       </div>
 
       {dialogOpen ? (
@@ -397,6 +421,10 @@ export default function VideoSourcesPage() {
 
 const Style = styled.div`
   position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 
   .toast {
     position: fixed;
@@ -418,6 +446,7 @@ const Style = styled.div`
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 16px;
+    flex-shrink: 0;
   }
 
   .title {
@@ -476,6 +505,7 @@ const Style = styled.div`
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 16px;
+    flex-shrink: 0;
   }
 
   .stat {
@@ -505,6 +535,10 @@ const Style = styled.div`
   }
 
   .panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
@@ -519,6 +553,7 @@ const Style = styled.div`
     padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
     background: #f9fafb;
+    flex-shrink: 0;
   }
 
   .search {
@@ -542,7 +577,9 @@ const Style = styled.div`
   }
 
   .table-wrap {
-    overflow-x: auto;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   table {
@@ -561,6 +598,9 @@ const Style = styled.div`
   }
 
   th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     background: #f9fafb;
     color: #6b7280;
     font-size: 13px;

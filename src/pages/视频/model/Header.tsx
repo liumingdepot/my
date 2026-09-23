@@ -1,5 +1,5 @@
-import { Link } from 'react-router'
-import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import { useEffect, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
 import { NAV_LINKS } from '../utils/categories'
 import type { NavKey } from '../utils/types'
@@ -10,7 +10,9 @@ type Props = {
 }
 
 export default function Header({ active, hideSearch }: Props) {
+  const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
+  const [keyword, setKeyword] = useState('')
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -19,17 +21,27 @@ export default function Header({ active, hideSearch }: Props) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  function onSearch(e: FormEvent) {
+    e.preventDefault()
+    const q = keyword.trim()
+    if (!q) {
+      navigate('/video/search')
+      return
+    }
+    navigate(`/video/search?q=${encodeURIComponent(q)}`)
+  }
+
   return (
     <Bar data-scrolled={scrolled ? '1' : '0'}>
       <div className="inner">
         <div className="top">
-          <Link to="/video" className="brand">
+          <Link to="/" className="brand">
             <span className="brand-mark">铭</span>
             <span className="brand-text">铭影视</span>
           </Link>
 
           {hideSearch ? null : (
-            <Link to="/video/search" className="search" aria-label="搜索">
+            <form className="search" onSubmit={onSearch} role="search">
               <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
                 <path
@@ -40,9 +52,16 @@ export default function Header({ active, hideSearch }: Props) {
                   strokeLinecap="round"
                 />
               </svg>
-              <span className="placeholder">搜索影片、演员…</span>
-              <span className="go">搜索</span>
-            </Link>
+              <input
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="搜索影片、演员…"
+                aria-label="搜索关键词"
+              />
+              <button type="submit" className="go">
+                搜索
+              </button>
+            </form>
           )}
         </div>
 
@@ -146,7 +165,7 @@ const Bar = styled.header`
     border-radius: 9px;
     background: linear-gradient(145deg, #f0b85c 0%, #e8a54b 45%, #c4782a 100%);
     color: #0a0a0c;
-    font-family: 'Noto Serif SC', 'Songti SC', serif;
+    font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
     font-weight: 700;
     font-size: 17px;
     box-shadow:
@@ -155,7 +174,7 @@ const Bar = styled.header`
   }
 
   .brand-text {
-    font-family: 'Noto Serif SC', 'Songti SC', serif;
+    font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
     font-size: 21px;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -231,13 +250,14 @@ const Bar = styled.header`
     background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    text-decoration: none;
-    cursor: pointer;
+    margin: 0;
+    box-sizing: border-box;
     transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
     order: 3;
     -webkit-tap-highlight-color: transparent;
 
-    &:hover {
+    &:hover,
+    &:focus-within {
       border-color: rgba(232, 165, 75, 0.55);
       background: rgba(255, 255, 255, 0.12);
       box-shadow: 0 0 0 3px rgba(232, 165, 75, 0.12);
@@ -252,29 +272,43 @@ const Bar = styled.header`
       pointer-events: none;
     }
 
-    .placeholder {
+    input {
       width: 168px;
-      color: rgba(245, 242, 234, 0.38);
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      padding: 0 8px 0 0;
+      border: 0;
+      background: transparent;
+      color: #f5f2ea;
       font-size: 13px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      pointer-events: none;
+      outline: 0;
+
+      &::placeholder {
+        color: rgba(245, 242, 234, 0.38);
+      }
     }
 
     .go {
+      flex-shrink: 0;
       display: grid;
       place-items: center;
       height: calc(100% - 6px);
       margin-left: 8px;
       padding: 0 14px;
+      border: 0;
       border-radius: 999px;
       background: linear-gradient(145deg, #f0b85c, #e8a54b);
       color: #0a0a0c;
       font-size: 12px;
       font-weight: 700;
       letter-spacing: 0.04em;
-      pointer-events: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+
+      &:hover {
+        opacity: 0.92;
+      }
     }
   }
 
@@ -328,15 +362,12 @@ const Bar = styled.header`
       height: 36px;
       padding-left: 34px;
 
-      .placeholder {
+      input {
         width: auto;
-        flex: 1;
-        min-width: 0;
         font-size: 13px;
       }
 
       .go {
-        flex-shrink: 0;
         padding: 0 12px;
       }
     }

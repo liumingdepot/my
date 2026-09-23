@@ -197,3 +197,165 @@ export async function deleteVideoSource(id: string) {
     method: 'DELETE',
   })
 }
+
+export const GAME_CATEGORIES = ['FC', 'SFC', '街机'] as const
+export type GameCategory = (typeof GAME_CATEGORIES)[number]
+
+export type Game = {
+  id: string
+  name: string
+  downloadUrl: string
+  imageUrl: string
+  category: GameCategory
+  genre: string
+  recommended: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type GameInput = {
+  name: string
+  downloadUrl: string
+  imageUrl: string
+  category: GameCategory
+  genre: string
+  recommended: boolean
+}
+
+type GamesResponse = { games: Game[] }
+type GameResponse = { game: Game }
+
+export async function listGames() {
+  const data = await request<GamesResponse>('/api/admin/games')
+  return data.games
+}
+
+export async function createGame(input: GameInput) {
+  const data = await request<GameResponse>('/api/admin/games', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return data.game
+}
+
+export async function updateGame(id: string, input: GameInput) {
+  const data = await request<GameResponse>(`/api/admin/games/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+  return data.game
+}
+
+export async function patchGameRecommended(id: string, recommended: boolean) {
+  const data = await request<GameResponse>(
+    `/api/admin/games/${encodeURIComponent(id)}/recommended`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ recommended }),
+    },
+  )
+  return data.game
+}
+
+export async function deleteGame(id: string) {
+  await request<{ ok: boolean }>(`/api/admin/games/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export type ImportYikmResult = {
+  ok: boolean
+  scraped: number
+  created: number
+  updated: number
+  fromPage: number
+  toPage: number
+  games: Game[]
+}
+
+/** 从 yikm.net FC 列表采集（默认第 1–10 页） */
+export async function importGamesFromYikm(fromPage = 1, toPage = 10) {
+  return request<ImportYikmResult>('/api/admin/games/import-yikm', {
+    method: 'POST',
+    body: JSON.stringify({ fromPage, toPage }),
+  })
+}
+
+export type EducationSource = {
+  id: string
+  name: string
+  ext: string
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type EducationSourceInput = {
+  name: string
+  ext: string
+  sortOrder: number
+}
+
+type EducationSourcesResponse = { sources: EducationSource[] }
+type EducationSourceResponse = { source: EducationSource }
+
+export async function listEducationSources() {
+  const data = await request<EducationSourcesResponse>('/api/admin/education-sources')
+  return data.sources
+}
+
+export async function createEducationSource(input: EducationSourceInput) {
+  const data = await request<EducationSourceResponse>('/api/admin/education-sources', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return data.source
+}
+
+export async function updateEducationSource(id: string, input: EducationSourceInput) {
+  const data = await request<EducationSourceResponse>(
+    `/api/admin/education-sources/${encodeURIComponent(id)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    },
+  )
+  return data.source
+}
+
+export async function deleteEducationSource(id: string) {
+  await request<{ ok: boolean }>(`/api/admin/education-sources/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export type EducationImportResult = {
+  created: number
+  updated: number
+  failed: Array<{ label: string; reason: string }>
+  sources: EducationSource[]
+}
+
+/** 粘贴 TVBox csp_Bili 站点数组 / 单条 / ext URL，批量导入 */
+export async function importEducationSources(raw: string) {
+  return request<EducationImportResult>('/api/admin/education-sources/import', {
+    method: 'POST',
+    body: JSON.stringify({ raw }),
+  })
+}
+
+export type EducationCookieConfig = {
+  cookie: string
+  updatedAt: string
+}
+
+export async function getEducationCookie() {
+  return request<EducationCookieConfig>('/api/admin/education-cookie')
+}
+
+export async function updateEducationCookie(cookie: string) {
+  return request<EducationCookieConfig>('/api/admin/education-cookie', {
+    method: 'PUT',
+    body: JSON.stringify({ cookie }),
+  })
+}

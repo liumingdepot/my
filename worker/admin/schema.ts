@@ -1,4 +1,7 @@
 import type { AdminEnv } from './types.js'
+import { ensureEducationConfigTable } from '../education/config.js'
+import { ensureEducationSourcesTable } from '../education/sources.js'
+import { ensureGamesTable } from '../game/games.js'
 import { ensureVideoSourcesTable } from '../video/sources.js'
 
 const SEED_USERNAME = 'admin'
@@ -22,6 +25,9 @@ export async function ensureSchema(env: AdminEnv) {
   ])
 
   await ensureVideoSourcesTable(env.DB)
+  await ensureGamesTable(env.DB)
+  await ensureEducationConfigTable(env.DB)
+  await ensureEducationSourcesTable(env.DB)
 
   const count = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>()
   if ((count?.c ?? 0) > 0) return

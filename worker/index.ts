@@ -15,12 +15,22 @@ export default {
 
     if (url.pathname.startsWith('/api/music')) {
       const { handleMusicApi } = await import('./music/api.js')
-      return handleMusicApi(request, url)
+      return handleMusicApi(request, url, env)
     }
 
     if (url.pathname.startsWith('/api/video')) {
       const { handleVideoApi } = await import('./video/api.js')
       return handleVideoApi(request, url, env)
+    }
+
+    if (url.pathname.startsWith('/api/game')) {
+      const { handleGameApi } = await import('./game/api.js')
+      return handleGameApi(request, url, env)
+    }
+
+    if (url.pathname.startsWith('/api/education')) {
+      const { handleEducationApi } = await import('./education/api.js')
+      return handleEducationApi(request, url, env)
     }
 
     if (isFortuneApi(url.pathname)) {

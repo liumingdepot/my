@@ -3,6 +3,8 @@ import { handleCasual } from './随便算算.js'
 import { handleHome } from './首页.js'
 
 export interface FortuneEnv {
+  KV: KVNamespace
+  /** 单个或多个 key，逗号 / 换行分隔，每次调用轮询 */
   AGNES_API_KEY?: string
 }
 

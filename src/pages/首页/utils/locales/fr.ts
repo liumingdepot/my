@@ -31,7 +31,9 @@ export const fr = {
     experienceTitle: "Où j'ai travaillé.",
     contactTitle: "Travaillons ensemble.",
     worksTitle: "Travaux personnels — pour l'apprentissage et l'échange",
-    workOpen: "Ouvrir →",
+    platformPc: "PC",
+    platformAll: "PC + Mobile",
+    workOpen: "Ouvrir",
     contactEyebrow: "Let's build something",
     contactHeading: "Une opportunité à discuter ?",
     contactText: "Ouvert aux postes temps plein en front-end / management. Aussi ouvert à échanger sur les micro-frontends et l'ingénierie assistée par IA. N'hésitez pas à me contacter.",
@@ -49,24 +51,41 @@ export const fr = {
       href: "/fortune",
       tag: "En ligne",
       tone: "violet",
-      glyph: "周易"
+      glyph: "易",
     },
     {
       name: "Musique",
-      desc: "Recherchez des titres, parcourez recommandations et classements, écoutez en ligne avec paroles synchronisées. Mobile et desktop.",
+      desc: "Recherche, playlists, classements et tags — lecture avec paroles. APIs publiques ; apprentissage et échange uniquement.",
       href: "/music",
       tag: "En ligne",
-      tone: "cyan",
-      glyph: "♪"
+      tone: "rose",
+      glyph: "音",
     },
     {
       name: "Vidéo",
-      desc: "Démo statique de site vidéo : accueil, filtres, détail et lecture, style inspiré d'un template MacCMS.",
+      desc: "Site vidéo : accueil, catégories (dramas courts, films, séries), recherche et lecture. APIs publiques ; pour l'apprentissage.",
       href: "/video",
-      tag: "Démo",
-      tone: "amber",
-      glyph: "影"
+      tag: "En ligne",
+      tone: "ink",
+      glyph: "影",
+    },
+    {
+      name: "Jeux",
+      desc: "Placeholder du module jeux — routes actives, contenu à venir. Pour l'apprentissage et l'échange uniquement.",
+      href: "/game",
+      tag: "Bientôt",
+      tone: "emerald",
+      glyph: "游",
+    },
+    {
+      name: "Éducation",
+      desc: "Placeholder du module éducation — routes actives, contenu à venir. Pour l'apprentissage et l'échange uniquement.",
+      href: "/education",
+      tag: "Bientôt",
+      tone: "sky",
+      glyph: "教",
     }
+
   ],
   profile: {
     name: "Liu Ming",

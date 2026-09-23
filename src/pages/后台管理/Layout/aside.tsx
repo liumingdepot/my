@@ -3,7 +3,9 @@ import styled from 'styled-components'
 
 const NAV_ITEMS = [
   { key: '/admin/users', label: '用户管理' },
-  { key: '/admin/video-sources', label: '采集源' },
+  { key: '/admin/video-sources', label: '视频管理' },
+  { key: '/admin/games', label: '游戏管理' },
+  { key: '/admin/education', label: '教育管理' },
 ] as const
 
 export { NAV_ITEMS }

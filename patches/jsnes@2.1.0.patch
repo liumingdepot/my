@@ -1,0 +1,73 @@
+diff --git a/src/mappers/index.js b/src/mappers/index.js
+index b5e94b2d391010bee195ae6828f65355f626a4ba..4e369c76e320182b92adc249c5b979e6ce0aa04b 100644
+--- a/src/mappers/index.js
++++ b/src/mappers/index.js
+@@ -16,6 +16,7 @@ import Mapper94 from "./mapper94.js";
+ import Mapper118 from "./mapper118.js";
+ import Mapper119 from "./mapper119.js";
+ import Mapper140 from "./mapper140.js";
++import Mapper164 from "./mapper164.js";
+ import Mapper180 from "./mapper180.js";
+ import Mapper240 from "./mapper240.js";
+ import Mapper241 from "./mapper241.js";
+@@ -39,6 +40,7 @@ export default {
+   118: Mapper118,
+   119: Mapper119,
+   140: Mapper140,
++  164: Mapper164,
+   180: Mapper180,
+   240: Mapper240,
+   241: Mapper241,
+diff --git a/src/mappers/mapper164.js b/src/mappers/mapper164.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3ee62b894f76fb691b98cdb047c3259659ed2730
+--- /dev/null
++++ b/src/mappers/mapper164.js
+@@ -0,0 +1,47 @@
++import Mapper0 from "./mapper0.js";
++
++// Waixing FS304 / Mapper 164
++// Used by many Chinese pirate / translation cartridges.
++// 32 KB PRG bank selected via nibble writes at $5000/$5100; CHR is RAM.
++// See Mesen Waixing164 / https://www.nesdev.org/wiki/INES_Mapper_164
++class Mapper164 extends Mapper0 {
++  static mapperName = "Waixing (Mapper 164)";
++
++  constructor(nes) {
++    super(nes);
++    this.prgBank = 0x0f;
++  }
++
++  write(address, value) {
++    if (address < 0x5000 || address > 0x5fff) {
++      super.write(address, value);
++      return;
++    }
++
++    switch (address & 0x7300) {
++      case 0x5000:
++        this.prgBank = (this.prgBank & 0xf0) | (value & 0x0f);
++        this.load32kRomBank(this.prgBank, 0x8000);
++        break;
++      case 0x5100:
++        this.prgBank = (this.prgBank & 0x0f) | ((value & 0x0f) << 4);
++        this.load32kRomBank(this.prgBank, 0x8000);
++        break;
++      default:
++        break;
++    }
++  }
++
++  loadROM() {
++    if (!this.nes.rom.valid) {
++      throw new Error("Mapper 164: Invalid ROM! Unable to load.");
++    }
++
++    this.prgBank = 0x0f;
++    this.load32kRomBank(this.prgBank, 0x8000);
++    this.loadCHRROM();
++    this.nes.cpu.requestIrq(this.nes.cpu.IRQ_RESET);
++  }
++}
++
++export default Mapper164;

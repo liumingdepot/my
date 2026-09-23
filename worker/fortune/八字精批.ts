@@ -1,4 +1,5 @@
 import type { FortuneEnv } from './api.js'
+import { nextAgnesApiKey } from './agnesKey.js'
 import { Solar } from 'lunar-javascript'
 
 type BaziBody = {
@@ -97,7 +98,8 @@ export async function handleBazi(request: Request, env: FortuneEnv) {
   if (!birth || hour == null) {
     return text('请选择生辰', 400)
   }
-  if (!env.AGNES_API_KEY) {
+  const apiKey = await nextAgnesApiKey(env)
+  if (!apiKey) {
     return text('报告服务未配置', 500)
   }
 
@@ -108,7 +110,7 @@ export async function handleBazi(request: Request, env: FortuneEnv) {
 
   try {
     const born = `公历${birth.year}年${birth.month}月${birth.day}日 ${shichen}（北京时间）`
-    const report = await createReport(env.AGNES_API_KEY, name, born, bazi)
+    const report = await createReport(apiKey, name, born, bazi)
     return text(report)
   } catch {
     return text('报告生成失败，请稍后再试', 502)

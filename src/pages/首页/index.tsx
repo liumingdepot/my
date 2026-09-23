@@ -143,7 +143,7 @@ function LangSelect({
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>(() => resolveLang(localStorage.getItem('lang')))
-  const [theme, setTheme] = useState(() => (localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'))
+  const [theme, setTheme] = useState(() => (localStorage.getItem('theme') === 'light' ? 'light' : 'dark'))
   const [menuOpen, setMenuOpen] = useState(false)
   const t = I18N[lang]
   const ui = t.ui
@@ -323,11 +323,15 @@ export default function Home() {
           <h2 className="section__title">{ui.worksTitle}</h2>
           <ul className="works-grid">
             {t.works.map((work, index) => {
+              const platformLabel = work.href === '/game' ? ui.platformPc : ui.platformAll
               const card = (
                 <>
                   <div className="work-card__top">
                     <span className="work-card__index">{String(index + 1).padStart(2, '0')}</span>
-                    <span className="work-card__tag">{work.tag}</span>
+                    <div className="work-card__meta">
+                      <span className="work-card__platform">{platformLabel}</span>
+                      <span className="work-card__tag">{work.tag}</span>
+                    </div>
                   </div>
                   <h3 className="work-card__name">{work.name}</h3>
                   <p className="work-card__desc">{work.desc}</p>
@@ -532,7 +536,7 @@ const GlobalStyle = createGlobalStyle`
   --radius-sm: 10px;
   --radius-pill: 999px;
   --max: 1120px;
-  --font: Inter, "Noto Sans SC", system-ui, sans-serif;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --nav-h: 72px;
 }
 
@@ -1769,8 +1773,8 @@ html[data-theme="dark"] & .badge {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 250px;
-  padding: 1.35rem 1.3rem 1.25rem;
+  min-height: 236px;
+  padding: 1.2rem 1.25rem 1.15rem;
   overflow: hidden;
   border-radius: var(--radius);
   border: 1px solid var(--line);
@@ -1799,7 +1803,16 @@ html[data-theme="dark"] & .badge {
   gap: 0.75rem;
 }
 
+.work-card__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
 .work-card__index {
+  flex-shrink: 0;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1807,33 +1820,47 @@ html[data-theme="dark"] & .badge {
 }
 
 .work-card__tag {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  padding: 0.22rem 0.6rem;
+  padding: 0.18rem 0.52rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   color: var(--text-soft);
   background: color-mix(in srgb, var(--bg) 65%, transparent);
+  white-space: nowrap;
+}
+
+.work-card__platform {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.18rem 0.52rem;
+  border-radius: var(--radius-pill);
+  color: var(--purple);
+  border: 1px solid color-mix(in srgb, var(--purple) 28%, var(--line));
+  background: color-mix(in srgb, var(--purple) 10%, transparent);
+  white-space: nowrap;
 }
 
 .work-card__name {
-  margin: 1.35rem 0 0.5rem;
-  font-size: 1.45rem;
+  margin: 1.05rem 0 0.55rem;
+  font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1.2;
 }
 
 .work-card__desc {
   margin: 0;
-  max-width: 36ch;
+  max-width: 34ch;
   color: var(--text-soft);
-  font-size: 0.92rem;
-  line-height: 1.7;
+  font-size: 0.9rem;
+  line-height: 1.65;
 }
 
 .work-card__go {
   margin-top: auto;
-  padding-top: 1.25rem;
+  padding-top: 1.1rem;
   font-size: 0.84rem;
   font-weight: 700;
   color: var(--purple);
@@ -1854,7 +1881,7 @@ html[data-theme="dark"] & .badge {
   right: 0.2rem;
   bottom: -0.55rem;
   z-index: 0;
-  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
   font-size: 5.4rem;
   font-weight: 600;
   line-height: 1;
@@ -1872,31 +1899,9 @@ html[data-theme="dark"] & .badge {
 }
 
 .work-card--ink {
-  color: #f3e6c8;
-  border-color: rgba(214, 186, 138, 0.28);
   background:
-    radial-gradient(460px 220px at 92% 8%, rgba(196, 148, 72, 0.28), transparent 62%),
-    linear-gradient(155deg, #221c16 0%, #0b0a09 72%);
-}
-
-.work-card--ink .work-card__index,
-.work-card--ink .work-card__go {
-  color: #e7d3a4;
-}
-
-.work-card--ink .work-card__tag {
-  color: #e7d3a4;
-  border-color: rgba(214, 186, 138, 0.35);
-  background: rgba(196, 148, 72, 0.12);
-}
-
-.work-card--ink .work-card__desc {
-  color: rgba(243, 230, 200, 0.74);
-}
-
-.work-card--ink .work-card__mark {
-  color: #e7d3a4;
-  opacity: 0.16;
+    radial-gradient(360px 180px at 100% 0%, rgba(196, 148, 72, 0.16), transparent 60%),
+    var(--bg-elevated);
 }
 
 .work-card--violet {
@@ -1924,6 +1929,18 @@ html[data-theme="dark"] & .badge {
 .work-card--emerald {
   background:
     radial-gradient(360px 180px at 100% 0%, rgba(46, 196, 160, 0.18), transparent 60%),
+    var(--bg-elevated);
+}
+
+.work-card--sky {
+  background:
+    radial-gradient(360px 180px at 100% 0%, rgba(59, 130, 246, 0.16), transparent 60%),
+    var(--bg-elevated);
+}
+
+.work-card--rose {
+  background:
+    radial-gradient(360px 180px at 100% 0%, rgba(244, 114, 182, 0.18), transparent 60%),
     var(--bg-elevated);
 }
 

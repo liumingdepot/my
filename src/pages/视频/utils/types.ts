@@ -54,10 +54,12 @@ export type VodListResult = {
   total: number
 }
 
-/** 腾讯视频频道片名（点击跳转站内搜索） */
+/** 腾讯视频频道片名（点击走智能匹配） */
 export type QqTitle = {
   title: string
   pic: string
+  /** 横图（Banner 优先） */
+  pic_hz?: string
   sub?: string
   cid?: string
   year?: string
@@ -76,4 +78,14 @@ export type QqFilterGroup = {
   options: QqFilterOption[]
 }
 
-export type NavKey = 'home' | 'movie' | 'tv' | 'anime' | 'variety' | 'actor'
+export type NavKey =
+  | 'home'
+  | 'short'
+  | 'movie'
+  | 'tv'
+  | 'anime'
+  | 'variety'
+  | 'child'
+  | 'music'
+  | 'doco'
+  | 'actor'

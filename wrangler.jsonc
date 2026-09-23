@@ -2,12 +2,15 @@
 	"name": "my",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-09-18",
+	"placement": {
+		"mode": "smart"
+	},
 	"assets": {
 		"not_found_handling": "single-page-application",
 		"run_worker_first": ["/api/*"]
 	},
 	"observability": {
-		"enabled": true
+    "enabled": true
 	},
 	/**
 	 * D1 / KV 均在 Cloudflare 控制台创建，名称为 my。

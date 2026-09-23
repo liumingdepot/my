@@ -25,7 +25,16 @@ export default function Layout() {
     document.body.classList.remove('site-home')
     document.title = '铭影视'
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a0a0c')
+    const previousRestoration = history.scrollRestoration
+    history.scrollRestoration = 'manual'
+    return () => {
+      history.scrollRestoration = previousRestoration
+    }
   }, [])
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
 
   useLayoutEffect(() => {
     if (!hideFooter) return
@@ -57,7 +66,7 @@ const Global = createGlobalStyle`
     margin: 0;
     background: #0a0a0c;
     color: #f5f2ea;
-    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   }
 
   * {

@@ -1,3 +1,4 @@
+import { cacheKey, withKvJsonCache } from '../kvCache.js'
 import {
   DEFAULT_VIDEO_SOURCES,
   loadEnabledSourceEntries,
@@ -6,17 +7,35 @@ import {
 
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'public, max-age=30',
+}
+
+const noStoreHeaders = {
+  'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
 }
 
-type VideoEnv = { DB: D1Database }
+type VideoEnv = { DB: D1Database; KV: KVNamespace }
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: jsonHeaders })
+const TTL = {
+  sources: 300,
+  classes: 1800,
+  list: 600,
+  search: 300,
+  detail: 600,
+  qq: 900,
+  'qq/list': 600,
+} as const
+
+function json(data: unknown, status = 200, store = true) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: store ? jsonHeaders : noStoreHeaders,
+  })
 }
 
 function bad(message: string, status = 400) {
-  return json({ error: message }, status)
+  return json({ error: message }, status, false)
 }
 
 function findSource(sources: SourceEntry[], name: string | null, primary: string) {
@@ -248,10 +267,27 @@ function extractMvlFilters(root: unknown) {
   return order.map((k) => map.get(k)!)
 }
 
+function upgradeQqCoverUrl(url: string) {
+  const raw = url.trim()
+  if (!raw) return ''
+  // 腾讯封面 /350 /750 为缩略图；/0 或去后缀为原图，明显更清晰
+  return raw.replace(/\/\d+(\?|$)/, '/0$1').replace(/\/\d+$/, '/0')
+}
+
+function pickQqCover(p: Record<string, unknown>, prefer: 'vt' | 'hz') {
+  const vt = upgradeQqCoverUrl(String(p.new_pic_vt || '').trim())
+  const hz = upgradeQqCoverUrl(
+    String(p.new_pic_hz || p.pic_1280x720 || p.image_url || '').trim(),
+  )
+  if (prefer === 'hz') return hz || vt
+  return vt || hz
+}
+
 function extractMvlPosters(root: unknown) {
   const list: {
     title: string
     pic: string
+    pic_hz: string
     sub: string
     cid: string
     year: string
@@ -286,8 +322,9 @@ function extractMvlPosters(root: unknown) {
     if (rec.type === 'searchlist_poster_card' && rec.params && typeof rec.params === 'object') {
       const p = rec.params as Record<string, unknown>
       const cid = String(p.cid || '').trim()
-      const title = cleanQqTitle(String(p.mz_title || p.title || ''))
-      const pic = String(p.new_pic_vt || p.pic_1280x720 || p.new_pic_hz || p.image_url || '').trim()
+      const title = cleanQqTitle(String(p.title || ''))
+      const pic = pickQqCover(p, 'vt')
+      const pic_hz = pickQqCover(p, 'hz')
       const sub = String(p.sub_title || p.protagonist_name || p.second_title || '')
         .replace(/^\[|\]$/g, '')
         .trim()
@@ -297,7 +334,7 @@ function extractMvlPosters(root: unknown) {
       const score = mark.score
       if (cid && title && !seen.has(cid)) {
         seen.add(cid)
-        list.push({ title, pic, sub, cid, year, score, badge })
+        list.push({ title, pic, pic_hz, sub, cid, year, score, badge })
       }
     }
     for (const value of Object.values(rec)) walk(value)
@@ -336,7 +373,7 @@ function extractQqTitles(root: unknown) {
     if (params) {
       const title = cleanQqTitle(String(params.title || ''))
       const cid = String(params.cid || '').trim()
-      const pic = String(params.pic_1280x720 || '').trim()
+      const pic = upgradeQqCoverUrl(String(params.pic_1280x720 || '').trim())
       const sub = String(params.sub_title || '').trim()
       const prefer = preferOf(nextType)
       if (title && cid && prefer > 0) {
@@ -397,36 +434,6 @@ function normalizeList(data: Record<string, unknown>, sourceName: string) {
   }
 }
 
-function isAllowedStreamUrl(raw: string) {
-  try {
-    const u = new URL(raw)
-    return u.protocol === 'http:' || u.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-function rewritePlaylist(body: string, playlistUrl: string, proxyBase: string) {
-  const base = new URL(playlistUrl)
-  return body
-    .split('\n')
-    .map((line) => {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed.startsWith('#')) {
-        if (trimmed.startsWith('#EXT-X-KEY') || trimmed.startsWith('#EXT-X-MAP')) {
-          return trimmed.replace(/URI="([^"]+)"/g, (_, uri: string) => {
-            const abs = new URL(uri, base).toString()
-            return `URI="${proxyBase}${encodeURIComponent(abs)}"`
-          })
-        }
-        return line
-      }
-      const abs = new URL(trimmed, base).toString()
-      return `${proxyBase}${encodeURIComponent(abs)}`
-    })
-    .join('\n')
-}
-
 /** 茅台采集接口禁止 wd 搜索，用站内联想拿 id，再拉详情 */
 async function searchMaotai(source: SourceEntry, q: string, pg: number) {
   const pageSize = 20
@@ -468,67 +475,106 @@ export async function handleVideoApi(
   try {
     switch (path) {
       case 'sources': {
-        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
-        return json({
-          list: sources.map((s) => ({ name: s.name })),
-          primary,
+        const payload = await withKvJsonCache(env.KV, 'video:sources', TTL.sources, async () => {
+          const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+          return {
+            list: sources.map((s) => ({ name: s.name })),
+            primary,
+          }
         })
+        return json(payload)
       }
 
       case 'classes': {
-        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
-        const source = findSource(
-          sources,
-          url.searchParams.get('source') || primary,
-          primary,
+        const sourceName = url.searchParams.get('source') || ''
+        const payload = await withKvJsonCache(
+          env.KV,
+          cacheKey('video:classes', { source: sourceName }),
+          TTL.classes,
+          async () => {
+            const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+            const source = findSource(sources, sourceName || primary, primary)
+            const data = await fetchUpstream(`${source.url}?ac=list`)
+            const classes = Array.isArray(data.class) ? data.class : []
+            return { list: classes, source: source.name }
+          },
         )
-        const data = await fetchUpstream(`${source.url}?ac=list`)
-        const classes = Array.isArray(data.class) ? data.class : []
-        return json({ list: classes, source: source.name })
+        return json(payload)
       }
 
       case 'search': {
         const q = url.searchParams.get('q')?.trim()
         if (!q) return bad('请输入关键词')
         const pg = Number(url.searchParams.get('pg') || '1') || 1
-        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
-        const source = findSource(sources, url.searchParams.get('source'), primary)
-        if (source.name === '茅台') {
-          return json(await searchMaotai(source, q, pg))
-        }
-        const data = await fetchUpstream(
-          `${source.url}?ac=videolist&wd=${encodeURIComponent(q)}&pg=${pg}`,
+        const sourceParam = url.searchParams.get('source') || ''
+        const payload = await withKvJsonCache(
+          env.KV,
+          cacheKey('video:search', { q, pg, source: sourceParam }),
+          TTL.search,
+          async () => {
+            const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+            const source = findSource(sources, sourceParam || null, primary)
+            if (source.name === '茅台') return searchMaotai(source, q, pg)
+            const data = await fetchUpstream(
+              `${source.url}?ac=videolist&wd=${encodeURIComponent(q)}&pg=${pg}`,
+            )
+            return normalizeList(data, source.name)
+          },
         )
-        return json(normalizeList(data, source.name))
+        return json(payload)
       }
 
       case 'list': {
         const t = url.searchParams.get('t')?.trim()
         if (!t) return bad('缺少分类')
         const pg = Number(url.searchParams.get('pg') || '1') || 1
-        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
-        const source = findSource(sources, url.searchParams.get('source'), primary)
-        const data = await fetchUpstream(
-          `${source.url}?ac=videolist&t=${encodeURIComponent(t)}&pg=${pg}`,
+        const sourceParam = url.searchParams.get('source') || ''
+        const payload = await withKvJsonCache(
+          env.KV,
+          cacheKey('video:list', { t, pg, source: sourceParam }),
+          TTL.list,
+          async () => {
+            const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+            const source = findSource(sources, sourceParam || null, primary)
+            const data = await fetchUpstream(
+              `${source.url}?ac=videolist&t=${encodeURIComponent(t)}&pg=${pg}`,
+            )
+            return normalizeList(data, source.name)
+          },
         )
-        return json(normalizeList(data, source.name))
+        return json(payload)
       }
 
       case 'detail': {
         const ids = url.searchParams.get('ids')?.trim()
         if (!ids) return bad('缺少 id')
-        const { sources, primary } = await loadEnabledSourceEntries(env.DB)
-        const source = findSource(sources, url.searchParams.get('source'), primary)
-        const data = await fetchUpstream(
-          `${source.url}?ac=detail&ids=${encodeURIComponent(ids)}`,
+        const sourceParam = url.searchParams.get('source') || ''
+        const payload = await withKvJsonCache(
+          env.KV,
+          cacheKey('video:detail', { ids, source: sourceParam }),
+          TTL.detail,
+          async () => {
+            const { sources, primary } = await loadEnabledSourceEntries(env.DB)
+            const source = findSource(sources, sourceParam || null, primary)
+            const data = await fetchUpstream(
+              `${source.url}?ac=detail&ids=${encodeURIComponent(ids)}`,
+            )
+            return normalizeList(data, source.name)
+          },
         )
-        return json(normalizeList(data, source.name))
+        return json(payload)
       }
 
       case 'qq': {
         const pageId = url.searchParams.get('page_id')?.trim() || '100101'
         if (!/^\d{4,8}$/.test(pageId)) return bad('无效 page_id')
-        return json(await fetchQqChannel(pageId))
+        const payload = await withKvJsonCache(
+          env.KV,
+          cacheKey('video:qq', { pageId }),
+          TTL.qq,
+          () => fetchQqChannel(pageId),
+        )
+        return json(payload)
       }
 
       case 'qq/list': {
@@ -545,59 +591,24 @@ export async function handleVideoApi(
             return bad('无效 ctx')
           }
         }
-        const result = await fetchQqFilterList(channelId, filter, pageContext)
-        return json({
-          list: result.list,
-          filters: result.filters,
-          has_next: result.has_next,
-          next_ctx: result.next_page_context != null ? encodeQqCtx(result.next_page_context) : '',
-          channel_id: result.channel_id,
-          filter: result.filter,
-        })
-      }
-
-      case 'stream': {
-        const target = url.searchParams.get('url')?.trim()
-        if (!target || !isAllowedStreamUrl(target)) return bad('无效地址')
-        const forcePlaylist = url.searchParams.get('playlist') === '1'
-        const upstream = await fetch(target, {
-          headers: {
-            'user-agent':
-              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            accept: '*/*',
-            referer: new URL(target).origin + '/',
+        const payload = await withKvJsonCache(
+          env.KV,
+          cacheKey('video:qq/list', { channelId, filter, ctx: ctxRaw || '' }),
+          TTL['qq/list'],
+          async () => {
+            const result = await fetchQqFilterList(channelId, filter, pageContext)
+            return {
+              list: result.list,
+              filters: result.filters,
+              has_next: result.has_next,
+              next_ctx:
+                result.next_page_context != null ? encodeQqCtx(result.next_page_context) : '',
+              channel_id: result.channel_id,
+              filter: result.filter,
+            }
           },
-          signal: AbortSignal.timeout(20_000),
-        })
-        if (!upstream.ok) return bad('拉流失败', 502)
-
-        const contentType = upstream.headers.get('content-type') || ''
-        const isPlaylist =
-          forcePlaylist ||
-          contentType.includes('mpegurl') ||
-          contentType.includes('m3u8') ||
-          target.includes('.m3u8')
-
-        if (isPlaylist) {
-          const text = await upstream.text()
-          const proxyBase = `${url.origin}/api/video/stream?url=`
-          const rewritten = rewritePlaylist(text, target, proxyBase)
-          return new Response(rewritten, {
-            headers: {
-              'content-type': 'application/vnd.apple.mpegurl; charset=utf-8',
-              'cache-control': 'no-store',
-              'access-control-allow-origin': '*',
-            },
-          })
-        }
-
-        return new Response(upstream.body, {
-          headers: {
-            'content-type': contentType || 'application/octet-stream',
-            'cache-control': 'public, max-age=60',
-            'access-control-allow-origin': '*',
-          },
-        })
+        )
+        return json(payload)
       }
 
       default:

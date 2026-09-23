@@ -1,29 +1,31 @@
 import { Link } from 'react-router'
 import styled from 'styled-components'
+import { matchPath } from '../utils/match'
 import type { QqTitle } from '../utils/types'
 
 type Props = {
   item: QqTitle
 }
 
+/** 手动搜索用；片库点击请用 matchPath */
 export function searchPath(title: string) {
   return `/video/search?q=${encodeURIComponent(title)}`
 }
 
 export default function TitleCard({ item }: Props) {
   return (
-    <Card to={searchPath(item.title)}>
+    <Card to={matchPath(item)}>
       <div className="poster">
         {item.pic ? (
           <img src={item.pic} alt="" loading="lazy" referrerPolicy="no-referrer" />
         ) : (
           <div className="placeholder" />
         )}
-        <span className="badge">搜全网</span>
+        <span className="badge">智能匹配</span>
         {item.sub && <span className="remarks">{item.sub}</span>}
       </div>
       <h3 title={item.title}>{item.title}</h3>
-      <p>点击搜索播放源</p>
+      <p>匹配全网播放源</p>
     </Card>
   )
 }

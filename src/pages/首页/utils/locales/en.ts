@@ -31,7 +31,9 @@ export const en = {
     experienceTitle: "Where I've worked.",
     contactTitle: "Let's work together.",
     worksTitle: "Personal developer works — for learning & exchange only",
-    workOpen: "Open →",
+    platformPc: "PC",
+    platformAll: "PC + Mobile",
+    workOpen: "Open",
     contactEyebrow: "Let's build something",
     contactHeading: "Have an opportunity in mind?",
     contactText: "Open to full-time frontend engineering / leadership roles. Happy to discuss micro-frontends and AI-assisted engineering. Feel free to reach out.",
@@ -44,29 +46,46 @@ export const en = {
   },
   works: [
     {
-      name: "Fortune",
+      name: "Zhouyi",
       desc: "Enter birth details and a question, then get an I Ching reading. For traditional culture and entertainment only.",
       href: "/fortune",
       tag: "Live",
       tone: "violet",
-      glyph: "周易"
+      glyph: "易",
     },
     {
       name: "Music",
-      desc: "Search tracks, browse recommendations and charts, play online with synced lyrics. Works on phone and desktop.",
+      desc: "Search, playlists, charts and tags — play with lyrics. Powered by public APIs; for learning & exchange only.",
       href: "/music",
       tag: "Live",
-      tone: "cyan",
-      glyph: "♪"
+      tone: "rose",
+      glyph: "音",
     },
     {
       name: "Video",
-      desc: "Static video site demo: home feed, category filters, detail and play pages, styled after a MacCMS template.",
+      desc: "Video site: home feed, short drama / movie / TV categories, search and playback. Public APIs; for learning & exchange only.",
       href: "/video",
-      tag: "Demo",
-      tone: "amber",
-      glyph: "影"
+      tag: "Live",
+      tone: "ink",
+      glyph: "影",
+    },
+    {
+      name: "Games",
+      desc: "Placeholder for the games module — routing is live; content coming soon. For learning & exchange only.",
+      href: "/game",
+      tag: "Soon",
+      tone: "emerald",
+      glyph: "游",
+    },
+    {
+      name: "Education",
+      desc: "Placeholder for the education module — routing is live; content coming soon. For learning & exchange only.",
+      href: "/education",
+      tag: "Soon",
+      tone: "sky",
+      glyph: "教",
     }
+
   ],
   profile: {
     name: "Liu Ming",

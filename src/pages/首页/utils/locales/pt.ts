@@ -31,7 +31,9 @@ export const pt = {
     experienceTitle: "Onde trabalhei.",
     contactTitle: "Vamos trabalhar juntos.",
     worksTitle: "Trabalhos pessoais — apenas para aprendizado e troca",
-    workOpen: "Abrir →",
+    platformPc: "PC",
+    platformAll: "PC + Celular",
+    workOpen: "Abrir",
     contactEyebrow: "Let's build something",
     contactHeading: "Tem uma oportunidade em mente?",
     contactText: "Aberto a vagas full-time de frontend / liderança. Também para falar de micro-frontends e engenharia com IA. Fique à vontade para contatar.",
@@ -49,24 +51,41 @@ export const pt = {
       href: "/fortune",
       tag: "No ar",
       tone: "violet",
-      glyph: "周易"
+      glyph: "易",
     },
     {
       name: "Música",
-      desc: "Busque faixas, explore recomendações e charts, ouça online com letras sincronizadas. Celular e desktop.",
+      desc: "Busca, playlists, charts e tags — reprodução com letras. APIs públicas; apenas aprendizado e troca.",
       href: "/music",
       tag: "No ar",
-      tone: "cyan",
-      glyph: "♪"
+      tone: "rose",
+      glyph: "音",
     },
     {
       name: "Vídeo",
-      desc: "Demo estática de site de vídeo: home, filtros, detalhe e player, estilo template MacCMS.",
+      desc: "Site de vídeo: capa, categorias (dramas curtos, filmes, séries), busca e reprodução. APIs públicas; só para estudo.",
       href: "/video",
-      tag: "Demo",
-      tone: "amber",
-      glyph: "影"
+      tag: "No ar",
+      tone: "ink",
+      glyph: "影",
+    },
+    {
+      name: "Jogos",
+      desc: "Placeholder do módulo de jogos — rotas prontas, conteúdo em breve. Apenas para aprendizado e troca.",
+      href: "/game",
+      tag: "Em breve",
+      tone: "emerald",
+      glyph: "游",
+    },
+    {
+      name: "Educação",
+      desc: "Placeholder do módulo de educação — rotas prontas, conteúdo em breve. Apenas para aprendizado e troca.",
+      href: "/education",
+      tag: "Em breve",
+      tone: "sky",
+      glyph: "教",
     }
+
   ],
   profile: {
     name: "Liu Ming",

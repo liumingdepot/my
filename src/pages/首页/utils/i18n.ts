@@ -10,7 +10,7 @@ import { ru } from './locales/ru'
 import { zh } from './locales/zh'
 import { zht } from './locales/zht'
 
-/** 语言列表：中文排首位；无本地记录时默认英语 */
+/** 语言列表：中文排首位；无本地记录时默认中文 */
 export const LANG_OPTIONS = [
   { code: 'zh', label: '中文', htmlLang: 'zh-CN', dir: 'ltr', title: '刘铭 · 前端开发' },
   { code: 'en', label: 'English', htmlLang: 'en', dir: 'ltr', title: 'Liu Ming · Frontend' },
@@ -34,7 +34,7 @@ export function isLang(value: string | null): value is Lang {
 }
 
 export function resolveLang(value: string | null): Lang {
-  return isLang(value) ? value : 'en'
+  return isLang(value) ? value : 'zh'
 }
 
 export function getLangMeta(lang: Lang) {

@@ -79,7 +79,7 @@ const Page = styled.div`
 
   h1 {
     margin: 0;
-    font-family: 'Noto Serif SC', 'Songti SC', serif;
+    font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
     font-size: clamp(24px, 4vw, 30px);
     font-weight: 700;
     letter-spacing: 0.06em;

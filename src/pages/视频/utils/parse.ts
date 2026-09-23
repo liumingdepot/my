@@ -31,14 +31,6 @@ export function parsePlayUrl(vodPlayUrl: string, vodPlayFrom = '', sourceName = 
     .filter((s): s is PlaySource => !!s)
 }
 
-export function streamUrl(raw: string) {
-  if (!raw) return ''
-  if (raw.includes('.mp4') && !raw.includes('.m3u8')) return raw
-  const u = new URL('/api/video/stream', window.location.origin)
-  u.searchParams.set('url', raw)
-  return u.toString()
-}
-
 /** 仅取豆瓣评分（不含站内 vod_score） */
 export function scoreOf(item: { vod_douban_score?: string }) {
   const raw = item.vod_douban_score || ''

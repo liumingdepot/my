@@ -31,7 +31,9 @@ export const de = {
     experienceTitle: "Wo ich gearbeitet habe.",
     contactTitle: "Lass uns zusammenarbeiten.",
     worksTitle: "Persönliche Entwicklerprojekte — nur zum Lernen & Austausch",
-    workOpen: "Öffnen →",
+    platformPc: "PC",
+    platformAll: "PC + Mobil",
+    workOpen: "Öffnen",
     contactEyebrow: "Let's build something",
     contactHeading: "Eine passende Gelegenheit?",
     contactText: "Offen für Vollzeit Frontend-Entwicklung / Führung. Gerne auch über Micro-Frontends und AI-Engineering sprechen. Melden Sie sich gerne.",
@@ -49,24 +51,41 @@ export const de = {
       href: "/fortune",
       tag: "Live",
       tone: "violet",
-      glyph: "周易"
+      glyph: "易",
     },
     {
       name: "Musik",
-      desc: "Tracks suchen, Empfehlungen und Charts browsen, online hören mit synchronen Lyrics. Handy und Desktop.",
+      desc: "Suche, Playlists, Charts und Tags — Wiedergabe mit Lyrics. Öffentliche APIs; nur zum Lernen & Austausch.",
       href: "/music",
       tag: "Live",
-      tone: "cyan",
-      glyph: "♪"
+      tone: "rose",
+      glyph: "音",
     },
     {
       name: "Video",
-      desc: "Statische Video-Site-Demo: Home-Feed, Kategorien, Detail- und Player-Seite, Stil nach MacCMS-Template.",
+      desc: "Video-Site: Home-Feed, Kurzdrama-/Film-/Serien-Kategorien, Suche und Wiedergabe. Öffentliche APIs; nur zum Lernen.",
       href: "/video",
-      tag: "Demo",
-      tone: "amber",
-      glyph: "影"
+      tag: "Live",
+      tone: "ink",
+      glyph: "影",
+    },
+    {
+      name: "Spiele",
+      desc: "Platzhalter für das Spiele-Modul — Routing ist live, Inhalte folgen. Nur zum Lernen & Austausch.",
+      href: "/game",
+      tag: "Bald",
+      tone: "emerald",
+      glyph: "游",
+    },
+    {
+      name: "Bildung",
+      desc: "Platzhalter für das Bildungsmodul — Routing ist live, Inhalte folgen. Nur zum Lernen & Austausch.",
+      href: "/education",
+      tag: "Bald",
+      tone: "sky",
+      glyph: "教",
     }
+
   ],
   profile: {
     name: "Liu Ming",

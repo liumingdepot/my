@@ -5,7 +5,7 @@ import styled from 'styled-components'
 import VodCard from './VodCard'
 import { fetchDetailItem, listVideos } from '../utils/server'
 import { loadMergedEntries, saveMergedEntries } from '../utils/merge'
-import { scoreOf, streamUrl, stripHtml } from '../utils/parse'
+import { scoreOf, stripHtml } from '../utils/parse'
 import type { MergedEntry, VodItem } from '../utils/types'
 
 function entryKey(entry: MergedEntry) {
@@ -31,6 +31,7 @@ export default function PlayPage() {
   const [playError, setPlayError] = useState('')
   const [loading, setLoading] = useState(true)
   const [switching, setSwitching] = useState(false)
+  const [mediaReady, setMediaReady] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
   const relatedFor = useRef('')
@@ -151,11 +152,16 @@ export default function PlayPage() {
     if (!video || !currentEp?.url) return
 
     setPlayError('')
+    setMediaReady(false)
     hlsRef.current?.destroy()
     hlsRef.current = null
 
-    const playUrl = streamUrl(currentEp.url)
-    const isHls = currentEp.url.includes('.m3u8') || playUrl.includes('m3u8')
+    const onReady = () => setMediaReady(true)
+    video.addEventListener('playing', onReady)
+    video.addEventListener('loadeddata', onReady)
+
+    const playUrl = currentEp.url
+    const isHls = playUrl.includes('.m3u8')
 
     if (isHls && Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true, lowLatencyMode: false })
@@ -168,12 +174,14 @@ export default function PlayPage() {
     } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = playUrl
     } else {
-      video.src = currentEp.url.includes('.mp4') ? currentEp.url : playUrl
+      video.src = playUrl
     }
 
     void video.play().catch(() => {})
 
     return () => {
+      video.removeEventListener('playing', onReady)
+      video.removeEventListener('loadeddata', onReady)
       hlsRef.current?.destroy()
       hlsRef.current = null
     }
@@ -252,7 +260,13 @@ export default function PlayPage() {
         <div className="main-row">
           <div className="player-wrap">
             <div className="player-inner">
-              <video ref={videoRef} controls playsInline poster={display.vod_pic} />
+              <video ref={videoRef} controls playsInline />
+              {!mediaReady && !playError ? (
+                <div className="placeholder">
+                  <span className="brand">铭视频</span>
+                  <span className="hint">为您加载中</span>
+                </div>
+              ) : null}
               {playError && <p className="play-err">{playError}</p>}
               {switching && !item && <p className="play-err">切换资源中…</p>}
             </div>
@@ -409,7 +423,7 @@ const Page = styled.div`
   .player-inner {
     position: relative;
     aspect-ratio: 16 / 9;
-    background: #000;
+    background: #0a0a0c;
 
     video {
       width: 100%;
@@ -418,10 +432,40 @@ const Page = styled.div`
       background: #000;
     }
 
+    .placeholder {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 40%, rgba(232, 165, 75, 0.12), transparent 70%),
+        linear-gradient(160deg, #141418 0%, #0a0a0c 55%, #121214 100%);
+
+      .brand {
+        font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #e8a54b;
+      }
+
+      .hint {
+        font-size: 15px;
+        letter-spacing: 0.2em;
+        color: rgba(245, 242, 234, 0.55);
+      }
+    }
+
     .play-err {
       position: absolute;
       left: 50%;
       bottom: 20%;
+      z-index: 3;
       transform: translateX(-50%);
       margin: 0;
       padding: 8px 16px;
@@ -472,7 +516,7 @@ const Page = styled.div`
 
     h1 {
       margin: 0;
-      font-family: 'Noto Serif SC', 'Songti SC', serif;
+      font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
       font-size: clamp(20px, 2.2vw, 28px);
       font-weight: 700;
       line-height: 1.35;
@@ -609,6 +653,10 @@ const Page = styled.div`
       min-height: 0;
       overflow: visible;
       padding-right: 0;
+    }
+
+    .player-inner .placeholder .brand {
+      font-size: 28px;
     }
 
     .grid {

@@ -5,3 +5,5 @@
 allowBuilds:
   esbuild: true
   workerd: true
+patchedDependencies:
+  jsnes@2.1.0: patches/jsnes@2.1.0.patch

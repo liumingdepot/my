@@ -129,7 +129,7 @@ const AdminGlobalStyle = createGlobalStyle`
     margin: 0 !important;
     background: #e8f0ee !important;
     color: #111827 !important;
-    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
     font-size: 14px !important;
     line-height: 1.5 !important;
     -webkit-font-smoothing: antialiased;
@@ -139,7 +139,7 @@ const AdminGlobalStyle = createGlobalStyle`
 
 const Style = styled.div`
   min-height: 100dvh;
-  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: #111827;

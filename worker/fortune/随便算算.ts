@@ -1,4 +1,5 @@
 import type { FortuneEnv } from './api.js'
+import { nextAgnesApiKey } from './agnesKey.js'
 
 type ReportBody = {
   name?: string
@@ -55,13 +56,14 @@ export async function handleCasual(request: Request, env: FortuneEnv) {
   if (!question) {
     return text('请填写咨询问题', 400)
   }
-  if (!env.AGNES_API_KEY) {
+  const apiKey = await nextAgnesApiKey(env)
+  if (!apiKey) {
     return text('报告服务未配置', 500)
   }
 
   const bazi = `${birth.year}年${birth.month}月${birth.day}日 ${shichen}`
   try {
-    const report = await createReport(env.AGNES_API_KEY, name, bazi, question)
+    const report = await createReport(apiKey, name, bazi, question)
     return text(report)
   } catch {
     return text('报告生成失败，请稍后再试', 502)

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import styled from 'styled-components'
+import { matchPath } from '../utils/match'
 import type { QqTitle } from '../utils/types'
-import { searchPath } from './TitleCard'
 
 type Props = {
   items: QqTitle[]
@@ -10,7 +10,7 @@ type Props = {
 }
 
 export default function Banner({ items, eyebrow = '热播推荐' }: Props) {
-  const slides = items.filter((i) => i.pic).slice(0, 6)
+  const slides = items.filter((i) => i.pic_hz || i.pic).slice(0, 6)
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -27,7 +27,8 @@ export default function Banner({ items, eyebrow = '热播推荐' }: Props) {
 
   if (!slides.length) return null
   const current = slides[index]!
-  const to = searchPath(current.title)
+  const to = matchPath(current)
+  const bgOf = (item: QqTitle) => item.pic_hz || item.pic
 
   return (
     <Hero>
@@ -35,7 +36,7 @@ export default function Banner({ items, eyebrow = '热播推荐' }: Props) {
         <div
           key={`${item.cid || item.title}-${i}`}
           className={`bg ${i === index ? 'is-active' : ''}`}
-          style={{ backgroundImage: `url(${item.pic})` }}
+          style={{ backgroundImage: `url(${bgOf(item)})` }}
         />
       ))}
       <div className="veil" />
@@ -44,7 +45,7 @@ export default function Banner({ items, eyebrow = '热播推荐' }: Props) {
         <h1>{current.title}</h1>
         {current.sub ? <p className="meta">{current.sub}</p> : null}
         <Link className="cta" to={to}>
-          搜索播放源
+          立即播放
         </Link>
       </div>
       {slides.length > 1 && (
@@ -119,7 +120,7 @@ const Hero = styled.section`
 
   h1 {
     margin: 0;
-    font-family: 'Noto Serif SC', 'Songti SC', serif;
+    font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
     font-size: clamp(32px, 5vw, 52px);
     font-weight: 700;
     line-height: 1.15;

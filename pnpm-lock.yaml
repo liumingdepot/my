@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  jsnes@2.1.0: 82c19a3c491a37e1f6686cd505b5ec67e93c81185a8aff7d8e934b3a1ed16ff2
+
 importers:
 
   .:
@@ -11,6 +14,9 @@ importers:
       hls.js:
         specifier: ^1.7.3
         version: 1.7.3
+      jsnes:
+        specifier: ^2.1.0
+        version: 2.1.0(patch_hash=82c19a3c491a37e1f6686cd505b5ec67e93c81185a8aff7d8e934b3a1ed16ff2)
       lunar-javascript:
         specifier: ^1.7.7
         version: 1.7.7
@@ -760,6 +766,9 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
+  jsnes@2.1.0:
+    resolution: {integrity: sha512-LUa++E5Dfs1A6ZYB5HiSOR4JrUzrZEXGLZ5Imczhu9lkg7f+94SqnLZ/MXwGa7oc02+j/xYyHR0azGQ6LCU68g==}
+
   kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
@@ -1497,6 +1506,8 @@ snapshots:
   hoist-non-react-statics@3.3.2:
     dependencies:
       react-is: 16.13.1
+
+  jsnes@2.1.0(patch_hash=82c19a3c491a37e1f6686cd505b5ec67e93c81185a8aff7d8e934b3a1ed16ff2): {}
 
   kleur@4.1.5: {}
 

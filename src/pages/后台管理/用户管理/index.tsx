@@ -13,6 +13,8 @@ import {
   type UserRole,
   type UserStatus,
 } from '../auth'
+import Select from '../../../components/Select'
+import ListPagination, { LIST_PAGE_SIZE } from '../model/ListPagination'
 
 type Draft = {
   username: string
@@ -73,6 +75,7 @@ export default function UsersPage() {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [page, setPage] = useState(1)
 
   useLayoutEffect(() => {
     document.title = '用户管理 · 后台管理'
@@ -115,6 +118,21 @@ export default function UsersPage() {
         user.email.toLowerCase().includes(q),
     )
   }, [users, query])
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = useMemo(
+    () => filtered.slice((safePage - 1) * LIST_PAGE_SIZE, safePage * LIST_PAGE_SIZE),
+    [filtered, safePage],
+  )
+
+  useEffect(() => {
+    setPage(1)
+  }, [query])
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount)
+  }, [page, pageCount])
 
   const stats = useMemo(
     () => ({
@@ -297,7 +315,7 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((user) => (
+                paged.map((user) => (
                   <tr key={user.id}>
                     <td>
                       <div className="user-cell">
@@ -349,6 +367,13 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+
+        <ListPagination
+          page={safePage}
+          pageCount={pageCount}
+          total={filtered.length}
+          onChange={setPage}
+        />
       </div>
 
       {dialogOpen ? (
@@ -403,28 +428,28 @@ export default function UsersPage() {
             <div className="row">
               <label className="field">
                 <span>角色</span>
-                <select
+                <Select
                   value={draft.role}
-                  onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, role: event.target.value as UserRole }))
-                  }
-                >
-                  <option value="admin">管理员</option>
-                  <option value="editor">编辑</option>
-                  <option value="viewer">访客</option>
-                </select>
+                  aria-label="角色"
+                  options={[
+                    { value: 'admin', label: '管理员' },
+                    { value: 'editor', label: '编辑' },
+                    { value: 'viewer', label: '访客' },
+                  ]}
+                  onChange={(role) => setDraft((prev) => ({ ...prev, role }))}
+                />
               </label>
               <label className="field">
                 <span>状态</span>
-                <select
+                <Select
                   value={draft.status}
-                  onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, status: event.target.value as UserStatus }))
-                  }
-                >
-                  <option value="active">启用</option>
-                  <option value="disabled">停用</option>
-                </select>
+                  aria-label="状态"
+                  options={[
+                    { value: 'active', label: '启用' },
+                    { value: 'disabled', label: '停用' },
+                  ]}
+                  onChange={(status) => setDraft((prev) => ({ ...prev, status }))}
+                />
               </label>
             </div>
 
@@ -447,6 +472,10 @@ export default function UsersPage() {
 
 const Style = styled.div`
   position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 
   .toast {
     position: fixed;
@@ -468,6 +497,7 @@ const Style = styled.div`
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 16px;
+    flex-shrink: 0;
   }
 
   .title {
@@ -526,6 +556,7 @@ const Style = styled.div`
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 16px;
+    flex-shrink: 0;
   }
 
   .stat {
@@ -555,6 +586,10 @@ const Style = styled.div`
   }
 
   .panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
@@ -569,6 +604,7 @@ const Style = styled.div`
     padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
     background: #f9fafb;
+    flex-shrink: 0;
   }
 
   .search {
@@ -592,7 +628,9 @@ const Style = styled.div`
   }
 
   .table-wrap {
-    overflow-x: auto;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   table {
@@ -611,6 +649,9 @@ const Style = styled.div`
   }
 
   th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     background: #f9fafb;
     color: #6b7280;
     font-size: 13px;
@@ -732,8 +773,7 @@ const Style = styled.div`
     flex: 1;
   }
 
-  .field input,
-  .field select {
+  .field input {
     height: 38px;
     padding: 0 10px;
     border: 1px solid #d1d5db;
@@ -744,8 +784,7 @@ const Style = styled.div`
     outline: none;
   }
 
-  .field input:focus,
-  .field select:focus {
+  .field input:focus {
     border-color: #0f766e;
   }
 

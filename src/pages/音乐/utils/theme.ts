@@ -24,6 +24,7 @@ export function useTheme() {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem(THEME_KEY, theme)
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor(theme))
   }, [theme])
 
   function toggleTheme() {

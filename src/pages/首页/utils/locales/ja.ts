@@ -31,7 +31,9 @@ export const ja = {
     experienceTitle: "勤務してきた場所。",
     contactTitle: "一緒に作りましょう。",
     worksTitle: "個人開発作品 — 学習・交流用",
-    workOpen: "開く →",
+    platformPc: "PC",
+    platformAll: "PC + モバイル",
+    workOpen: "開く",
     contactEyebrow: "Let's build something",
     contactHeading: "機会について話しませんか？",
     contactText: "フルタイムのフロントエンド開発／マネジメント職を募集中。マイクロフロントエンドや AI エンジニアリングの実践についても歓迎します。お気軽にご連絡ください。",
@@ -49,24 +51,41 @@ export const ja = {
       href: "/fortune",
       tag: "公開中",
       tone: "violet",
-      glyph: "周易"
+      glyph: "易",
     },
     {
       name: "音楽",
-      desc: "楽曲検索、おすすめ・ランキング閲覧、歌詞同期付きオンライン再生。スマホ・PC対応。",
+      desc: "検索・おすすめ・ランキング・タグ分類。再生と歌詞に対応。公開API利用、学習・交流用。",
       href: "/music",
       tag: "公開中",
-      tone: "cyan",
-      glyph: "♪"
+      tone: "rose",
+      glyph: "音",
     },
     {
       name: "動画",
-      desc: "映像サイトの静的デモ：ホーム推薦、カテゴリ絞り込み、詳細・再生ページ。Apple CMS テンプレート風。",
+      desc: "動画サイト：ホーム、短劇/映画/ドラマ等のカテゴリ、検索と再生。公開API、学習・交流用。",
       href: "/video",
-      tag: "デモ",
-      tone: "amber",
-      glyph: "影"
+      tag: "公開中",
+      tone: "ink",
+      glyph: "影",
+    },
+    {
+      name: "ゲーム",
+      desc: "ゲームモジュールのプレースホルダー。ルートは接続済み、コンテンツは今後追加。学習・交流用。",
+      href: "/game",
+      tag: "準備中",
+      tone: "emerald",
+      glyph: "游",
+    },
+    {
+      name: "学習・教育",
+      desc: "教育モジュールのプレースホルダー。ルートは接続済み、コンテンツは今後追加。学習・交流用。",
+      href: "/education",
+      tag: "準備中",
+      tone: "sky",
+      glyph: "教",
     }
+
   ],
   profile: {
     name: "劉銘",

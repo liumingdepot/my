@@ -31,7 +31,9 @@ export const es = {
     experienceTitle: "Dónde he trabajado.",
     contactTitle: "Trabajemos juntos.",
     worksTitle: "Trabajos personales — solo para aprendizaje e intercambio",
-    workOpen: "Abrir →",
+    platformPc: "PC",
+    platformAll: "PC + Móvil",
+    workOpen: "Abrir",
     contactEyebrow: "Let's build something",
     contactHeading: "¿Tienes una oportunidad en mente?",
     contactText: "Abierto a roles de frontend a tiempo completo / liderazgo. También a hablar de micro-frontends e ingeniería con IA. No dudes en contactarme.",
@@ -49,24 +51,41 @@ export const es = {
       href: "/fortune",
       tag: "En línea",
       tone: "violet",
-      glyph: "周易"
+      glyph: "易",
     },
     {
       name: "Música",
-      desc: "Busca canciones, recorre recomendaciones y rankings, reproduce en línea con letras sincronizadas. Móvil y escritorio.",
+      desc: "Búsqueda, listas, rankings y etiquetas — reproducción con letras. APIs públicas; solo aprendizaje e intercambio.",
       href: "/music",
       tag: "En línea",
-      tone: "cyan",
-      glyph: "♪"
+      tone: "rose",
+      glyph: "音",
     },
     {
       name: "Vídeo",
-      desc: "Demo estática de sitio de vídeo: inicio, filtros, detalle y reproducción, estilo plantilla MacCMS.",
+      desc: "Sitio de vídeo: portada, categorías (dramas cortos, cine, series), búsqueda y reproducción. APIs públicas; solo aprendizaje.",
       href: "/video",
-      tag: "Demo",
-      tone: "amber",
-      glyph: "影"
+      tag: "En vivo",
+      tone: "ink",
+      glyph: "影",
+    },
+    {
+      name: "Juegos",
+      desc: "Marcador de posición del módulo de juegos: rutas listas, contenido próximamente. Solo aprendizaje e intercambio.",
+      href: "/game",
+      tag: "Pronto",
+      tone: "emerald",
+      glyph: "游",
+    },
+    {
+      name: "Educación",
+      desc: "Marcador de posición del módulo educativo: rutas listas, contenido próximamente. Solo aprendizaje e intercambio.",
+      href: "/education",
+      tag: "Pronto",
+      tone: "sky",
+      glyph: "教",
     }
+
   ],
   profile: {
     name: "Liu Ming",

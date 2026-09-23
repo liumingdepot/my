@@ -3,14 +3,14 @@ import { Link } from 'react-router'
 import styled from 'styled-components'
 import Banner from './Banner'
 import TitleCard from './TitleCard'
-import { NAV_CATEGORIES, QQ_PAGES } from '../utils/categories'
-import { fetchQqChannel } from '../utils/server'
+import { NAV_CATEGORIES, QQ_HOT_PAGE_ID, QQ_PAGES } from '../utils/categories'
+import { fetchQqChannel, fetchQqList } from '../utils/server'
 import type { QqTitle } from '../utils/types'
 
 type Section = {
   key: string
   title: string
-  path: string
+  path?: string
   items: QqTitle[]
 }
 
@@ -38,31 +38,48 @@ export default function HomePage() {
           pageId: QQ_PAGES[cat.key] || QQ_PAGES.tv!,
         }))
 
-        const results = await Promise.all(
-          jobs.map(async (job) => {
+        const [hotResult, ...results] = await Promise.all([
+          fetchQqChannel(QQ_HOT_PAGE_ID)
+            .then((r) => r.list)
+            .catch(() => [] as QqTitle[]),
+          ...jobs.map(async (job) => {
             try {
-              const data = await fetchQqChannel(job.pageId)
-              return { ...job, list: data.list }
+              // 短剧等频道 getPage 无海报，优先列表接口；其余频道先 getPage 再回退
+              if (job.key === 'short') {
+                const listed = await fetchQqList(job.pageId, 'sort=75')
+                return { ...job, list: listed.list }
+              }
+              const channel = await fetchQqChannel(job.pageId)
+              if (channel.list.length) return { ...job, list: channel.list }
+              const listed = await fetchQqList(job.pageId, 'sort=75')
+              return { ...job, list: listed.list }
             } catch {
               return { ...job, list: [] as QqTitle[] }
             }
           }),
-        )
+        ])
         if (cancelled) return
 
-        const tv = results.find((r) => r.key === 'tv')
-        setBanner((tv?.list || []).filter((i) => i.pic).slice(0, BANNER_SIZE))
+        const hotWithPic = hotResult.filter((i) => i.pic)
+        setBanner(hotWithPic.slice(0, BANNER_SIZE))
 
-        setSections(
-          results.map((r) => ({
+        const hotSection: Section = {
+          key: 'hot',
+          title: '正在热播',
+          items: hotWithPic.slice(0, SECTION_SIZE),
+        }
+
+        setSections([
+          hotSection,
+          ...results.map((r) => ({
             key: r.key,
             title: `热门${r.label}`,
             path: r.path,
             items: r.list.filter((i) => i.pic).slice(0, SECTION_SIZE),
           })),
-        )
+        ])
 
-        const total = results.reduce((n, r) => n + r.list.length, 0)
+        const total = hotResult.length + results.reduce((n, r) => n + r.list.length, 0)
         if (total === 0) setError('热播榜加载失败，请稍后重试')
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : '加载失败')
@@ -79,7 +96,7 @@ export default function HomePage() {
     <Page>
       {loading && !banner.length ? <Status>加载中…</Status> : null}
       {error ? <Status className="err">{error}</Status> : null}
-      <Banner items={banner} eyebrow="热门电视剧" />
+      <Banner items={banner} eyebrow="正在热播" />
 
       <div className="container">
         {sections.map((sec) =>
@@ -87,7 +104,7 @@ export default function HomePage() {
             <section key={sec.key} className="block">
               <div className="head">
                 <h2>{sec.title}</h2>
-                <Link to={sec.path}>查看更多</Link>
+                {sec.path ? <Link to={sec.path}>查看更多</Link> : null}
               </div>
               <div className="grid">
                 {sec.items.map((item) => (
@@ -136,7 +153,7 @@ const Page = styled.div`
 
     h2 {
       margin: 0;
-      font-family: 'Noto Serif SC', 'Songti SC', serif;
+      font-family: ui-serif, "Songti SC", "STSong", "SimSun", serif;
       font-size: 24px;
       font-weight: 700;
       letter-spacing: 0.04em;
