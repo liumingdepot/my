@@ -33,6 +33,11 @@ export default {
       return handleEducationApi(request, url, env)
     }
 
+    if (url.pathname.startsWith('/api/test')) {
+      const { handleTestApi } = await import('./test/api.js')
+      return handleTestApi(request, url)
+    }
+
     if (isFortuneApi(url.pathname)) {
       const { handleFortuneApi } = await import('./fortune/api.js')
       return handleFortuneApi(request, env)

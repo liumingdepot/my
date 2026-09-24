@@ -1,8 +1,6 @@
+import { fetchTextViaHomeProxy } from '../homeProxy.js'
 import { cacheKey, withKvJsonCache } from '../kvCache.js'
 import { encryptQuery, parseParamsToJson } from './kwDES.js'
-
-/** 家宽代理：酷我取链走此转发（CF 出口常拿到无效地址） */
-const PLAY_PROXY = 'https://liuming1994.qzz.io/proxy?url='
 
 type MusicEnv = { KV: KVNamespace }
 
@@ -47,10 +45,6 @@ function bad(message: string, status = 400) {
   return json({ error: message }, status, false)
 }
 
-function viaPlayProxy(target: string) {
-  return `${PLAY_PROXY}${encodeURIComponent(target)}`
-}
-
 async function fetchText(url: string) {
   const res = await fetch(url, {
     headers: kuwoHeaders,
@@ -58,34 +52,6 @@ async function fetchText(url: string) {
   })
   if (!res.ok) throw new Error(`upstream ${res.status}`)
   return res.text()
-}
-
-/** 经家宽代理拉取文本；代理返回 JSON error 时抛错 */
-async function fetchTextViaPlayProxy(target: string) {
-  const res = await fetch(viaPlayProxy(target), {
-    headers: {
-      ...kuwoHeaders,
-      // 代理若误传 content-encoding，identity 可避免二次解压失败
-      'accept-encoding': 'identity',
-    },
-    signal: AbortSignal.timeout(20_000),
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`proxy ${res.status}`)
-  const trimmed = text.trim()
-  if (trimmed.startsWith('{') && trimmed.includes('"error"')) {
-    try {
-      const err = JSON.parse(trimmed) as { error?: string }
-      if (err.error) throw new Error(err.error)
-    } catch (e) {
-      if (e instanceof SyntaxError) {
-        /* not a proxy error payload */
-      } else {
-        throw e
-      }
-    }
-  }
-  return text
 }
 
 async function fetchJson<T = unknown>(url: string): Promise<T> {
@@ -392,7 +358,9 @@ export async function handleMusicApi(
           `&priority=bitrate&loginUid=0&network=WIFI&loginSid=0&mode=down`
         const q = encryptQuery(query)
         const upstream = `https://nmobi.kuwo.cn/mobi.s?f=kuwo&q=${encodeURIComponent(q)}`
-        const text = await fetchTextViaPlayProxy(upstream)
+        const text = await fetchTextViaHomeProxy(upstream, {
+          headers: kuwoHeaders,
+        })
         const parsed = parseParamsToJson(text)
         if (!parsed.url || typeof parsed.url !== 'string') return bad('未获取到播放地址', 502)
         // Prefer https for browser mixed-content safety

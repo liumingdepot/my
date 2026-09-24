@@ -80,7 +80,6 @@ export type QqFilterGroup = {
 
 export type NavKey =
   | 'home'
-  | 'short'
   | 'movie'
   | 'tv'
   | 'anime'

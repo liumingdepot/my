@@ -1,22 +1,46 @@
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { Link } from 'react-router'
 import styled from 'styled-components'
-import { ALL_WORKS, WORKS_PATH } from './works'
+import {
+  filterWorksByCategory,
+  WORK_CATEGORIES,
+  WORKS_PATH,
+  type WorkCategory,
+} from './works'
 
 export default function MoreWorksPage() {
+  const [category, setCategory] = useState<WorkCategory>('all')
+  const works = filterWorksByCategory(category)
+
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
-    document.title = '更多作品 · 刘铭'
+    document.title = '我的作品集 · 刘铭'
   }, [])
 
   return (
     <Style>
       <header className="top">
         <div className="inner">
-          <Link to={WORKS_PATH} className="brand" aria-label="更多作品">
+          <Link to={WORKS_PATH} className="brand" aria-label="我的作品集">
             <span className="brand-mark">铭</span>
-            <span className="brand-text">更多作品</span>
+            <span className="brand-text">我的作品集</span>
           </Link>
+
+          <div className="cats" role="tablist" aria-label="作品分类">
+            {WORK_CATEGORIES.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={category === item.id}
+                className={`cat${category === item.id ? ' is-active' : ''}`}
+                onClick={() => setCategory(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           <Link to="/" className="back">
             返回首页
           </Link>
@@ -24,12 +48,11 @@ export default function MoreWorksPage() {
       </header>
 
       <main className="main">
-        <p className="eyebrow">作品集</p>
-        <h1 className="title">全部作品</h1>
+        <h1 className="title">我的作品集</h1>
         <p className="lead">个人开发者作品，仅供学习交流</p>
 
         <ul className="works-grid">
-          {ALL_WORKS.map((work, index) => (
+          {works.map((work, index) => (
             <li key={work.href}>
               <Link className={`work-card work-card--${work.tone}`} to={work.href}>
                 <div className="work-card__top">
@@ -106,7 +129,6 @@ const Style = styled.div`
     height: var(--nav-h);
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 20px;
   }
 
@@ -147,6 +169,7 @@ const Style = styled.div`
 
   .back {
     flex-shrink: 0;
+    margin-left: auto;
     display: inline-flex;
     align-items: center;
     min-height: 36px;
@@ -178,14 +201,6 @@ const Style = styled.div`
     padding: calc(var(--nav-h) + 40px) 0 64px;
   }
 
-  .eyebrow {
-    margin: 0 0 10px;
-    color: var(--purple);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.28em;
-  }
-
   .title {
     margin: 0;
     font-family: var(--serif);
@@ -201,6 +216,62 @@ const Style = styled.div`
     letter-spacing: 0.04em;
   }
 
+  .cats {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .cat {
+    appearance: none;
+    position: relative;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-soft);
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: color 0.2s;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 2px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--purple);
+      transform: scaleX(0);
+      transform-origin: center;
+      transition: transform 0.22s ease;
+    }
+
+    &:hover {
+      color: var(--text);
+    }
+
+    &.is-active {
+      color: var(--text);
+      font-weight: 600;
+
+      &::after {
+        transform: scaleX(1);
+      }
+    }
+  }
+
   .works-grid {
     list-style: none;
     margin: 0;
@@ -214,7 +285,7 @@ const Style = styled.div`
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 236px;
+    min-height: 200px;
     padding: 1.2rem 1.25rem 1.15rem;
     overflow: hidden;
     border-radius: var(--radius);
@@ -308,6 +379,11 @@ const Style = styled.div`
     color: var(--text-soft);
     font-size: 0.9rem;
     line-height: 1.65;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
   }
 
   .work-card__go {
@@ -402,7 +478,22 @@ const Style = styled.div`
     }
 
     .brand-text {
-      font-size: 18px;
+      display: none;
+    }
+
+    .back {
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
+    .cat {
+      padding: 8px 10px;
+      font-size: 13px;
+
+      &::after {
+        left: 10px;
+        right: 10px;
+      }
     }
   }
 `

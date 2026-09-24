@@ -124,7 +124,7 @@ export async function searchBiliVideos(
   const cookie = await buildBiliCookie(adminCookie)
   const headers = biliHeaders(cookie)
 
-  /** 经典搜索：有 buvid 时成功率最高（csp_Bili 同类） */
+  /** 经典搜索：有 buvid 时成功率最高（csp_Bili 同类）；经家宽代理 */
   const tryClassic = async (): Promise<BiliSearchResult> => {
     const url = new URL('https://api.bilibili.com/x/web-interface/search/type')
     url.searchParams.set('search_type', 'video')
@@ -134,17 +134,7 @@ export async function searchBiliVideos(
     url.searchParams.set('order', 'totalrank')
     url.searchParams.set('duration', String(duration))
 
-    const res = await fetch(url.toString(), { headers })
-    const text = await res.text()
-    if (!res.ok || text.trim().startsWith('<')) throw new AntiCrawlError()
-
-    let payload: { code?: number; message?: string; data?: unknown }
-    try {
-      payload = JSON.parse(text) as { code?: number; message?: string; data?: unknown }
-    } catch {
-      throw new AntiCrawlError()
-    }
-    if (payload.code === -352) throw new AntiCrawlError()
+    const payload = await fetchBiliJson(url.toString(), { headers })
     if (payload.code !== 0) {
       throw new Error(payload.message || `B站搜索失败（code ${payload.code ?? '?'}）`)
     }

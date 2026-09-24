@@ -44,11 +44,6 @@ export default function HomePage() {
             .catch(() => [] as QqTitle[]),
           ...jobs.map(async (job) => {
             try {
-              // 短剧等频道 getPage 无海报，优先列表接口；其余频道先 getPage 再回退
-              if (job.key === 'short') {
-                const listed = await fetchQqList(job.pageId, 'sort=75')
-                return { ...job, list: listed.list }
-              }
               const channel = await fetchQqChannel(job.pageId)
               if (channel.list.length) return { ...job, list: channel.list }
               const listed = await fetchQqList(job.pageId, 'sort=75')

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import styled, { createGlobalStyle } from 'styled-components'
-import { WORKS_HOME_LIMIT, WORKS_PATH } from '../更多作品/works'
+import { WORKS_HOME_LIMIT, WORKS_PATH } from '../我的作品集/works'
 import { getLangMeta, I18N, LANG_OPTIONS, resolveLang, type Lang } from './utils/i18n'
 
 const NAV = [
@@ -224,7 +224,7 @@ export default function Home() {
               {ui.nav[item.key]}
             </a>
           ))}
-          <Link to={WORKS_PATH}>更多作品</Link>
+          <Link to={WORKS_PATH}>{ui.nav.works}</Link>
         </div>
         <div className="nav__actions">
           <LangSelect value={lang} label={ui.selectLang} onChange={setLang} />
@@ -267,7 +267,7 @@ export default function Home() {
           </a>
         ))}
         <Link to={WORKS_PATH} onClick={closeMenu}>
-          更多作品
+          {ui.nav.works}
         </Link>
         <a href={t.profile.resume} target="_blank" rel="noreferrer" onClick={closeMenu}>
           {ui.resume}
@@ -370,7 +370,7 @@ export default function Home() {
           </ul>
           <div className="works-more">
             <Link className="works-more__link" to={WORKS_PATH}>
-              更多作品 →
+              {ui.nav.works} →
             </Link>
           </div>
         </section>

@@ -1,6 +1,9 @@
 /**
  * B 站公共鉴权：反爬 Cookie、WBI 签名、统一 JSON 抓取。
+ * API 经家宽代理（与酷我取链同出口），规避 Cloudflare 出口风控。
  */
+
+import { fetchTextViaHomeProxy, fetchViaHomeProxy } from '../homeProxy.js'
 
 export const REFERER = 'https://www.bilibili.com/'
 export const UA =
@@ -53,13 +56,18 @@ async function hmacSha256Hex(key: string, message: string) {
 }
 
 export async function fetchBiliJson(url: string, options?: RequestInit) {
-  const res = await fetch(url, options)
-  const text = await res.text()
+  let text: string
+  try {
+    text = await fetchTextViaHomeProxy(url, options)
+  } catch (error) {
+    // 代理错误（白名单/超时等）原样抛出，勿吞成风控
+    if (error instanceof Error && !error.message.includes(ANTI_CRAWL_MSG)) {
+      throw error
+    }
+    throw new AntiCrawlError()
+  }
 
-  if (!res.ok) throw new AntiCrawlError()
-
-  const contentType = res.headers.get('content-type') || ''
-  if (!contentType.includes('application/json') || text.trim().startsWith('<')) {
+  if (text.trim().startsWith('<')) {
     throw new AntiCrawlError()
   }
 
@@ -79,10 +87,10 @@ export async function getAntiCrawlCookie() {
   let buvid4: string | null = null
 
   try {
-    const res = await fetch('https://api.bilibili.com/x/frontend/finger/spi', {
+    const text = await fetchTextViaHomeProxy('https://api.bilibili.com/x/frontend/finger/spi', {
       headers: { 'User-Agent': UA },
     })
-    const json = (await res.json()) as { data?: { b_3?: string; b_4?: string } }
+    const json = JSON.parse(text) as { data?: { b_3?: string; b_4?: string } }
     if (json.data?.b_3) buvid3 = json.data.b_3
     if (json.data?.b_4) buvid4 = json.data.b_4
   } catch {
@@ -94,7 +102,10 @@ export async function getAntiCrawlCookie() {
     const ts = Math.floor(Date.now() / 1000)
     const hexsign = await hmacSha256Hex('XgwSnGZ1p', `ts${ts}`)
     const ticketUrl = `https://api.bilibili.com/bapis/bilibili.api.ticket.v1.Ticket/GenWebTicket?key_id=ec02&hexsign=${hexsign}&context[ts]=${ts}&csrf=`
-    const res = await fetch(ticketUrl, { method: 'POST', headers: { 'User-Agent': UA } })
+    const res = await fetchViaHomeProxy(ticketUrl, {
+      method: 'POST',
+      headers: { 'User-Agent': UA },
+    })
     const json = (await res.json()) as { data?: { ticket?: string } }
     if (json.data?.ticket) ticket = json.data.ticket
   } catch {

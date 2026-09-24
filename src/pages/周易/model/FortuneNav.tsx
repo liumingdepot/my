@@ -57,10 +57,10 @@ export default function FortuneNav({
 
   useEffect(() => {
     if (!open) return
-    function onPointer(event: MouseEvent) {
+    function onPointer(event: globalThis.MouseEvent) {
       if (!panelRef.current?.contains(event.target as Node)) setOpen(false)
     }
-    function onKey(event: KeyboardEvent) {
+    function onKey(event: globalThis.KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false)
     }
     document.addEventListener('mousedown', onPointer)

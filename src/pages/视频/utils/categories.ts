@@ -1,13 +1,12 @@
 import type { ClassNode, NavKey } from './types'
 
-/** 顶栏大类与主源 type_id 对应（量子资源）；短剧走腾讯频道 channel_id */
+/** 顶栏大类与主源 type_id 对应（量子资源） */
 export const NAV_CATEGORIES: {
   key: Exclude<NavKey, 'home' | 'actor'>
   label: string
   typeId: number
   path: string
 }[] = [
-  { key: 'short', label: '短剧', typeId: 120188, path: '/video/short' },
   { key: 'movie', label: '电影', typeId: 1, path: '/video/movie' },
   { key: 'tv', label: '电视剧', typeId: 2, path: '/video/tv' },
   { key: 'anime', label: '动漫', typeId: 4, path: '/video/anime' },
@@ -22,7 +21,6 @@ export const QQ_HOT_PAGE_ID = '100101'
 
 /** 腾讯视频频道 page_id / channel_id（热播 Banner / 首页分区 / 分类列表） */
 export const QQ_PAGES: Record<Exclude<NavKey, 'home' | 'actor'>, string> = {
-  short: '120188',
   movie: '100173',
   tv: '100113',
   anime: '100119',

@@ -11,7 +11,6 @@ export default function VideoPage() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
-        <Route path="short" element={<TypePage />} />
         <Route path="movie" element={<TypePage />} />
         <Route path="tv" element={<TypePage />} />
         <Route path="anime" element={<TypePage />} />

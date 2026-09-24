@@ -12,6 +12,24 @@ function entryKey(entry: MergedEntry) {
   return `${entry.source}::${entry.vod_id}`
 }
 
+type VideoWithPip = HTMLVideoElement & {
+  webkitSetPresentationMode?: (mode: 'inline' | 'picture-in-picture' | 'fullscreen') => void
+  webkitPresentationMode?: 'inline' | 'picture-in-picture' | 'fullscreen'
+}
+
+function supportsPip(video: HTMLVideoElement | null) {
+  if (!video) return false
+  const v = video as VideoWithPip
+  if (document.pictureInPictureEnabled && !video.disablePictureInPicture) return true
+  return typeof v.webkitSetPresentationMode === 'function'
+}
+
+function isInPip(video: HTMLVideoElement | null) {
+  if (!video) return false
+  if (document.pictureInPictureElement === video) return true
+  return (video as VideoWithPip).webkitPresentationMode === 'picture-in-picture'
+}
+
 type LocationState = {
   mirrors?: MergedEntry[]
 }
@@ -32,6 +50,8 @@ export default function PlayPage() {
   const [loading, setLoading] = useState(true)
   const [switching, setSwitching] = useState(false)
   const [mediaReady, setMediaReady] = useState(false)
+  const [pipSupported, setPipSupported] = useState(false)
+  const [inPip, setInPip] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
   const relatedFor = useRef('')
@@ -187,6 +207,54 @@ export default function PlayPage() {
     }
   }, [currentEp?.url, episodeIndex, lineIndex, activeKey])
 
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const sync = () => {
+      setPipSupported(supportsPip(video))
+      setInPip(isInPip(video))
+    }
+    sync()
+
+    const onEnter = () => setInPip(true)
+    const onLeave = () => setInPip(false)
+    video.addEventListener('enterpictureinpicture', onEnter)
+    video.addEventListener('leavepictureinpicture', onLeave)
+    video.addEventListener('webkitpresentationmodechanged', sync)
+
+    return () => {
+      video.removeEventListener('enterpictureinpicture', onEnter)
+      video.removeEventListener('leavepictureinpicture', onLeave)
+      video.removeEventListener('webkitpresentationmodechanged', sync)
+    }
+  }, [activeKey, currentEp?.url])
+
+  async function togglePip() {
+    const video = videoRef.current
+    if (!video || !supportsPip(video)) return
+
+    const v = video as VideoWithPip
+    try {
+      if (document.pictureInPictureElement === video) {
+        await document.exitPictureInPicture()
+        return
+      }
+      if (v.webkitPresentationMode === 'picture-in-picture') {
+        v.webkitSetPresentationMode?.('inline')
+        return
+      }
+      if (document.pictureInPictureEnabled) {
+        if (video.paused) await video.play().catch(() => {})
+        await video.requestPictureInPicture()
+        return
+      }
+      v.webkitSetPresentationMode?.('picture-in-picture')
+    } catch {
+      setPlayError('当前浏览器暂不支持画中画')
+    }
+  }
+
   const availableMirrors = useMemo(() => {
     return mirrors.map((entry) => ({
       ...entry,
@@ -261,6 +329,23 @@ export default function PlayPage() {
           <div className="player-wrap">
             <div className="player-inner">
               <video ref={videoRef} controls playsInline />
+              {pipSupported && mediaReady ? (
+                <button
+                  type="button"
+                  className={`pip-btn${inPip ? ' is-active' : ''}`}
+                  aria-label={inPip ? '退出画中画' : '画中画'}
+                  title={inPip ? '退出画中画' : '画中画'}
+                  onClick={() => void togglePip()}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path
+                      fill="currentColor"
+                      d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"
+                    />
+                  </svg>
+                  <span>{inPip ? '退出画中画' : '画中画'}</span>
+                </button>
+              ) : null}
               {!mediaReady && !playError ? (
                 <div className="placeholder">
                   <span className="brand">铭视频</span>
@@ -430,6 +515,38 @@ const Page = styled.div`
       height: 100%;
       display: block;
       background: #000;
+    }
+
+    .pip-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.72);
+        border-color: rgba(232, 165, 75, 0.55);
+        color: #e8a54b;
+      }
+
+      &.is-active {
+        border-color: rgba(232, 165, 75, 0.7);
+        color: #e8a54b;
+      }
     }
 
     .placeholder {
@@ -657,6 +774,16 @@ const Page = styled.div`
 
     .player-inner .placeholder .brand {
       font-size: 28px;
+    }
+
+    .player-inner .pip-btn span {
+      display: none;
+    }
+
+    .player-inner .pip-btn {
+      width: 36px;
+      padding: 0;
+      justify-content: center;
     }
 
     .grid {

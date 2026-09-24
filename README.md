@@ -19,9 +19,9 @@ Senior frontend engineer with 10 years of experience in micro-frontend architect
 
 ---
 
-## 02 — Works
+## 02 — My Portfolio
 
-Personal developer works — for learning & exchange only
+My Portfolio
 
 ### [Zhouyi](http://www.liuming1234.xyz/fortune) · Live
 
@@ -33,17 +33,25 @@ Search, playlists, charts and tags — play with lyrics. Powered by public APIs;
 
 ### [Video](http://www.liuming1234.xyz/video) · Live
 
-Video site: home feed, short drama / movie / TV categories, search and playback. Public APIs; for learning & exchange only.
+Video site: home feed, movie / TV categories, search and playback. Public APIs; for learning & exchange only.
 
-### [Games](http://www.liuming1234.xyz/game) · Soon
+### [Short Drama](http://www.liuming1234.xyz/short) · Live
 
-Placeholder for the games module — routing is live; content coming soon. For learning & exchange only.
+Qimao short dramas: hot home, category browse, search and episode playback. Public APIs; for learning only.
 
-### [Education](http://www.liuming1234.xyz/education) · Soon
+### [Games](http://www.liuming1234.xyz/game) · Live
 
-Placeholder for the education module — routing is live; content coming soon. For learning & exchange only.
+Play classic games in the browser: browse by category, featured picks, and detail pages. For learning & exchange only.
 
-[更多作品 →](http://www.liuming1234.xyz/works)
+### [Education](http://www.liuming1234.xyz/education) · Live
+
+Course video learning: filter by grade/textbook, search, and play online. For learning & exchange only.
+
+### [Test Module](http://www.liuming1234.xyz/test) · Test
+
+Qimao short-drama API sandbox: category collect and trial playback.
+
+[My Portfolio →](http://www.liuming1234.xyz/works)
 
 ---
 

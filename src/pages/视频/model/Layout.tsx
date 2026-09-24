@@ -36,7 +36,6 @@ export default function Layout() {
       (
         {
           home: '#0a0a0c',
-          short: '#0c0a12',
           movie: '#0a100e',
           tv: '#0a0c12',
           anime: '#100a10',
@@ -143,12 +142,6 @@ const Shell = styled.div`
     --theme-glow: rgba(232, 165, 75, 0.1);
     --theme-glow-2: rgba(196, 120, 42, 0.05);
     --theme-base: #0a0a0c;
-  }
-
-  &[data-theme='short'] {
-    --theme-glow: rgba(140, 90, 220, 0.16);
-    --theme-glow-2: rgba(90, 40, 140, 0.1);
-    --theme-base: #0c0a12;
   }
 
   &[data-theme='movie'] {
