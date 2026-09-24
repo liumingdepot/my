@@ -278,7 +278,7 @@ const Style = styled.div`
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
   }
 
@@ -459,12 +459,6 @@ const Style = styled.div`
     background:
       radial-gradient(320px 180px at 90% 0%, rgba(245, 158, 11, 0.16), transparent 70%),
       var(--bg-elevated);
-  }
-
-  @media (max-width: 1100px) {
-    .works-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
   }
 
   @media (max-width: 900px) {
