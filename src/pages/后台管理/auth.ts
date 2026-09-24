@@ -201,6 +201,19 @@ export async function deleteVideoSource(id: string) {
 export const GAME_CATEGORIES = ['FC', 'SFC', '街机'] as const
 export type GameCategory = (typeof GAME_CATEGORIES)[number]
 
+/** yikm FC 采集 tag（与 /nes?tag=&e=0 对齐） */
+export const YIKM_FC_TAGS = [
+  { tag: 2, genre: '动作冒险' },
+  { tag: 3, genre: '飞行射击' },
+  { tag: 4, genre: '格斗' },
+  { tag: 5, genre: '棋牌' },
+  { tag: 6, genre: '射击' },
+  { tag: 7, genre: '运动比赛' },
+  { tag: 8, genre: '小游戏' },
+  { tag: 10, genre: '角色扮演' },
+] as const
+export type YikmFcTag = (typeof YIKM_FC_TAGS)[number]['tag']
+
 export type Game = {
   id: string
   name: string
@@ -208,6 +221,7 @@ export type Game = {
   imageUrl: string
   category: GameCategory
   genre: string
+  sortOrder: number
   recommended: boolean
   createdAt: string
   updatedAt: string
@@ -219,6 +233,7 @@ export type GameInput = {
   imageUrl: string
   category: GameCategory
   genre: string
+  sortOrder: number
   recommended: boolean
 }
 
@@ -263,6 +278,12 @@ export async function deleteGame(id: string) {
   })
 }
 
+export async function deleteAllGames() {
+  return request<{ ok: boolean; deleted: number }>('/api/admin/games', {
+    method: 'DELETE',
+  })
+}
+
 export type ImportYikmResult = {
   ok: boolean
   scraped: number
@@ -270,14 +291,15 @@ export type ImportYikmResult = {
   updated: number
   fromPage: number
   toPage: number
+  tag: number
   games: Game[]
 }
 
-/** 从 yikm.net FC 列表采集（默认第 1–10 页） */
-export async function importGamesFromYikm(fromPage = 1, toPage = 10) {
+/** 从 yikm.net FC 列表采集：/nes?page=&tag=&e=0 */
+export async function importGamesFromYikm(fromPage = 1, toPage = 10, tag: YikmFcTag = 2) {
   return request<ImportYikmResult>('/api/admin/games/import-yikm', {
     method: 'POST',
-    body: JSON.stringify({ fromPage, toPage }),
+    body: JSON.stringify({ fromPage, toPage, tag }),
   })
 }
 

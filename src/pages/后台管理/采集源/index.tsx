@@ -41,6 +41,7 @@ export default function VideoSourcesPage() {
   const [sources, setSources] = useState<VideoSource[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState('')
+  const [draftQuery, setDraftQuery] = useState('')
   const [query, setQuery] = useState('')
   const [toast, setToast] = useState('')
   const [editing, setEditing] = useState<VideoSource | null>(null)
@@ -256,12 +257,20 @@ export default function VideoSourcesPage() {
 
       <div className="panel">
         <div className="toolbar">
-          <input
-            className="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索名称 / 地址"
-          />
+          <div className="search-group">
+            <input
+              className="search"
+              value={draftQuery}
+              onChange={(event) => setDraftQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') setQuery(draftQuery)
+              }}
+              placeholder="搜索名称 / 地址"
+            />
+            <button type="button" className="btn" onClick={() => setQuery(draftQuery)}>
+              确认
+            </button>
+          </div>
           <span className="hint">共 {filtered.length} 条</span>
         </div>
 
@@ -556,6 +565,13 @@ const Style = styled.div`
     flex-shrink: 0;
   }
 
+  .search-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
   .search {
     width: min(100%, 280px);
     height: 36px;
@@ -757,8 +773,14 @@ const Style = styled.div`
       flex-wrap: wrap;
     }
 
-    .search {
+    .search-group {
       width: 100%;
+    }
+
+    .search {
+      flex: 1;
+      width: auto;
+      min-width: 0;
     }
   }
 `

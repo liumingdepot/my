@@ -34,7 +34,7 @@ export default function DetailPage() {
         const data = await fetchGameDetail(id, ac.signal)
         if (ac.signal.aborted) return
         setGame(data)
-        document.title = `${data.name} · 铭游戏`
+        document.title = `${data.name} · 铭FC游戏`
       } catch (err) {
         if (!ac.signal.aborted) {
           setGame(null)
@@ -54,9 +54,9 @@ export default function DetailPage() {
       <Style>
         <header className="top">
           <div className="shell top__inner">
-            <Link to="/game" className="brand" aria-label="铭游戏">
+            <Link to="/game" className="brand" aria-label="铭FC游戏">
               <span className="brand__mark">铭</span>
-              <span className="brand__text">铭游戏</span>
+              <span className="brand__text">铭FC游戏</span>
             </Link>
             <div className="top__actions">
               <GameThemeToggle onToggle={toggleTheme} />
@@ -90,7 +90,7 @@ export default function DetailPage() {
                   <div className="tags">
                     <span className="tag">{game.category}</span>
                     {game.genre ? <span className="tag tag--muted">{game.genre}</span> : null}
-                    {game.recommended ? <span className="tag tag--hot">热门</span> : null}
+                    {game.recommended ? <span className="tag tag--hot">精选</span> : null}
                   </div>
                   <a className="dl" href={game.downloadUrl} target="_blank" rel="noreferrer">
                     下载 ROM

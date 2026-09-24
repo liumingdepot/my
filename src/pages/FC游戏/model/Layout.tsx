@@ -4,7 +4,7 @@ import styled, { createGlobalStyle } from 'styled-components'
 import { ThemeToggle } from '../../音乐/utils/ThemeToggle'
 import { themeColor, useTheme } from '../../音乐/utils/theme'
 
-/** 游戏模块外壳：与首页共用主题变量，并提供深浅色切换。 */
+/** FC 游戏模块外壳：与首页共用主题变量，并提供深浅色切换。 */
 export default function Layout() {
   const { theme, toggleTheme } = useTheme()
 

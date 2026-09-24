@@ -29,6 +29,7 @@ import {
 } from '../video/sources.js'
 import {
   createGame,
+  deleteAllGames,
   deleteGame,
   findGameById,
   importedGameId,
@@ -39,7 +40,7 @@ import {
   upsertGame,
   type GameCategory,
 } from '../game/games.js'
-import { scrapeYikmFcGames } from '../game/scrape.js'
+import { isYikmFcTag, scrapeYikmFcGames, type YikmFcTag } from '../game/scrape.js'
 import {
   createEducationSource,
   deleteEducationSource,
@@ -130,6 +131,9 @@ export async function handleAdminApi(request: Request, env: AdminEnv) {
   }
   if (pathname === '/api/admin/games' && method === 'POST') {
     return handleCreateGame(request, env)
+  }
+  if (pathname === '/api/admin/games' && method === 'DELETE') {
+    return handleDeleteAllGames(request, env)
   }
   if (pathname === '/api/admin/games/import-yikm' && method === 'POST') {
     return handleImportYikmGames(request, env)
@@ -503,6 +507,7 @@ type GameBody = {
   imageUrl?: string
   category?: string
   genre?: string
+  sortOrder?: number
   recommended?: boolean
 }
 
@@ -512,8 +517,9 @@ function parseGameBody(body: GameBody | null) {
   const imageUrl = body?.imageUrl?.trim() ?? ''
   const category = body?.category?.trim() ?? ''
   const genre = body?.genre?.trim() ?? ''
+  const sortOrder = Number(body?.sortOrder ?? 0)
   const recommended = Boolean(body?.recommended)
-  return { name, downloadUrl, imageUrl, category, genre, recommended }
+  return { name, downloadUrl, imageUrl, category, genre, sortOrder, recommended }
 }
 
 async function handleListGames(request: Request, env: AdminEnv) {
@@ -537,6 +543,7 @@ async function handleCreateGame(request: Request, env: AdminEnv) {
   }
   if (!isGameCategory(input.category)) return json({ error: '请选择游戏分类' }, 400)
   if (!input.genre) return json({ error: '请填写游戏类型' }, 400)
+  if (!Number.isFinite(input.sortOrder)) return json({ error: '排序需为数字' }, 400)
 
   try {
     const game = await createGame(env.DB, {
@@ -545,6 +552,7 @@ async function handleCreateGame(request: Request, env: AdminEnv) {
       imageUrl: input.imageUrl,
       category: input.category as GameCategory,
       genre: input.genre,
+      sortOrder: Math.trunc(input.sortOrder),
       recommended: input.recommended,
     })
     return json({ game }, 201)
@@ -571,6 +579,7 @@ async function handleUpdateGame(request: Request, env: AdminEnv, id: string) {
   }
   if (!isGameCategory(input.category)) return json({ error: '请选择游戏分类' }, 400)
   if (!input.genre) return json({ error: '请填写游戏类型' }, 400)
+  if (!Number.isFinite(input.sortOrder)) return json({ error: '排序需为数字' }, 400)
 
   try {
     const game = await updateGame(env.DB, id, {
@@ -579,6 +588,7 @@ async function handleUpdateGame(request: Request, env: AdminEnv, id: string) {
       imageUrl: input.imageUrl,
       category: input.category as GameCategory,
       genre: input.genre,
+      sortOrder: Math.trunc(input.sortOrder),
       recommended: input.recommended,
     })
     return json({ game })
@@ -622,9 +632,23 @@ async function handleDeleteGame(request: Request, env: AdminEnv, id: string) {
   return json({ ok: true })
 }
 
+async function handleDeleteAllGames(request: Request, env: AdminEnv) {
+  const session = await requireSession(env, request)
+  if (!session) return json({ error: '未登录' }, 401)
+
+  try {
+    const result = await deleteAllGames(env.DB)
+    return json({ ok: result.ok, deleted: result.deleted })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '删除失败'
+    return json({ error: message }, 500)
+  }
+}
+
 type ImportYikmBody = {
   fromPage?: number
   toPage?: number
+  tag?: number
 }
 
 async function handleImportYikmGames(request: Request, env: AdminEnv) {
@@ -634,15 +658,24 @@ async function handleImportYikmGames(request: Request, env: AdminEnv) {
   const body = await readJson<ImportYikmBody>(request)
   const fromPage = Number(body?.fromPage ?? 1)
   const toPage = Number(body?.toPage ?? 10)
+  const tag = Number(body?.tag ?? 2)
   if (!Number.isFinite(fromPage) || !Number.isFinite(toPage) || fromPage < 1 || toPage < fromPage) {
     return json({ error: '分页参数无效' }, 400)
   }
   if (toPage - fromPage > 9) {
     return json({ error: '单次最多采集 10 页' }, 400)
   }
+  if (!isYikmFcTag(tag)) {
+    return json({ error: 'tag 无效' }, 400)
+  }
 
   try {
-    const scraped = await scrapeYikmFcGames({ fromPage, toPage, category: 'FC' })
+    const scraped = await scrapeYikmFcGames({
+      fromPage,
+      toPage,
+      tag: tag as YikmFcTag,
+      category: 'FC',
+    })
     let created = 0
     let updated = 0
     for (const item of scraped) {
@@ -653,6 +686,7 @@ async function handleImportYikmGames(request: Request, env: AdminEnv) {
         imageUrl: item.imageUrl,
         category: item.category,
         genre: item.genre,
+        sortOrder: item.sortOrder,
       })
       if (result.created) created += 1
       else updated += 1
@@ -665,6 +699,7 @@ async function handleImportYikmGames(request: Request, env: AdminEnv) {
       updated,
       fromPage,
       toPage,
+      tag,
       games,
     })
   } catch (error) {

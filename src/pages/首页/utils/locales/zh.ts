@@ -78,8 +78,8 @@ export const zh = {
       glyph: "剧",
     },
     {
-      name: "游戏",
-      desc: "经典游戏在线玩：分类浏览、热门推荐与详情页，支持网页端游玩。仅供学习交流。",
+      name: "FC游戏",
+      desc: "经典 FC 游戏在线玩：热门推荐与详情页，支持网页端游玩。仅供学习交流。",
       href: "/game",
       tag: "已上线",
       tone: "emerald",

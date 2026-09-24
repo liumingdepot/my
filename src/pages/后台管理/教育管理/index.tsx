@@ -91,6 +91,7 @@ export default function EducationAdminPage() {
   const [sources, setSources] = useState<EducationSource[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState('')
+  const [draftQuery, setDraftQuery] = useState('')
   const [query, setQuery] = useState('')
   const [toast, setToast] = useState('')
   const [editing, setEditing] = useState<EducationSource | null>(null)
@@ -371,12 +372,20 @@ export default function EducationAdminPage() {
 
       <div className="panel">
         <div className="toolbar">
-          <input
-            className="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索名称 / classes / filter"
-          />
+          <div className="search-group">
+            <input
+              className="search"
+              value={draftQuery}
+              onChange={(event) => setDraftQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') setQuery(draftQuery)
+              }}
+              placeholder="搜索名称 / classes / filter"
+            />
+            <button type="button" className="btn" onClick={() => setQuery(draftQuery)}>
+              确认
+            </button>
+          </div>
           <span className="hint">共 {filtered.length} 条</span>
         </div>
 
@@ -741,6 +750,13 @@ const Style = styled.div`
     border-bottom: 1px solid #e5e7eb;
     background: #f9fafb;
     flex-shrink: 0;
+  }
+
+  .search-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
 
   .search {

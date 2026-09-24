@@ -1,4 +1,4 @@
-export type WorkCategory = 'all' | 'av' | 'learn' | 'test'
+export type WorkCategory = 'all' | 'av' | 'learn' | 'tool' | 'fish' | 'test'
 
 export type WorkItem = {
   name: string
@@ -16,6 +16,8 @@ export const WORK_CATEGORIES: { id: WorkCategory; label: string }[] = [
   { id: 'all', label: '精选' },
   { id: 'av', label: '音视频' },
   { id: 'learn', label: '学习' },
+  { id: 'tool', label: '工具' },
+  { id: 'fish', label: '摸鱼' },
   { id: 'test', label: '开发中' },
 ]
 
@@ -62,14 +64,14 @@ export const ALL_WORKS: WorkItem[] = [
     categories: ['av'],
   },
   {
-    name: '游戏',
-    desc: '经典游戏在线玩：分类浏览、热门推荐与详情页，支持网页端游玩。仅供学习交流。',
+    name: 'FC游戏',
+    desc: '经典 FC 游戏在线玩：热门推荐与详情页，支持网页端游玩。仅供学习交流。',
     href: '/game',
     tag: '已上线',
     tone: 'emerald',
     glyph: '游',
     platform: 'PC',
-    categories: [],
+    categories: ['fish'],
   },
   {
     name: '学习教育',

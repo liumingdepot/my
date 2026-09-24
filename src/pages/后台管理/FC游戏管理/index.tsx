@@ -3,14 +3,15 @@ import styled from 'styled-components'
 import {
   ApiError,
   createGame,
+  deleteAllGames,
   deleteGame,
-  GAME_CATEGORIES,
   importGamesFromYikm,
   listGames,
   patchGameRecommended,
   updateGame,
+  YIKM_FC_TAGS,
   type Game,
-  type GameCategory,
+  type YikmFcTag,
 } from '../auth'
 import Select from '../../../components/Select'
 import ListPagination, { LIST_PAGE_SIZE } from '../model/ListPagination'
@@ -19,8 +20,8 @@ type Draft = {
   name: string
   downloadUrl: string
   imageUrl: string
-  category: GameCategory
   genre: string
+  sortOrder: number
   recommended: boolean
 }
 
@@ -28,9 +29,13 @@ const EMPTY_DRAFT: Draft = {
   name: '',
   downloadUrl: '',
   imageUrl: '',
-  category: 'FC',
   genre: '',
+  sortOrder: 0,
   recommended: false,
+}
+
+function bySortOrder(a: Game, b: Game) {
+  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)
 }
 
 function formatDate(iso: string) {
@@ -49,6 +54,7 @@ export default function GamesAdminPage() {
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState('')
+  const [draftQuery, setDraftQuery] = useState('')
   const [query, setQuery] = useState('')
   const [toast, setToast] = useState('')
   const [editing, setEditing] = useState<Game | null>(null)
@@ -60,9 +66,10 @@ export default function GamesAdminPage() {
   const [importing, setImporting] = useState(false)
   const [importFromPage, setImportFromPage] = useState(1)
   const [importToPage, setImportToPage] = useState(1)
+  const [importTag, setImportTag] = useState<YikmFcTag>(2)
 
   useLayoutEffect(() => {
-    document.title = '游戏管理 · 后台管理'
+    document.title = 'FC 游戏管理 · 后台管理'
   }, [])
 
   useEffect(() => {
@@ -99,7 +106,6 @@ export default function GamesAdminPage() {
       (game) =>
         game.name.toLowerCase().includes(q) ||
         game.genre.toLowerCase().includes(q) ||
-        game.category.toLowerCase().includes(q) ||
         game.downloadUrl.toLowerCase().includes(q),
     )
   }, [games, query])
@@ -119,21 +125,12 @@ export default function GamesAdminPage() {
     if (page > pageCount) setPage(pageCount)
   }, [page, pageCount])
 
-  const stats = useMemo(() => {
-    const byCategory = Object.fromEntries(GAME_CATEGORIES.map((c) => [c, 0])) as Record<
-      GameCategory,
-      number
-    >
-    for (const game of games) {
-      byCategory[game.category] = (byCategory[game.category] ?? 0) + 1
-    }
-    return { total: games.length, byCategory }
-  }, [games])
-
   function openCreate() {
     setEditing(null)
     setCreating(true)
-    setDraft(EMPTY_DRAFT)
+    const nextSort =
+      games.reduce((max, item) => Math.max(max, item.sortOrder || 0), 0) + 1
+    setDraft({ ...EMPTY_DRAFT, sortOrder: nextSort })
     setFormError('')
   }
 
@@ -144,8 +141,8 @@ export default function GamesAdminPage() {
       name: game.name,
       downloadUrl: game.downloadUrl,
       imageUrl: game.imageUrl,
-      category: game.category,
       genre: game.genre,
+      sortOrder: game.sortOrder ?? 0,
       recommended: game.recommended,
     })
     setFormError('')
@@ -165,6 +162,7 @@ export default function GamesAdminPage() {
     const downloadUrl = draft.downloadUrl.trim()
     const imageUrl = draft.imageUrl.trim()
     const genre = draft.genre.trim()
+    const sortOrder = Math.trunc(Number(draft.sortOrder) || 0)
 
     if (!name) {
       setFormError('请填写游戏名称')
@@ -186,33 +184,20 @@ export default function GamesAdminPage() {
         name,
         downloadUrl,
         imageUrl,
-        category: draft.category,
+        category: 'FC' as const,
         genre,
+        sortOrder,
         recommended: draft.recommended,
       }
       if (editing) {
         const updated = await updateGame(editing.id, payload)
         setGames((current) =>
-          current
-            .map((item) => (item.id === updated.id ? updated : item))
-            .sort(
-              (a, b) =>
-                Number(b.recommended) - Number(a.recommended) ||
-                b.updatedAt.localeCompare(a.updatedAt) ||
-                a.name.localeCompare(b.name),
-            ),
+          current.map((item) => (item.id === updated.id ? updated : item)).sort(bySortOrder),
         )
         setToast('已保存')
       } else {
         const created = await createGame(payload)
-        setGames((current) =>
-          [created, ...current].sort(
-            (a, b) =>
-              Number(b.recommended) - Number(a.recommended) ||
-              b.updatedAt.localeCompare(a.updatedAt) ||
-              a.name.localeCompare(b.name),
-          ),
-        )
+        setGames((current) => [...current, created].sort(bySortOrder))
         setToast('已创建')
       }
       closeDialog()
@@ -234,20 +219,29 @@ export default function GamesAdminPage() {
     }
   }
 
+  async function removeAllGames() {
+    if (games.length === 0) {
+      setToast('暂无游戏可删')
+      return
+    }
+    const ok = window.confirm(`确定删除全部 ${games.length} 款游戏？此操作不可恢复。`)
+    if (!ok) return
+    try {
+      const result = await deleteAllGames()
+      setGames([])
+      setToast(`已删除全部（${result.deleted}）`)
+    } catch (error) {
+      setToast(error instanceof ApiError ? error.message : '操作失败')
+    }
+  }
+
   async function toggleRecommended(game: Game) {
     try {
       const updated = await patchGameRecommended(game.id, !game.recommended)
       setGames((current) =>
-        current
-          .map((item) => (item.id === updated.id ? updated : item))
-          .sort(
-            (a, b) =>
-              Number(b.recommended) - Number(a.recommended) ||
-              b.updatedAt.localeCompare(a.updatedAt) ||
-              a.name.localeCompare(b.name),
-          ),
+        current.map((item) => (item.id === updated.id ? updated : item)).sort(bySortOrder),
       )
-      setToast(updated.recommended ? '已设为推荐' : '已取消推荐')
+      setToast(updated.recommended ? '已设为精选' : '已取消精选')
     } catch (error) {
       setToast(error instanceof ApiError ? error.message : '操作失败')
     }
@@ -260,9 +254,11 @@ export default function GamesAdminPage() {
       setToast('单次最多采集 10 页')
       return
     }
+    const tagMeta = YIKM_FC_TAGS.find((item) => item.tag === importTag)
+    const genreLabel = tagMeta?.genre ?? `tag=${importTag}`
     const pageLabel = from === to ? `第 ${from} 页` : `第 ${from}–${to} 页`
     const ok = window.confirm(
-      `从 yikm.net 采集 FC 游戏${pageLabel}？已存在的记录会按来源更新。`,
+      `从 yikm.net 采集 FC「${genreLabel}」${pageLabel}？\n地址：/nes?page=&tag=${importTag}&e=0\n已存在的记录会按来源更新。`,
     )
     if (!ok) return
     setImportFromPage(from)
@@ -274,8 +270,8 @@ export default function GamesAdminPage() {
     let scraped = 0
     try {
       for (let pageNo = from; pageNo <= to; pageNo++) {
-        setToast(`采集中… 第 ${pageNo}/${to} 页`)
-        const result = await importGamesFromYikm(pageNo, pageNo)
+        setToast(`采集中… ${genreLabel} 第 ${pageNo}/${to} 页`)
+        const result = await importGamesFromYikm(pageNo, pageNo, importTag)
         created += result.created
         updated += result.updated
         scraped += result.scraped
@@ -297,10 +293,23 @@ export default function GamesAdminPage() {
 
       <div className="head">
         <div>
-          <h1 className="title">游戏管理</h1>
-          <p className="desc">管理 FC / SFC / 街机游戏资源：名称、下载地址、图片、分类与类型。</p>
+          <h1 className="title">FC 游戏管理</h1>
+          <p className="desc">管理 FC 游戏资源：名称、下载地址、图片与类型。</p>
         </div>
         <div className="head-actions">
+          <label className="import-tag">
+            <span>类型</span>
+            <Select
+              value={String(importTag)}
+              aria-label="采集类型 tag"
+              disabled={importing}
+              options={YIKM_FC_TAGS.map((item) => ({
+                value: String(item.tag),
+                label: `${item.genre}（tag=${item.tag}）`,
+              }))}
+              onChange={(value) => setImportTag(Number(value) as YikmFcTag)}
+            />
+          </label>
           <label className="import-page">
             <span>从第</span>
             <input
@@ -332,6 +341,14 @@ export default function GamesAdminPage() {
           >
             {importing ? '采集中…' : '采集 yikm FC'}
           </button>
+          <button
+            type="button"
+            className="btn btn--danger"
+            disabled={importing || games.length === 0}
+            onClick={() => void removeAllGames()}
+          >
+            删除全部
+          </button>
           <button type="button" className="btn-primary" onClick={openCreate}>
             + 新增游戏
           </button>
@@ -341,24 +358,26 @@ export default function GamesAdminPage() {
       <div className="stats">
         <div className="stat">
           <span>全部</span>
-          <strong>{stats.total}</strong>
+          <strong>{games.length}</strong>
         </div>
-        {GAME_CATEGORIES.map((category) => (
-          <div className="stat" key={category}>
-            <span>{category}</span>
-            <strong>{stats.byCategory[category]}</strong>
-          </div>
-        ))}
       </div>
 
       <div className="panel">
         <div className="toolbar">
-          <input
-            className="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索名称 / 类型 / 分类 / 地址"
-          />
+          <div className="search-group">
+            <input
+              className="search"
+              value={draftQuery}
+              onChange={(event) => setDraftQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') setQuery(draftQuery)
+              }}
+              placeholder="搜索名称 / 类型 / 地址"
+            />
+            <button type="button" className="btn" onClick={() => setQuery(draftQuery)}>
+              确认
+            </button>
+          </div>
           <span className="hint">共 {filtered.length} 条</span>
         </div>
 
@@ -366,11 +385,11 @@ export default function GamesAdminPage() {
           <table>
             <thead>
               <tr>
+                <th>排序</th>
                 <th>封面</th>
                 <th>名称</th>
-                <th>分类</th>
                 <th>类型</th>
-                <th>推荐</th>
+                <th>精选</th>
                 <th>下载地址</th>
                 <th>更新时间</th>
                 <th>操作</th>
@@ -392,6 +411,7 @@ export default function GamesAdminPage() {
               ) : (
                 paged.map((game) => (
                   <tr key={game.id}>
+                    <td className="sort">{game.sortOrder}</td>
                     <td>
                       {game.imageUrl ? (
                         <img
@@ -407,12 +427,9 @@ export default function GamesAdminPage() {
                     </td>
                     <td>
                       <div className="name">
-                        {game.recommended ? <span className="hot">荐</span> : null}
+                        {game.recommended ? <span className="hot">精</span> : null}
                         {game.name}
                       </div>
-                    </td>
-                    <td>
-                      <span className="tag">{game.category}</span>
                     </td>
                     <td>{game.genre}</td>
                     <td>
@@ -421,7 +438,7 @@ export default function GamesAdminPage() {
                         className={`rec-btn${game.recommended ? ' rec-btn--on' : ''}`}
                         onClick={() => void toggleRecommended(game)}
                       >
-                        {game.recommended ? '取消' : '推荐'}
+                        {game.recommended ? '取消' : '精选'}
                       </button>
                     </td>
                     <td>
@@ -512,30 +529,33 @@ export default function GamesAdminPage() {
               </div>
             ) : null}
 
-            <div className="row">
-              <label className="field">
-                <span>游戏分类</span>
-                <Select
-                  value={draft.category}
-                  aria-label="游戏分类"
-                  options={GAME_CATEGORIES.map((category) => ({
-                    value: category,
-                    label: category,
-                  }))}
-                  onChange={(category) => setDraft((prev) => ({ ...prev, category }))}
-                />
-              </label>
+            <label className="field">
+              <span>游戏类型</span>
+              <input
+                value={draft.genre}
+                onChange={(event) => setDraft((prev) => ({ ...prev, genre: event.target.value }))}
+                placeholder="如：格斗、射击、动作"
+                required
+              />
+            </label>
 
-              <label className="field">
-                <span>游戏类型</span>
-                <input
-                  value={draft.genre}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, genre: event.target.value }))}
-                  placeholder="如：格斗、射击、动作"
-                  required
-                />
-              </label>
-            </div>
+            <label className="field">
+              <span>排序</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={draft.sortOrder}
+                onChange={(event) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    sortOrder: Number(event.target.value) || 0,
+                  }))
+                }
+                placeholder="数字越小越靠前"
+                required
+              />
+            </label>
 
             <label className="check">
               <input
@@ -545,7 +565,7 @@ export default function GamesAdminPage() {
                   setDraft((prev) => ({ ...prev, recommended: event.target.checked }))
                 }
               />
-              <span>推荐到前端热门</span>
+              <span>标记为精选（前端精选区展示）</span>
             </label>
 
             {formError ? <div className="form-error">{formError}</div> : null}
@@ -600,6 +620,23 @@ const Style = styled.div`
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+  }
+
+  .import-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+
+  .import-tag > span:first-child {
+    flex-shrink: 0;
+  }
+
+  .import-tag > div {
+    width: 180px;
+    flex-shrink: 0;
   }
 
   .import-page {
@@ -683,9 +720,29 @@ const Style = styled.div`
     background: #f9fafb;
   }
 
+  .btn--danger {
+    border-color: #fecaca;
+    color: #dc2626;
+  }
+
+  .btn--danger:hover:not(:disabled) {
+    background: #fef2f2;
+  }
+
+  .btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .sort {
+    font-variant-numeric: tabular-nums;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
   .stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 180px);
     gap: 12px;
     margin-bottom: 16px;
     flex-shrink: 0;
@@ -735,6 +792,13 @@ const Style = styled.div`
     flex-shrink: 0;
   }
 
+  .search-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
   .search {
     width: min(100%, 300px);
     height: 36px;
@@ -764,7 +828,7 @@ const Style = styled.div`
   table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 860px;
+    min-width: 760px;
   }
 
   th,
@@ -884,17 +948,6 @@ const Style = styled.div`
     text-decoration: underline;
   }
 
-  .tag {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #ecfdf5;
-    color: #0f766e;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 20px;
-  }
-
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -983,13 +1036,6 @@ const Style = styled.div`
     display: block;
   }
 
-  .row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 12px 16px;
-  }
-
   .form-error {
     padding: 8px 10px;
     border-radius: 8px;
@@ -1007,15 +1053,21 @@ const Style = styled.div`
 
   @media (max-width: 860px) {
     .stats {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .toolbar {
       flex-wrap: wrap;
     }
 
-    .search {
+    .search-group {
       width: 100%;
+    }
+
+    .search {
+      flex: 1;
+      width: auto;
+      min-width: 0;
     }
   }
 `

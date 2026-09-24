@@ -4,8 +4,8 @@ import styled from 'styled-components'
 import {
   fetchFeaturedGames,
   fetchGameList,
-  GAME_CATEGORIES,
-  type GameCategory,
+  GAME_GENRES,
+  type GameGenre,
   type PublicGame,
 } from '../utils/server'
 import { GameFrame, GameThemeToggle } from './Layout'
@@ -14,15 +14,23 @@ type GameOutlet = {
   toggleTheme: () => void
 }
 
+type HomeGenreBlock = {
+  genre: GameGenre
+  items: PublicGame[]
+  total: number
+}
+
 const COLS = 8
 const ROWS = 3
 const PAGE_SIZE = COLS * ROWS
 const FEATURED_COUNT = COLS
+const HOME_PER_GENRE = 16
 
 function GameCard({ game, featured = false }: { game: PublicGame; featured?: boolean }) {
+  const isFeatured = featured || game.recommended
   return (
     <Link
-      className={`card${featured ? ' card--hot' : ''}`}
+      className={`card${isFeatured ? ' card--hot' : ''}`}
       to={`/game/${game.id}`}
       title={game.name}
     >
@@ -32,8 +40,8 @@ function GameCard({ game, featured = false }: { game: PublicGame; featured?: boo
         ) : (
           <span className="card__placeholder">{game.name.slice(0, 1)}</span>
         )}
-        {featured ? <span className="card__hot">热门</span> : null}
-        <span className="card__cat">{game.category}</span>
+        {isFeatured ? <span className="card__hot">精选</span> : null}
+        {game.genre ? <span className="card__cat">{game.genre.split(/[、,/|]/)[0]}</span> : null}
       </div>
       <div className="card__meta">
         <h3 className="card__title">{game.name}</h3>
@@ -47,17 +55,20 @@ export default function ListPage() {
   const { toggleTheme } = useOutletContext<GameOutlet>()
   const [featured, setFeatured] = useState<PublicGame[]>([])
   const [items, setItems] = useState<PublicGame[]>([])
+  const [homeBlocks, setHomeBlocks] = useState<HomeGenreBlock[]>([])
   const [total, setTotal] = useState(0)
   const [pageCount, setPageCount] = useState(1)
   const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [category, setCategory] = useState<GameCategory | ''>('')
+  const [appliedQuery, setAppliedQuery] = useState('')
+  const [filter, setFilter] = useState<'' | 'featured' | GameGenre>('')
   const [listLoading, setListLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const isHome = !filter && !appliedQuery
+
   useLayoutEffect(() => {
-    document.title = '铭游戏'
+    document.title = '铭FC游戏'
     const html = document.documentElement
     const prevHtmlOverflow = html.style.overflow
     const prevBodyOverflow = document.body.style.overflow
@@ -70,13 +81,8 @@ export default function ListPage() {
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 280)
-    return () => window.clearTimeout(timer)
-  }, [query])
-
-  useEffect(() => {
     setPage(1)
-  }, [debouncedQuery, category])
+  }, [appliedQuery, filter])
 
   useEffect(() => {
     const ac = new AbortController()
@@ -96,18 +102,46 @@ export default function ListPage() {
     ;(async () => {
       setListLoading(true)
       try {
-        const result = await fetchGameList({
-          page,
-          pageSize: PAGE_SIZE,
-          q: debouncedQuery,
-          category,
-          signal: ac.signal,
-        })
-        if (ac.signal.aborted) return
-        setItems(result.items)
-        setTotal(result.total)
-        setPageCount(result.pageCount)
-        setError('')
+        if (isHome) {
+          const results = await Promise.all(
+            GAME_GENRES.map((genre) =>
+              fetchGameList({
+                page: 1,
+                pageSize: HOME_PER_GENRE,
+                genre,
+                signal: ac.signal,
+              }).then((result) => ({ genre, result })),
+            ),
+          )
+          if (ac.signal.aborted) return
+          const blocks = results
+            .filter(({ result }) => result.items.length > 0)
+            .map(({ genre, result }) => ({
+              genre,
+              items: result.items,
+              total: result.total,
+            }))
+          setHomeBlocks(blocks)
+          setItems([])
+          setTotal(results.reduce((sum, { result }) => sum + result.total, 0))
+          setPageCount(1)
+          setError('')
+        } else {
+          const result = await fetchGameList({
+            page,
+            pageSize: PAGE_SIZE,
+            q: appliedQuery,
+            genre: filter && filter !== 'featured' ? filter : '',
+            recommended: filter === 'featured' ? true : undefined,
+            signal: ac.signal,
+          })
+          if (ac.signal.aborted) return
+          setItems(result.items)
+          setHomeBlocks([])
+          setTotal(result.total)
+          setPageCount(result.pageCount)
+          setError('')
+        }
       } catch (err) {
         if (!ac.signal.aborted) {
           setError(err instanceof Error ? err.message : '列表加载失败')
@@ -117,9 +151,15 @@ export default function ListPage() {
       }
     })()
     return () => ac.abort()
-  }, [page, debouncedQuery, category])
+  }, [page, appliedQuery, filter, isHome])
+
+  function submitSearch() {
+    setAppliedQuery(query.trim())
+  }
 
   const safePage = Math.min(page, pageCount)
+  const hasHomeContent = homeBlocks.length > 0
+  const hasListContent = items.length > 0
 
   return (
     <GameFrame>
@@ -127,25 +167,38 @@ export default function ListPage() {
       <header className="top">
         <div className="shell top__inner">
           <div className="top__row">
-            <Link to="/game" className="brand" aria-label="铭游戏">
+            <Link to="/game" className="brand" aria-label="铭FC游戏">
               <span className="brand__mark">铭</span>
-              <span className="brand__text">铭游戏</span>
+              <span className="brand__text">铭FC游戏</span>
             </Link>
 
-            <div className="chips" role="tablist" aria-label="分类筛选">
+            <div className="cats" role="tablist" aria-label="类型筛选">
               <button
                 type="button"
-                className={`chip${!category ? ' chip--on' : ''}`}
-                onClick={() => setCategory('')}
+                role="tab"
+                aria-selected={!filter}
+                className={`cat${!filter ? ' is-active' : ''}`}
+                onClick={() => setFilter('')}
               >
-                全部
+                首页
               </button>
-              {GAME_CATEGORIES.map((item) => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filter === 'featured'}
+                className={`cat${filter === 'featured' ? ' is-active' : ''}`}
+                onClick={() => setFilter('featured')}
+              >
+                精选
+              </button>
+              {GAME_GENRES.map((item) => (
                 <button
                   key={item}
                   type="button"
-                  className={`chip${category === item ? ' chip--on' : ''}`}
-                  onClick={() => setCategory(item)}
+                  role="tab"
+                  aria-selected={filter === item}
+                  className={`cat${filter === item ? ' is-active' : ''}`}
+                  onClick={() => setFilter(item)}
                 >
                   {item}
                 </button>
@@ -153,6 +206,39 @@ export default function ListPage() {
             </div>
 
             <div className="top__actions">
+              <form
+                className="search"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  submitSearch()
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden width="16" height="16">
+                  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      submitSearch()
+                    }
+                  }}
+                  placeholder="搜索游戏名称 / 类型…"
+                  aria-label="搜索游戏"
+                />
+                <button type="submit" className="search__btn">
+                  搜索
+                </button>
+              </form>
               <GameThemeToggle onToggle={toggleTheme} />
               <Link to="/works" className="back">
                 返回作品集
@@ -164,48 +250,56 @@ export default function ListPage() {
 
       <main className="shell main">
         <div className="toolbar">
-          <label className="search">
-            <svg viewBox="0 0 24 24" aria-hidden width="16" height="16">
-              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-              <path
-                d="M20 20l-3.5-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索游戏名称 / 类型…"
-              aria-label="搜索游戏"
-            />
-          </label>
           <p className="count">
             共 <strong>{total}</strong> 款
           </p>
         </div>
 
-        {featured.length > 0 ? (
-          <section className="section section--hot">
-            <div className="section__head">
-              <h2>热门推荐</h2>
-            </div>
-            <div className="grid grid--hot">
-              {featured.slice(0, COLS).map((game) => (
-                <GameCard key={game.id} game={game} featured />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
         <section className="section section--list">
           <div className="section__body">
-            {error && !items.length ? (
+            {featured.length > 0 && isHome ? (
+              <section className="section section--hot">
+                <div className="section__head">
+                  <h2>精选推荐</h2>
+                </div>
+                <div className="grid grid--hot">
+                  {featured.slice(0, COLS).map((game) => (
+                    <GameCard key={game.id} game={game} featured />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {error && !(isHome ? hasHomeContent : hasListContent) ? (
               <p className="status status--err">{error}</p>
-            ) : listLoading && !items.length ? (
+            ) : listLoading && !(isHome ? hasHomeContent : hasListContent) ? (
               <p className="status">加载中…</p>
+            ) : isHome ? (
+              homeBlocks.length === 0 ? (
+                featured.length > 0 ? null : <p className="status">没有找到相关游戏</p>
+              ) : (
+                <div className={`home-groups${listLoading ? ' grid--dim' : ''}`}>
+                  {homeBlocks.map((block) => (
+                    <div key={block.genre} className="home-group">
+                      <div className="section__head home-group__head">
+                        <h2>{block.genre}</h2>
+                        <button
+                          type="button"
+                          className="home-group__more"
+                          onClick={() => setFilter(block.genre)}
+                        >
+                          查看全部 ({block.total})
+                        </button>
+                      </div>
+                      <div className="grid">
+                        {block.items.map((game) => (
+                          <GameCard key={game.id} game={game} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
             ) : items.length === 0 ? (
               <p className="status">没有找到相关游戏</p>
             ) : (
@@ -217,27 +311,29 @@ export default function ListPage() {
             )}
           </div>
 
-          <div className="pager">
-            <button
-              type="button"
-              className="pager__btn"
-              disabled={safePage <= 1 || listLoading || pageCount <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              上一页
-            </button>
-            <span className="pager__info">
-              {safePage} / {Math.max(pageCount, 1)}
-            </span>
-            <button
-              type="button"
-              className="pager__btn"
-              disabled={safePage >= pageCount || listLoading || pageCount <= 1}
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-            >
-              下一页
-            </button>
-          </div>
+          {!isHome ? (
+            <div className="pager">
+              <button
+                type="button"
+                className="pager__btn"
+                disabled={safePage <= 1 || listLoading || pageCount <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                上一页
+              </button>
+              <span className="pager__info">
+                {safePage} / {Math.max(pageCount, 1)}
+              </span>
+              <button
+                type="button"
+                className="pager__btn"
+                disabled={safePage >= pageCount || listLoading || pageCount <= 1}
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+              >
+                下一页
+              </button>
+            </div>
+          ) : null}
         </section>
       </main>
       </Style>
@@ -303,42 +399,62 @@ const Style = styled.div`
     letter-spacing: 0.04em;
   }
 
-  .chips {
+  .cats {
     display: flex;
-    justify-content: center;
-    gap: 0.3rem;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .chips::-webkit-scrollbar {
+  .cats::-webkit-scrollbar {
     display: none;
   }
 
-  .chip {
+  .cat {
+    appearance: none;
+    position: relative;
     flex-shrink: 0;
-    height: 30px;
-    padding: 0 0.85rem;
-    border-radius: 999px;
-    border: 1px solid transparent;
+    border: none;
     background: transparent;
     color: var(--text-soft);
-    font-size: 0.82rem;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 15px;
+    letter-spacing: 0.04em;
     cursor: pointer;
-    transition:
-      background 0.15s ease,
-      color 0.15s ease;
+    white-space: nowrap;
+    transition: color 0.2s;
   }
 
-  .chip:hover {
+  .cat::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 2px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--purple);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 0.22s ease;
+  }
+
+  .cat:hover {
     color: var(--ink);
   }
 
-  .chip--on {
-    background: var(--accent-soft);
-    color: var(--purple);
-    font-weight: 650;
+  .cat.is-active {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .cat.is-active::after {
+    transform: scaleX(1);
   }
 
   .top__actions {
@@ -346,6 +462,65 @@ const Style = styled.div`
     align-items: center;
     gap: 0.55rem;
     justify-self: end;
+  }
+
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 260px;
+    height: 34px;
+    padding: 0 0.3rem 0 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg-elev);
+    color: var(--muted);
+    box-sizing: border-box;
+    box-shadow: var(--shadow-soft);
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+
+  .search:hover,
+  .search:focus-within {
+    border-color: color-mix(in srgb, var(--purple) 45%, transparent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    color: var(--purple);
+  }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--ink);
+    font-size: 0.84rem;
+  }
+
+  .search input::placeholder {
+    color: var(--muted);
+  }
+
+  .search__btn {
+    flex-shrink: 0;
+    height: 26px;
+    padding: 0 0.7rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--grad);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+  }
+
+  .search__btn:hover {
+    opacity: 0.9;
   }
 
   .back {
@@ -380,48 +555,8 @@ const Style = styled.div`
   .toolbar {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.85rem;
+    justify-content: flex-end;
     flex-shrink: 0;
-  }
-
-  .search {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: min(100%, 380px);
-    height: 36px;
-    padding: 0 0.9rem;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background: var(--bg-elev);
-    color: var(--muted);
-    box-sizing: border-box;
-    box-shadow: var(--shadow-soft);
-    transition:
-      border-color 0.2s,
-      box-shadow 0.2s;
-  }
-
-  .search:hover,
-  .search:focus-within {
-    border-color: color-mix(in srgb, var(--purple) 45%, transparent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
-    color: var(--purple);
-  }
-
-  .search input {
-    flex: 1;
-    min-width: 0;
-    border: 0;
-    outline: none;
-    background: transparent;
-    color: var(--ink);
-    font-size: 0.88rem;
-  }
-
-  .search input::placeholder {
-    color: var(--muted);
   }
 
   .count {
@@ -444,7 +579,8 @@ const Style = styled.div`
 
   .section--hot {
     flex: 0 0 auto;
-    padding-bottom: 0.45rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.85rem;
     border-bottom: 1px solid var(--line);
   }
 
@@ -464,6 +600,38 @@ const Style = styled.div`
     font-weight: 650;
     color: var(--muted);
     letter-spacing: 0.04em;
+  }
+
+  .home-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    transition: opacity 0.2s ease;
+  }
+
+  .home-group__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .home-group__more {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--purple);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+  }
+
+  .home-group__more:hover {
+    opacity: 0.75;
   }
 
   .section__body {
@@ -582,6 +750,7 @@ const Style = styled.div`
     top: 0.35rem;
     right: 0.35rem;
     z-index: 1;
+    max-width: calc(100% - 0.7rem);
     padding: 0.1rem 0.35rem;
     border-radius: 0.3rem;
     background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
@@ -589,6 +758,9 @@ const Style = styled.div`
     font-size: 0.6rem;
     font-weight: 700;
     backdrop-filter: blur(6px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .card__meta {
@@ -697,22 +869,34 @@ const Style = styled.div`
       display: none;
     }
 
-    .chips {
-      justify-content: flex-start;
+    .cat {
+      padding: 8px 10px;
+      font-size: 14px;
     }
 
-    .toolbar {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 0.45rem;
+    .cat::after {
+      left: 10px;
+      right: 10px;
     }
 
     .search {
-      width: 100%;
+      width: 200px;
+      height: 32px;
+      padding: 0 0.25rem 0 0.6rem;
     }
 
-    .count {
-      text-align: right;
+    .search input {
+      font-size: 0.78rem;
+    }
+
+    .search input::placeholder {
+      font-size: 0.72rem;
+    }
+
+    .search__btn {
+      height: 24px;
+      padding: 0 0.55rem;
+      font-size: 0.7rem;
     }
 
     .grid {

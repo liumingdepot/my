@@ -7,7 +7,7 @@ const ReportPage = lazy(() => import('./pages/周易/model/ReportPage'))
 const MusicPage = lazy(() => import('./pages/音乐'))
 const VideoPage = lazy(() => import('./pages/视频'))
 const ShortDramaPage = lazy(() => import('./pages/短剧'))
-const GamePage = lazy(() => import('./pages/游戏'))
+const GamePage = lazy(() => import('./pages/FC游戏'))
 const EducationPage = lazy(() => import('./pages/学习教育'))
 const MoreWorksPage = lazy(() => import('./pages/我的作品集'))
 const TestModulePage = lazy(() => import('./pages/测试模块'))
@@ -15,7 +15,7 @@ const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
 const AdminUsersPage = lazy(() => import('./pages/后台管理/用户管理'))
 const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/采集源'))
-const AdminGamesPage = lazy(() => import('./pages/后台管理/游戏管理'))
+const AdminGamesPage = lazy(() => import('./pages/后台管理/FC游戏管理'))
 const AdminEducationPage = lazy(() => import('./pages/后台管理/教育管理'))
 
 export default function App() {
@@ -49,6 +49,7 @@ export default function App() {
         <Route path="/视频" element={<Navigate to="/video" replace />} />
         <Route path="/短剧" element={<Navigate to="/short" replace />} />
         <Route path="/游戏" element={<Navigate to="/game" replace />} />
+        <Route path="/FC游戏" element={<Navigate to="/game" replace />} />
         <Route path="/学习教育" element={<Navigate to="/education" replace />} />
         <Route path="/学习教育/*" element={<Navigate to="/education" replace />} />
         <Route path="/更多作品" element={<Navigate to="/works" replace />} />
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/后台管理/采集源" element={<Navigate to="/admin/video-sources" replace />} />
         <Route path="/后台管理/视频管理" element={<Navigate to="/admin/video-sources" replace />} />
         <Route path="/后台管理/游戏管理" element={<Navigate to="/admin/games" replace />} />
+        <Route path="/后台管理/FC游戏管理" element={<Navigate to="/admin/games" replace />} />
         <Route path="/后台管理/教育管理" element={<Navigate to="/admin/education" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -39,11 +39,21 @@ export async function handleGameApi(request: Request, url: URL, env: { DB: D1Dat
     const pageSize = Number(url.searchParams.get('pageSize') ?? 24)
     const q = url.searchParams.get('q') ?? ''
     const category = url.searchParams.get('category') ?? ''
+    const genre = url.searchParams.get('genre') ?? ''
+    const recommendedParam = url.searchParams.get('recommended')
+    const recommended =
+      recommendedParam === '1' || recommendedParam === 'true'
+        ? true
+        : recommendedParam === '0' || recommendedParam === 'false'
+          ? false
+          : undefined
     const result = await listPublicGames(env.DB, {
       page: Number.isFinite(page) ? page : 1,
       pageSize: Number.isFinite(pageSize) ? pageSize : 24,
       q,
       category,
+      genre,
+      recommended,
     })
     return json(result)
   }

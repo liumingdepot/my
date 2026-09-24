@@ -39,9 +39,9 @@ Video site: home feed, movie / TV categories, search and playback. Public APIs; 
 
 Qimao short dramas: hot home, category browse, search and episode playback. Public APIs; for learning only.
 
-### [Games](http://www.liuming1234.xyz/game) · Live
+### [FC Games](http://www.liuming1234.xyz/game) · Live
 
-Play classic games in the browser: browse by category, featured picks, and detail pages. For learning & exchange only.
+Play classic FC games in the browser: featured picks and detail pages. For learning & exchange only.
 
 ### [Education](http://www.liuming1234.xyz/education) · Live
 
