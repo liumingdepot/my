@@ -73,9 +73,6 @@ export default function Header({ active, onToggleTheme }: Props) {
         </form>
 
         <ThemeToggle className="theme-toggle" onClick={onToggleTheme} aria-label="切换深浅色" />
-        <Link to="/works" className="works-back">
-          返回作品集
-        </Link>
       </div>
     </Bar>
   )
@@ -281,38 +278,12 @@ const Bar = styled.header`
     flex-shrink: 0;
   }
 
-  .works-back {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    min-height: 36px;
-    padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background: var(--bg-elev);
-    color: var(--text-soft);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    transition:
-      color 0.2s,
-      border-color 0.2s,
-      box-shadow 0.2s;
-
-    &:hover {
-      color: var(--ink);
-      border-color: color-mix(in srgb, var(--purple) 45%, transparent);
-      box-shadow: 0 0 0 3px var(--accent-soft);
-    }
-  }
-
   @media (max-width: 900px) {
-    height: 96px;
+    height: 132px;
 
     .inner {
       width: min(90vw, calc(100vw - 24px));
-      height: 96px;
+      height: 132px;
       flex-wrap: wrap;
       align-content: center;
       gap: 6px 10px;
@@ -334,26 +305,20 @@ const Bar = styled.header`
       font-size: 18px;
     }
 
-    .search {
+    .theme-toggle {
       order: 2;
-      flex: 1;
-      min-width: 0;
+      margin-left: auto;
+    }
+
+    .search {
+      order: 3;
+      flex: 1 1 100%;
+      width: 100%;
       height: 36px;
 
       input {
         width: auto;
       }
-    }
-
-    .theme-toggle {
-      order: 3;
-    }
-
-    .works-back {
-      order: 3;
-      min-height: 32px;
-      padding: 0 10px;
-      font-size: 12px;
     }
 
     .nav {
@@ -382,11 +347,6 @@ const Bar = styled.header`
 
     .search .go {
       padding: 0 10px;
-      font-size: 11px;
-    }
-
-    .works-back {
-      padding: 0 8px;
       font-size: 11px;
     }
   }

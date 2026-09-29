@@ -213,7 +213,7 @@ const Frame = styled.div`
   @media (max-width: 900px) {
     main {
       width: min(90vw, calc(100vw - 24px));
-      padding: 112px 0 32px;
+      padding: 148px 0 32px;
     }
 
     &[data-playing='1'] main {
