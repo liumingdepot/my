@@ -8,18 +8,16 @@ export default function StoryboardNode({ data }: NodeProps & { data: CanvasNodeD
       <Handle type="target" position={Position.Left} id="in" className="handle" />
       <Handle type="source" position={Position.Right} id="out" className="handle" />
       <div className="head">
-        <span className="badge">分镜</span>
+        <span className="badge">分镜图</span>
         <span className="idx">{data.title}</span>
       </div>
-      {data.imageUrl || data.videoUrl ? (
+      {data.imageUrl ? (
         <div className="media">
-          {data.videoUrl ? (
-            <video src={data.videoUrl} muted playsInline preload="metadata" />
-          ) : (
-            <img src={data.imageUrl} alt="" />
-          )}
+          <img src={data.imageUrl} alt="" />
         </div>
-      ) : null}
+      ) : (
+        <div className="media empty">待生成分镜图</div>
+      )}
       <p className="body">{data.body}</p>
       {(normalizeIdList(data.characterIds).length > 0 ||
         data.sceneId ||
@@ -35,9 +33,8 @@ export default function StoryboardNode({ data }: NodeProps & { data: CanvasNodeD
         </div>
       )}
       <div className="meta">
-        <span className={data.imageUrl ? 'done' : ''}>生图</span>
-        <span className={data.videoUrl ? 'done' : ''}>视频</span>
-        <span>配音</span>
+        <span className={data.imageUrl ? 'done' : ''}>分镜图</span>
+        <span className={data.videoUrl ? 'done' : ''}>已出视频</span>
       </div>
     </Style>
   )
@@ -87,12 +84,17 @@ const Style = styled.div`
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.12);
-    aspect-ratio: 9 / 16;
-    max-height: 160px;
+    aspect-ratio: 16 / 9;
     background: #0f172a;
 
-    img,
-    video {
+    &.empty {
+      display: grid;
+      place-items: center;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    img {
       width: 100%;
       height: 100%;
       object-fit: cover;

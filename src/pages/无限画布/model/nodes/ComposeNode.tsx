@@ -2,55 +2,40 @@ import { Handle, Position, type NodeProps } from '@xyflow/react'
 import styled from 'styled-components'
 import type { CanvasNodeData } from '../../utils/canvasContent'
 
-export default function VideoFlowNode({ data }: NodeProps & { data: CanvasNodeData }) {
-  const isShot = Boolean(data.linkedStoryboardId) || data.label === '分镜视频'
+export default function ComposeNode({ data }: NodeProps & { data: CanvasNodeData }) {
   return (
-    <Style data-shot={isShot ? '1' : undefined}>
+    <Style>
       <Handle type="target" position={Position.Left} id="in" className="handle in" />
       <Handle type="source" position={Position.Right} id="out" className="handle out" />
       <div className="head">
-        <span className="badge">{isShot ? '分镜视频' : '视频'}</span>
-        <span className="io">{isShot ? '分镜图 → 镜头' : '输入图/文 → 输出片'}</span>
+        <span className="badge">成片合成</span>
+        <span className="hint">全部镜头</span>
       </div>
       <div className="cover">
         {data.videoUrl ? (
           <video src={data.videoUrl} muted playsInline preload="metadata" />
-        ) : data.imageUrl ? (
-          <img src={data.imageUrl} alt="" />
         ) : (
-          <span>待生成</span>
+          <span>接入分镜视频后预览</span>
         )}
       </div>
       <h3 className="title">{data.title}</h3>
       <p className="body">{data.body}</p>
       <div className="meta">
-        <span className={data.imageUrl || data.videoUrl ? 'done' : ''}>720P</span>
-        <span className={data.videoUrl ? 'done' : ''}>视频</span>
+        <span className={data.videoUrl ? 'done' : ''}>顺序拼接</span>
+        <span>成片</span>
       </div>
     </Style>
   )
 }
 
 const Style = styled.div`
-  width: 210px;
-  padding: 12px;
+  width: 240px;
+  padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid rgba(96, 165, 250, 0.5);
-  background: linear-gradient(160deg, rgba(30, 58, 138, 0.55), rgba(24, 24, 27, 0.94));
-  color: #e4e4e7;
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  background: linear-gradient(160deg, rgba(120, 53, 15, 0.55), rgba(24, 24, 27, 0.94));
+  color: #f4f4f5;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-
-  &[data-shot='1'] {
-    border-color: rgba(167, 139, 250, 0.55);
-    background: linear-gradient(160deg, rgba(76, 29, 149, 0.5), rgba(24, 24, 27, 0.94));
-
-    .badge {
-      color: #c4b5fd;
-    }
-    .handle.out {
-      background: #a78bfa;
-    }
-  }
 
   .handle {
     width: 10px;
@@ -59,10 +44,10 @@ const Style = styled.div`
     border-radius: 50%;
   }
   .handle.in {
-    background: #a1a1aa;
+    background: #fbbf24;
   }
   .handle.out {
-    background: #60a5fa;
+    background: #f59e0b;
   }
 
   .head {
@@ -76,28 +61,27 @@ const Style = styled.div`
   .badge {
     font-size: 12px;
     font-weight: 700;
-    color: #93c5fd;
+    color: #fcd34d;
   }
 
-  .io {
+  .hint {
     font-size: 10px;
     color: #a1a1aa;
   }
 
   .cover {
     aspect-ratio: 9 / 16;
-    max-height: 148px;
+    max-height: 160px;
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 8px;
     display: grid;
     place-items: center;
-    background: #0f172a;
-    color: #71717a;
+    background: #1c1917;
+    color: #78716c;
     font-size: 12px;
     border: 1px solid rgba(255, 255, 255, 0.08);
 
-    img,
     video {
       width: 100%;
       height: 100%;
@@ -116,7 +100,7 @@ const Style = styled.div`
     margin: 0 0 8px;
     font-size: 11px;
     line-height: 1.45;
-    color: #a1a1aa;
+    color: #d6d3d1;
     max-height: 2.9em;
     overflow: hidden;
   }
@@ -134,8 +118,8 @@ const Style = styled.div`
     color: #a1a1aa;
 
     &.done {
-      color: #86efac;
-      background: rgba(52, 211, 153, 0.16);
+      color: #fcd34d;
+      background: rgba(251, 191, 36, 0.18);
     }
   }
 `
