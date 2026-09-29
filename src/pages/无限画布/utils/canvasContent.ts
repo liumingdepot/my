@@ -9,6 +9,7 @@ export type CanvasNodeKind =
   | 'scene'
   | 'prop'
   | 'storyboard'
+  | 'compose'
 
 export type CanvasNodeData = {
   kind: CanvasNodeKind
@@ -33,6 +34,8 @@ export type CanvasNodeData = {
   sceneId?: string | null
   /** 分镜关联道具节点 id（多选） */
   propIds?: string[]
+  /** 分镜视频节点关联的分镜 id */
+  linkedStoryboardId?: string
 }
 
 export type AssetStyleOption = {
@@ -236,6 +239,12 @@ const KIND_META: Record<
     body: '镜头运动、对白与画面要点。',
     flowType: 'canvasStoryboard',
   },
+  compose: {
+    label: '成片合成',
+    title: '合成所有分镜视频',
+    body: '按分镜顺序拼接全部镜头视频，预览成片。',
+    flowType: 'canvasCompose',
+  },
 }
 
 export function kindMeta(kind: CanvasNodeKind) {
@@ -321,16 +330,21 @@ export function parseCanvasDocument(
       const characterIds = normalizeIdList(node.data?.characterIds)
       const propIds = normalizeIdList(node.data?.propIds)
       const sceneId = normalizeSceneId(node.data?.sceneId)
+      const linkedStoryboardId =
+        typeof node.data?.linkedStoryboardId === 'string'
+          ? node.data.linkedStoryboardId.trim()
+          : ''
       return {
         ...node,
         type: node.type || meta.flowType,
         data: {
           ...node.data,
-          kind: meta ? kind : 'text',
+          kind: KIND_META[kind] ? kind : 'text',
           label: node.data?.label || meta.label,
           title: node.data?.title || meta.title,
           body: node.data?.body || meta.body,
           ...(imageHistory ? { imageHistory } : {}),
+          ...(linkedStoryboardId ? { linkedStoryboardId } : {}),
           ...(kind === 'storyboard'
             ? {
                 characterIds,
@@ -395,6 +409,380 @@ export function makeNodeId(kind: CanvasNodeKind) {
   return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 }
 
+/** 按标题中的数字排序（分镜 01 / 角色2），无数字则保持相对顺序 */
+function sortNodesByTitle(a: Node<CanvasNodeData>, b: Node<CanvasNodeData>) {
+  const num = (title: string) => {
+    const m = title.match(/(\d+)/)
+    return m ? Number(m[1]) : Number.POSITIVE_INFINITY
+  }
+  const na = num(a.data.title)
+  const nb = num(b.data.title)
+  if (na !== nb) return na - nb
+  return a.data.title.localeCompare(b.data.title, 'zh')
+}
+
+export const COMPOSE_NODE_ID = 'compose-final'
+
+export function storyboardVideoNodeId(storyboardId: string) {
+  return `sbv-${storyboardId}`
+}
+
+export function isStoryboardVideoNode(node: Node<CanvasNodeData>) {
+  return (
+    node.data.kind === 'video' &&
+    Boolean(node.data.linkedStoryboardId || node.id.startsWith('sbv-'))
+  )
+}
+
+const PIPE_SB_VIDEO_PREFIX = 'pipe-sb-video:'
+const PIPE_VIDEO_COMPOSE_PREFIX = 'pipe-video-compose:'
+
+function upsertEdge(edges: Edge[], edge: Edge): Edge[] {
+  const idx = edges.findIndex((e) => e.id === edge.id)
+  if (idx < 0) return [...edges, edge]
+  const next = edges.slice()
+  next[idx] = { ...next[idx], ...edge }
+  return next
+}
+
+/**
+ * 补齐：每个分镜 → 分镜视频节点 → 最终成片合成节点
+ * 分镜上的 videoUrl 会同步到对应分镜视频节点
+ */
+export function ensureStoryboardVideoPipeline(
+  nodes: Node<CanvasNodeData>[],
+  edges: Edge[],
+): { nodes: Node<CanvasNodeData>[]; edges: Edge[] } {
+  const storyboards = nodes
+    .filter((n) => n.data.kind === 'storyboard')
+    .sort(sortNodesByTitle)
+  const sbIds = new Set(storyboards.map((n) => n.id))
+
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  let nextNodes = nodes.slice()
+  let nextEdges = edges.filter((e) => {
+    if (e.id.startsWith(PIPE_SB_VIDEO_PREFIX)) {
+      const sbId = e.id.slice(PIPE_SB_VIDEO_PREFIX.length)
+      return sbIds.has(sbId)
+    }
+    if (e.id.startsWith(PIPE_VIDEO_COMPOSE_PREFIX)) {
+      const videoId = e.id.slice(PIPE_VIDEO_COMPOSE_PREFIX.length)
+      return videoId.startsWith('sbv-') && sbIds.has(videoId.slice(4))
+    }
+    return true
+  })
+
+  const setNode = (node: Node<CanvasNodeData>) => {
+    const idx = nextNodes.findIndex((n) => n.id === node.id)
+    if (idx < 0) nextNodes = [...nextNodes, node]
+    else {
+      const copy = nextNodes.slice()
+      copy[idx] = node
+      nextNodes = copy
+    }
+    byId.set(node.id, node)
+  }
+
+  for (const sb of storyboards) {
+    const videoId = storyboardVideoNodeId(sb.id)
+    const existing =
+      byId.get(videoId) ||
+      nextNodes.find(
+        (n) => n.data.kind === 'video' && n.data.linkedStoryboardId === sb.id,
+      )
+    const videoNode: Node<CanvasNodeData> = {
+      id: videoId,
+      type: 'canvasVideo',
+      position: existing?.position || {
+        x: sb.position.x + 280,
+        y: sb.position.y,
+      },
+      data: {
+        kind: 'video',
+        label: '分镜视频',
+        title: `${sb.data.title} · 视频`,
+        body:
+          sb.data.videoPrompt?.trim() ||
+          sb.data.body ||
+          '由分镜图生成镜头视频',
+        linkedStoryboardId: sb.id,
+        imageUrl: sb.data.imageUrl || existing?.data.imageUrl,
+        videoUrl: sb.data.videoUrl || existing?.data.videoUrl,
+        videoId: sb.data.videoId || existing?.data.videoId,
+        videoKeyId: sb.data.videoKeyId || existing?.data.videoKeyId,
+        videoPrompt: sb.data.videoPrompt || existing?.data.videoPrompt,
+      },
+    }
+    setNode(videoNode)
+
+    nextEdges = upsertEdge(nextEdges, {
+      id: `${PIPE_SB_VIDEO_PREFIX}${sb.id}`,
+      source: sb.id,
+      target: videoId,
+      sourceHandle: 'out',
+      targetHandle: 'in',
+      animated: true,
+      style: { stroke: '#60a5fa', strokeWidth: 1.5 },
+    })
+  }
+
+  // 清理已无对应分镜的分镜视频节点
+  nextNodes = nextNodes.filter((n) => {
+    if (!isStoryboardVideoNode(n)) return true
+    const linked = n.data.linkedStoryboardId || n.id.replace(/^sbv-/, '')
+    return sbIds.has(linked)
+  })
+
+  const composeMeta = KIND_META.compose
+  const existingCompose =
+    byId.get(COMPOSE_NODE_ID) ||
+    nextNodes.find((n) => n.data.kind === 'compose')
+  if (existingCompose && existingCompose.id !== COMPOSE_NODE_ID) {
+    nextNodes = nextNodes.filter((n) => n.id !== existingCompose.id)
+    byId.delete(existingCompose.id)
+  }
+  const composeNode: Node<CanvasNodeData> = {
+    id: COMPOSE_NODE_ID,
+    type: composeMeta.flowType,
+    position: existingCompose?.position || { x: 1200, y: 60 },
+    data: {
+      kind: 'compose',
+      label: composeMeta.label,
+      title: existingCompose?.data.title || composeMeta.title,
+      body: existingCompose?.data.body || composeMeta.body,
+      videoUrl: existingCompose?.data.videoUrl,
+    },
+  }
+  setNode(composeNode)
+
+  for (const sb of storyboards) {
+    const videoId = storyboardVideoNodeId(sb.id)
+    nextEdges = upsertEdge(nextEdges, {
+      id: `${PIPE_VIDEO_COMPOSE_PREFIX}${videoId}`,
+      source: videoId,
+      target: COMPOSE_NODE_ID,
+      sourceHandle: 'out',
+      targetHandle: 'in',
+      animated: true,
+      style: { stroke: '#fbbf24', strokeWidth: 1.5, strokeDasharray: '6 4' },
+    })
+  }
+
+  return { nodes: nextNodes, edges: nextEdges }
+}
+
+/**
+ * 一键对齐：剧本 | 资产竖排 | 分镜竖排 | 分镜视频竖排 | 成片合成
+ * 同时补齐分镜视频与合成节点
+ */
+export function autoLayoutDocument(
+  nodes: Node<CanvasNodeData>[],
+  edges: Edge[],
+): { nodes: Node<CanvasNodeData>[]; edges: Edge[] } {
+  const ensured = ensureStoryboardVideoPipeline(nodes, edges)
+  const laidOut = autoLayoutNodes(ensured.nodes)
+  return { nodes: laidOut, edges: ensured.edges }
+}
+
+/**
+ * 列式竖排：资产 / 分镜 / 分镜视频各自从上到下，行距拉开避免重叠
+ */
+export function autoLayoutNodes(
+  nodes: Node<CanvasNodeData>[],
+): Node<CanvasNodeData>[] {
+  const ORIGIN_X = 60
+  const ORIGIN_Y = 60
+  /** 剧本与后续列的间距 */
+  const COL_GAP = 100
+  /** 资产 / 分镜图 / 分镜视频 / 成片 类别之间加大左右间距 */
+  const CATEGORY_GAP = 220
+  const ROW_GAP = 48
+
+  const SCRIPT_W = 220
+  const SCRIPT_STEP = 240
+  const ASSET_W = 176
+  const ASSET_STEP = 220
+  const SB_W = 210
+  const SB_STEP = 320
+  const VIDEO_W = 210
+  const VIDEO_STEP = 340
+  const COMPOSE_W = 240
+  const FLOW_W = 200
+  const FLOW_STEP = 200
+
+  const scripts = nodes.filter((n) => n.data.kind === 'script').sort(sortNodesByTitle)
+  const assets = [
+    ...nodes.filter((n) => n.data.kind === 'character').sort(sortNodesByTitle),
+    ...nodes.filter((n) => n.data.kind === 'prop').sort(sortNodesByTitle),
+    ...nodes.filter((n) => n.data.kind === 'scene').sort(sortNodesByTitle),
+  ]
+  const storyboards = nodes
+    .filter((n) => n.data.kind === 'storyboard')
+    .sort(sortNodesByTitle)
+  const storyboardVideos = storyboards
+    .map((sb) => {
+      const id = storyboardVideoNodeId(sb.id)
+      return (
+        nodes.find((n) => n.id === id) ||
+        nodes.find(
+          (n) => n.data.kind === 'video' && n.data.linkedStoryboardId === sb.id,
+        ) ||
+        null
+      )
+    })
+    .filter((n): n is Node<CanvasNodeData> => Boolean(n))
+  const composes = nodes.filter((n) => n.data.kind === 'compose')
+  const storyboardVideoIds = new Set(storyboardVideos.map((n) => n.id))
+  const others = nodes.filter(
+    (n) =>
+      (n.data.kind === 'text' ||
+        n.data.kind === 'image' ||
+        n.data.kind === 'video') &&
+      !storyboardVideoIds.has(n.id),
+  )
+
+  const pos = new Map<string, { x: number; y: number }>()
+
+  const stackColumn = (
+    list: Node<CanvasNodeData>[],
+    x: number,
+    stepY: number,
+  ) => {
+    list.forEach((n, i) => {
+      pos.set(n.id, { x, y: ORIGIN_Y + i * stepY })
+    })
+  }
+
+  let x = ORIGIN_X
+  stackColumn(scripts, x, SCRIPT_STEP + ROW_GAP)
+
+  x += SCRIPT_W + COL_GAP
+  stackColumn(assets, x, ASSET_STEP + ROW_GAP)
+
+  x += ASSET_W + CATEGORY_GAP
+  stackColumn(storyboards, x, SB_STEP + ROW_GAP)
+
+  x += SB_W + CATEGORY_GAP
+  stackColumn(storyboardVideos, x, VIDEO_STEP + ROW_GAP)
+
+  x += VIDEO_W + CATEGORY_GAP
+  stackColumn(composes, x, 280 + ROW_GAP)
+
+  // 其它节点：放在最下方横排，避免挡住主链路
+  const bottomY =
+    ORIGIN_Y +
+    Math.max(
+      scripts.length * (SCRIPT_STEP + ROW_GAP),
+      assets.length * (ASSET_STEP + ROW_GAP),
+      storyboards.length * (SB_STEP + ROW_GAP),
+      storyboardVideos.length * (VIDEO_STEP + ROW_GAP),
+      1,
+    ) +
+    CATEGORY_GAP
+  others.forEach((n, i) => {
+    pos.set(n.id, {
+      x: ORIGIN_X + (i % 4) * (FLOW_W + 40),
+      y: bottomY + Math.floor(i / 4) * (FLOW_STEP + ROW_GAP),
+    })
+  })
+
+  void COMPOSE_W
+
+  return nodes.map((n) => {
+    const next = pos.get(n.id)
+    if (!next) return n
+    return { ...n, position: next }
+  })
+}
+
+/** 分镜 ↔ 分镜视频节点双向同步视频字段 */
+export function syncStoryboardVideoFields(
+  nodes: Node<CanvasNodeData>[],
+  nodeId: string,
+  patch: Partial<CanvasNodeData>,
+): Node<CanvasNodeData>[] {
+  const self = nodes.find((n) => n.id === nodeId)
+  if (!self) return nodes
+
+  const videoKeys: (keyof CanvasNodeData)[] = [
+    'videoUrl',
+    'videoId',
+    'videoKeyId',
+    'videoPrompt',
+    'imageUrl',
+  ]
+  const hasVideoPatch = videoKeys.some((k) => patch[k] !== undefined)
+  if (!hasVideoPatch && patch.title === undefined && patch.body === undefined) {
+    return nodes
+  }
+
+  if (self.data.kind === 'storyboard') {
+    const videoId = storyboardVideoNodeId(self.id)
+    return nodes.map((n) => {
+      if (n.id !== videoId && n.data.linkedStoryboardId !== self.id) return n
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          label: '分镜视频',
+          linkedStoryboardId: self.id,
+          title:
+            patch.title !== undefined
+              ? `${patch.title} · 视频`
+              : `${self.data.title} · 视频`,
+          body:
+            patch.videoPrompt !== undefined
+              ? patch.videoPrompt || n.data.body
+              : patch.body !== undefined
+                ? patch.body
+                : n.data.body,
+          imageUrl:
+            patch.imageUrl !== undefined ? patch.imageUrl : n.data.imageUrl,
+          videoUrl:
+            patch.videoUrl !== undefined ? patch.videoUrl : n.data.videoUrl,
+          videoId: patch.videoId !== undefined ? patch.videoId : n.data.videoId,
+          videoKeyId:
+            patch.videoKeyId !== undefined
+              ? patch.videoKeyId
+              : n.data.videoKeyId,
+          videoPrompt:
+            patch.videoPrompt !== undefined
+              ? patch.videoPrompt
+              : n.data.videoPrompt,
+        },
+      }
+    })
+  }
+
+  if (isStoryboardVideoNode(self)) {
+    const sbId = self.data.linkedStoryboardId || self.id.replace(/^sbv-/, '')
+    return nodes.map((n) => {
+      if (n.id !== sbId) return n
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          videoUrl:
+            patch.videoUrl !== undefined ? patch.videoUrl : n.data.videoUrl,
+          videoId: patch.videoId !== undefined ? patch.videoId : n.data.videoId,
+          videoKeyId:
+            patch.videoKeyId !== undefined
+              ? patch.videoKeyId
+              : n.data.videoKeyId,
+          videoPrompt:
+            patch.videoPrompt !== undefined
+              ? patch.videoPrompt
+              : n.data.videoPrompt,
+          imageUrl:
+            patch.imageUrl !== undefined ? patch.imageUrl : n.data.imageUrl,
+        },
+      }
+    })
+  }
+
+  return nodes
+}
+
 export function createNodeAt(
   kind: CanvasNodeKind,
   position: { x: number; y: number },
@@ -424,8 +812,11 @@ export function createNodeAt(
       data.videoPrompt = overrides.videoPrompt
     }
   }
+  if (overrides?.linkedStoryboardId) {
+    data.linkedStoryboardId = overrides.linkedStoryboardId
+  }
   return {
-    id: makeNodeId(kind),
+    id: kind === 'compose' ? COMPOSE_NODE_ID : makeNodeId(kind),
     type: meta.flowType,
     position,
     data,
@@ -1083,10 +1474,13 @@ export function getUpstreamPayload(
     }
   }
 
-  for (const edge of edges) {
-    if (edge.target !== nodeId) continue
-    const src = byId.get(edge.source)
-    if (!src) continue
+  const incoming = edges
+    .filter((e) => e.target === nodeId)
+    .map((e) => byId.get(e.source))
+    .filter((n): n is Node<CanvasNodeData> => Boolean(n))
+    .sort(sortNodesByTitle)
+
+  for (const src of incoming) {
     const { kind, title, body, imageUrl, videoUrl } = src.data
     if (kind === 'text' || kind === 'script' || kind === 'storyboard') {
       pushText([title, body].filter(Boolean).join('\n'))
