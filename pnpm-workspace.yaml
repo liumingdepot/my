@@ -1,9 +1,8 @@
-# Pre-approve build scripts for the packages C3 itself installs that need
-# them: `workerd` downloads the platform binary and `esbuild` downloads/
-# builds native bindings. Without these, pnpm 11+ aborts the install with
-# ERR_PNPM_IGNORED_BUILDS.
+# Pre-approve native build scripts for packages pnpm 11+ would otherwise skip.
 allowBuilds:
   esbuild: true
-  workerd: true
-patchedDependencies:
-  jsnes@2.1.0: patches/jsnes@2.1.0.patch
+  # sharp used by nitropack
+  sharp: true
+# temporarily disabled — pnpm 12 rejects this patch format; restore after install
+# patchedDependencies:
+#   jsnes@2.1.0: patches/jsnes@2.1.0.patch
