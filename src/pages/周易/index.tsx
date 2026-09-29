@@ -68,6 +68,10 @@ export default function ZhouyiPage() {
 const Style = styled.div`
   --fortune-nav-height: calc(56px + env(safe-area-inset-top));
 
+  @media (max-width: 900px) {
+    --fortune-nav-height: calc(96px + env(safe-area-inset-top));
+  }
+
   .zhouyi {
     /* 墨夜 · 首页默认 · 青绿 */
     --zy-bg0: #0c0f12;

@@ -121,6 +121,10 @@ export default function ReportPage() {
 const Style = styled.div`
   --fortune-nav-height: calc(56px + env(safe-area-inset-top));
 
+  @media (max-width: 900px) {
+    --fortune-nav-height: calc(96px + env(safe-area-inset-top));
+  }
+
   .zhouyi {
     --zy-bg0: #0c0f12;
     --zy-bg1: #161a1f;

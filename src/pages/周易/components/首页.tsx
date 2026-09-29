@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import AncientClock from '../model/AncientClock'
 import BaguaWheel from '../model/BaguaWheel'
 import { t } from '../utils/i18n'
@@ -29,9 +28,6 @@ export default function Home({ onConsult }: { onConsult: () => void }) {
             <button type="button" className="cta" onClick={onConsult}>
               {t.scroll}
             </button>
-            <Link className="back-link" to="/works">
-              返回作品集
-            </Link>
           </div>
         </section>
         <section className="clock-pane enter enter-clock" aria-label={t.clockLabel}>
@@ -197,18 +193,6 @@ const Style = styled.div`
   .cta:hover {
     background: var(--zy-primary-hover);
     border-color: var(--zy-primary-hover);
-  }
-
-  .back-link {
-    color: var(--zy-accent);
-    font-size: 14px;
-    letter-spacing: 0.08em;
-    text-decoration: none;
-    border-bottom: 1px solid color-mix(in srgb, var(--zy-accent) 35%, transparent);
-  }
-
-  .back-link:hover {
-    color: var(--zy-primary);
   }
 
   .clock-pane {
