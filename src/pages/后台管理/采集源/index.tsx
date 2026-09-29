@@ -267,8 +267,8 @@ export default function VideoSourcesPage() {
               }}
               placeholder="搜索名称 / 地址"
             />
-            <button type="button" className="btn" onClick={() => setQuery(draftQuery)}>
-              确认
+            <button type="button" className="btn-primary" onClick={() => setQuery(draftQuery)}>
+              搜索
             </button>
           </div>
           <span className="hint">共 {filtered.length} 条</span>
@@ -475,12 +475,17 @@ const Style = styled.div`
 
   .btn-primary,
   .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     height: 36px;
     padding: 0 14px;
     border-radius: 8px;
     font-size: 14px;
     cursor: pointer;
     line-height: 1;
+    white-space: nowrap;
   }
 
   .btn-primary {

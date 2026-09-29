@@ -198,111 +198,6 @@ export async function deleteVideoSource(id: string) {
   })
 }
 
-export const GAME_CATEGORIES = ['FC', 'SFC', '街机'] as const
-export type GameCategory = (typeof GAME_CATEGORIES)[number]
-
-/** yikm FC 采集 tag（与 /nes?tag=&e=0 对齐） */
-export const YIKM_FC_TAGS = [
-  { tag: 2, genre: '动作冒险' },
-  { tag: 3, genre: '飞行射击' },
-  { tag: 4, genre: '格斗' },
-  { tag: 5, genre: '棋牌' },
-  { tag: 6, genre: '射击' },
-  { tag: 7, genre: '运动比赛' },
-  { tag: 8, genre: '小游戏' },
-  { tag: 10, genre: '角色扮演' },
-] as const
-export type YikmFcTag = (typeof YIKM_FC_TAGS)[number]['tag']
-
-export type Game = {
-  id: string
-  name: string
-  downloadUrl: string
-  imageUrl: string
-  category: GameCategory
-  genre: string
-  sortOrder: number
-  recommended: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export type GameInput = {
-  name: string
-  downloadUrl: string
-  imageUrl: string
-  category: GameCategory
-  genre: string
-  sortOrder: number
-  recommended: boolean
-}
-
-type GamesResponse = { games: Game[] }
-type GameResponse = { game: Game }
-
-export async function listGames() {
-  const data = await request<GamesResponse>('/api/admin/games')
-  return data.games
-}
-
-export async function createGame(input: GameInput) {
-  const data = await request<GameResponse>('/api/admin/games', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  })
-  return data.game
-}
-
-export async function updateGame(id: string, input: GameInput) {
-  const data = await request<GameResponse>(`/api/admin/games/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    body: JSON.stringify(input),
-  })
-  return data.game
-}
-
-export async function patchGameRecommended(id: string, recommended: boolean) {
-  const data = await request<GameResponse>(
-    `/api/admin/games/${encodeURIComponent(id)}/recommended`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ recommended }),
-    },
-  )
-  return data.game
-}
-
-export async function deleteGame(id: string) {
-  await request<{ ok: boolean }>(`/api/admin/games/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
-}
-
-export async function deleteAllGames() {
-  return request<{ ok: boolean; deleted: number }>('/api/admin/games', {
-    method: 'DELETE',
-  })
-}
-
-export type ImportYikmResult = {
-  ok: boolean
-  scraped: number
-  created: number
-  updated: number
-  fromPage: number
-  toPage: number
-  tag: number
-  games: Game[]
-}
-
-/** 从 yikm.net FC 列表采集：/nes?page=&tag=&e=0 */
-export async function importGamesFromYikm(fromPage = 1, toPage = 10, tag: YikmFcTag = 2) {
-  return request<ImportYikmResult>('/api/admin/games/import-yikm', {
-    method: 'POST',
-    body: JSON.stringify({ fromPage, toPage, tag }),
-  })
-}
-
 export type EducationSource = {
   id: string
   name: string
@@ -381,3 +276,78 @@ export async function updateEducationCookie(cookie: string) {
     body: JSON.stringify({ cookie }),
   })
 }
+
+export type AgnesBaseUrl =
+  | 'https://api.agnes-ai.cn/v1'
+  | 'https://apihub.agnes-ai.com/v1'
+
+export const AGNES_BASE_OPTIONS: { label: string; value: AgnesBaseUrl }[] = [
+  { label: '中国', value: 'https://api.agnes-ai.cn/v1' },
+  { label: '国际', value: 'https://apihub.agnes-ai.com/v1' },
+]
+
+export type AgnesApiKey = {
+  id: string
+  apiKey: string
+  apiKeyMasked: string
+  baseUrl: string
+  baseLabel: string
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type AgnesApiKeyInput = {
+  apiKey: string
+  baseUrl: AgnesBaseUrl
+  enabled: boolean
+}
+
+type AgnesKeysResponse = { items: AgnesApiKey[] }
+type AgnesKeyResponse = { item: AgnesApiKey }
+
+export async function listAgnesKeys() {
+  const data = await request<AgnesKeysResponse>('/api/admin/agnes-keys')
+  return data.items
+}
+
+export async function createAgnesKey(input: AgnesApiKeyInput) {
+  const data = await request<AgnesKeyResponse>('/api/admin/agnes-keys', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return data.item
+}
+
+export async function updateAgnesKey(id: string, input: AgnesApiKeyInput) {
+  const data = await request<AgnesKeyResponse>(`/api/admin/agnes-keys/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+  return data.item
+}
+
+export async function patchAgnesKeyEnabled(id: string, enabled: boolean) {
+  const data = await request<AgnesKeyResponse>(
+    `/api/admin/agnes-keys/${encodeURIComponent(id)}/enabled`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    },
+  )
+  return data.item
+}
+
+export async function bulkPatchAgnesKeysEnabled(baseUrl: AgnesBaseUrl, enabled: boolean) {
+  return request<{ updated: number; items: AgnesApiKey[] }>('/api/admin/agnes-keys/bulk-enabled', {
+    method: 'PATCH',
+    body: JSON.stringify({ baseUrl, enabled }),
+  })
+}
+
+export async function deleteAgnesKey(id: string) {
+  await request<{ ok: boolean }>(`/api/admin/agnes-keys/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+

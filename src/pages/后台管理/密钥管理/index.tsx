@@ -1,48 +1,30 @@
 import { type FormEvent, useEffect, useLayoutEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router'
 import styled from 'styled-components'
-import type { AdminOutletContext } from '../Layout'
-import {
-  ApiError,
-  createUser,
-  deleteUser,
-  listUsers,
-  patchUserStatus,
-  updateUser,
-  type AdminUser,
-  type UserRole,
-  type UserStatus,
-} from '../auth'
 import Select from '../../../components/Select'
+import {
+  AGNES_BASE_OPTIONS,
+  ApiError,
+  bulkPatchAgnesKeysEnabled,
+  createAgnesKey,
+  deleteAgnesKey,
+  listAgnesKeys,
+  patchAgnesKeyEnabled,
+  updateAgnesKey,
+  type AgnesApiKey,
+  type AgnesBaseUrl,
+} from '../auth'
 import ListPagination, { LIST_PAGE_SIZE } from '../model/ListPagination'
 
 type Draft = {
-  username: string
-  displayName: string
-  email: string
-  role: UserRole
-  status: UserStatus
-  password: string
-}
-
-const ROLE_LABEL: Record<UserRole, string> = {
-  admin: '管理员',
-  editor: '编辑',
-  viewer: '访客',
-}
-
-const STATUS_LABEL: Record<UserStatus, string> = {
-  active: '启用',
-  disabled: '停用',
+  apiKey: string
+  baseUrl: AgnesBaseUrl
+  enabled: boolean
 }
 
 const EMPTY_DRAFT: Draft = {
-  username: '',
-  displayName: '',
-  email: '',
-  role: 'viewer',
-  status: 'active',
-  password: '',
+  apiKey: '',
+  baseUrl: 'https://api.agnes-ai.cn/v1',
+  enabled: true,
 }
 
 function formatDate(iso: string) {
@@ -51,35 +33,33 @@ function formatDate(iso: string) {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
     }).format(new Date(iso))
   } catch {
-    return iso.slice(0, 10)
+    return iso.slice(0, 16)
   }
 }
 
-function initials(name: string) {
-  const text = name.trim()
-  if (!text) return '?'
-  return text.slice(0, 1).toUpperCase()
-}
-
-export default function UsersPage() {
-  const { session } = useOutletContext<AdminOutletContext>()
-  const [users, setUsers] = useState<AdminUser[]>([])
+export default function AgnesKeysPage() {
+  const [items, setItems] = useState<AgnesApiKey[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState('')
   const [draftQuery, setDraftQuery] = useState('')
   const [query, setQuery] = useState('')
   const [toast, setToast] = useState('')
-  const [editing, setEditing] = useState<AdminUser | null>(null)
+  const [editing, setEditing] = useState<AgnesApiKey | null>(null)
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [page, setPage] = useState(1)
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  const INTL_BASE = 'https://apihub.agnes-ai.com/v1' as AgnesBaseUrl
 
   useLayoutEffect(() => {
-    document.title = '用户管理 · 后台管理'
+    document.title = '密钥管理 · 后台管理'
   }, [])
 
   useEffect(() => {
@@ -88,11 +68,11 @@ export default function UsersPage() {
       setLoading(true)
       setListError('')
       try {
-        const next = await listUsers()
-        if (!cancelled) setUsers(next)
+        const next = await listAgnesKeys()
+        if (!cancelled) setItems(next)
       } catch (error) {
         if (!cancelled) {
-          setListError(error instanceof ApiError ? error.message : '用户列表加载失败')
+          setListError(error instanceof ApiError ? error.message : '密钥列表加载失败')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -111,136 +91,137 @@ export default function UsersPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return users
-    return users.filter(
-      (user) =>
-        user.username.toLowerCase().includes(q) ||
-        user.displayName.toLowerCase().includes(q) ||
-        user.email.toLowerCase().includes(q),
+    if (!q) return items
+    return items.filter(
+      (item) =>
+        item.apiKey.toLowerCase().includes(q) ||
+        item.apiKeyMasked.toLowerCase().includes(q) ||
+        item.baseUrl.toLowerCase().includes(q) ||
+        item.baseLabel.toLowerCase().includes(q),
     )
-  }, [users, query])
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE))
-  const safePage = Math.min(page, pageCount)
-  const paged = useMemo(
-    () => filtered.slice((safePage - 1) * LIST_PAGE_SIZE, safePage * LIST_PAGE_SIZE),
-    [filtered, safePage],
-  )
+  }, [items, query])
 
   useEffect(() => {
     setPage(1)
-  }, [query])
+  }, [query, items.length])
 
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount)
-  }, [page, pageCount])
+  const totalPages = Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE))
+  const pageSafe = Math.min(page, totalPages)
+  const paged = filtered.slice((pageSafe - 1) * LIST_PAGE_SIZE, pageSafe * LIST_PAGE_SIZE)
 
-  const stats = useMemo(
-    () => ({
-      total: users.length,
-      active: users.filter((user) => user.status === 'active').length,
-      disabled: users.filter((user) => user.status === 'disabled').length,
-      admin: users.filter((user) => user.role === 'admin').length,
-    }),
-    [users],
-  )
+  const stats = useMemo(() => {
+    const enabled = items.filter((item) => item.enabled).length
+    return {
+      total: items.length,
+      enabled,
+      disabled: items.length - enabled,
+      cn: items.filter((item) => item.baseLabel === '中国').length,
+      intl: items.filter((item) => item.baseLabel === '国际').length,
+    }
+  }, [items])
 
   function openCreate() {
-    setEditing(null)
     setCreating(true)
+    setEditing(null)
     setDraft(EMPTY_DRAFT)
     setFormError('')
   }
 
-  function openEdit(user: AdminUser) {
+  function openEdit(item: AgnesApiKey) {
     setCreating(false)
-    setEditing(user)
+    setEditing(item)
     setDraft({
-      username: user.username,
-      displayName: user.displayName,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      password: '',
+      apiKey: item.apiKey,
+      baseUrl: (AGNES_BASE_OPTIONS.find((opt) => opt.value === item.baseUrl)?.value ||
+        AGNES_BASE_OPTIONS[0].value) as AgnesBaseUrl,
+      enabled: item.enabled,
     })
     setFormError('')
   }
 
   function closeDialog() {
+    if (saving) return
     setCreating(false)
     setEditing(null)
-    setSaving(false)
     setFormError('')
-    setDraft(EMPTY_DRAFT)
   }
 
-  async function onSave(event: FormEvent) {
+  async function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const username = draft.username.trim()
-    const displayName = draft.displayName.trim()
-    const email = draft.email.trim()
-    const password = draft.password
-
-    if (!username || !displayName) {
-      setFormError('请填写用户名和显示名称')
+    const apiKey = draft.apiKey.trim()
+    if (!apiKey) {
+      setFormError('请填写密钥')
       return
     }
-    if (creating && password.length < 6) {
-      setFormError('密码至少 6 位')
-      return
-    }
-    if (!creating && password && password.length < 6) {
-      setFormError('密码至少 6 位')
-      return
-    }
-
     setSaving(true)
     setFormError('')
     try {
-      const payload = {
-        username,
-        displayName,
-        email,
-        role: draft.role,
-        status: draft.status,
-        ...(password ? { password } : {}),
-      }
       if (editing) {
-        const updated = await updateUser(editing.id, payload)
-        setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)))
-        setToast('已保存')
+        const updated = await updateAgnesKey(editing.id, {
+          apiKey,
+          baseUrl: draft.baseUrl,
+          enabled: draft.enabled,
+        })
+        setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+        setToast('已更新')
       } else {
-        const created = await createUser({ ...payload, password })
-        setUsers((current) => [created, ...current])
-        setToast('已创建')
+        const created = await createAgnesKey({
+          apiKey,
+          baseUrl: draft.baseUrl,
+          enabled: draft.enabled,
+        })
+        setItems((current) => [created, ...current])
+        setToast('已新增')
       }
-      closeDialog()
+      setCreating(false)
+      setEditing(null)
     } catch (error) {
       setFormError(error instanceof ApiError ? error.message : '保存失败')
+    } finally {
       setSaving(false)
     }
   }
 
-  async function toggleStatus(user: AdminUser) {
-    const nextStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active'
+  async function toggleEnabled(item: AgnesApiKey) {
     try {
-      const updated = await patchUserStatus(user.id, nextStatus)
-      setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-      setToast(nextStatus === 'active' ? '已启用' : '已停用')
+      const updated = await patchAgnesKeyEnabled(item.id, !item.enabled)
+      setItems((current) => current.map((row) => (row.id === updated.id ? updated : row)))
+      setToast(updated.enabled ? '已启用' : '已停用')
     } catch (error) {
       setToast(error instanceof ApiError ? error.message : '操作失败')
     }
   }
 
-  async function removeUser(user: AdminUser) {
-    const ok = window.confirm(`确定删除「${user.displayName}」(@${user.username})？`)
+  async function removeItem(item: AgnesApiKey) {
+    const ok = window.confirm(`确定删除密钥「${item.apiKeyMasked}」？`)
     if (!ok) return
     try {
-      await deleteUser(user.id)
-      setUsers((current) => current.filter((item) => item.id !== user.id))
+      await deleteAgnesKey(item.id)
+      setItems((current) => current.filter((row) => row.id !== item.id))
       setToast('已删除')
     } catch (error) {
+      setToast(error instanceof ApiError ? error.message : '删除失败')
+    }
+  }
+
+  async function toggleIntlKeys(enabled: boolean) {
+    const intlCount = items.filter((item) => item.baseUrl === INTL_BASE).length
+    if (intlCount === 0) {
+      setToast('暂无国际密钥')
+      return
+    }
+    const action = enabled ? '开启' : '关闭'
+    const ok = window.confirm(`确定一键${action}全部 ${intlCount} 条国际密钥？`)
+    if (!ok) return
+    setBulkBusy(true)
+    try {
+      const result = await bulkPatchAgnesKeysEnabled(INTL_BASE, enabled)
+      setItems(result.items)
+      setToast(enabled ? `已开启 ${result.updated} 条国际密钥` : `已关闭 ${result.updated} 条国际密钥`)
+    } catch (error) {
       setToast(error instanceof ApiError ? error.message : '操作失败')
+    } finally {
+      setBulkBusy(false)
     }
   }
 
@@ -252,12 +233,32 @@ export default function UsersPage() {
 
       <div className="head">
         <div>
-          <h1 className="title">用户管理</h1>
-          <p className="desc">查看与维护后台账号权限与状态</p>
+          <h1 className="title">密钥管理</h1>
+          <p className="desc">
+            管理 Agnes API 密钥；周易 / 画布等会优先使用已启用密钥，并按 Base URL 请求对应节点。
+          </p>
         </div>
-        <button type="button" className="btn-primary" onClick={openCreate}>
-          + 新增用户
-        </button>
+        <div className="head-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={bulkBusy || stats.intl === 0}
+            onClick={() => void toggleIntlKeys(true)}
+          >
+            {bulkBusy ? '处理中…' : '一键开启国际 Key'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-warn"
+            disabled={bulkBusy || stats.intl === 0}
+            onClick={() => void toggleIntlKeys(false)}
+          >
+            {bulkBusy ? '处理中…' : '一键关闭国际 Key'}
+          </button>
+          <button type="button" className="btn-primary" onClick={openCreate}>
+            + 新增密钥
+          </button>
+        </div>
       </div>
 
       <div className="stats">
@@ -267,15 +268,17 @@ export default function UsersPage() {
         </div>
         <div className="stat">
           <span>启用</span>
-          <strong className="ok">{stats.active}</strong>
+          <strong className="ok">{stats.enabled}</strong>
         </div>
         <div className="stat">
           <span>停用</span>
           <strong>{stats.disabled}</strong>
         </div>
         <div className="stat">
-          <span>管理员</span>
-          <strong className="ok">{stats.admin}</strong>
+          <span>中国 / 国际</span>
+          <strong>
+            {stats.cn} / {stats.intl}
+          </strong>
         </div>
       </div>
 
@@ -289,7 +292,7 @@ export default function UsersPage() {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') setQuery(draftQuery)
               }}
-              placeholder="搜索用户名 / 姓名 / 邮箱"
+              placeholder="搜索密钥 / Base URL"
             />
             <button type="button" className="btn-primary" onClick={() => setQuery(draftQuery)}>
               搜索
@@ -302,69 +305,64 @@ export default function UsersPage() {
           <table>
             <thead>
               <tr>
-                <th>用户</th>
-                <th>角色</th>
+                <th>密钥</th>
+                <th>Base URL</th>
                 <th>状态</th>
-                <th>邮箱</th>
-                <th>创建时间</th>
+                <th>更新时间</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="empty">
+                  <td colSpan={5} className="empty">
                     加载中…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty">
-                    {listError || '暂无用户'}
+                  <td colSpan={5} className="empty">
+                    {listError || '暂无密钥，可新增或重启服务以从 .env 自动导入'}
                   </td>
                 </tr>
               ) : (
-                paged.map((user) => (
-                  <tr key={user.id}>
+                paged.map((item) => (
+                  <tr key={item.id}>
                     <td>
-                      <div className="user-cell">
-                        <span className="avatar">{initials(user.displayName)}</span>
-                        <div>
-                          <div className="user-name">{user.displayName}</div>
-                          <div className="user-handle">@{user.username}</div>
-                        </div>
+                      <code className="key">{item.apiKeyMasked}</code>
+                    </td>
+                    <td>
+                      <div className="base">
+                        <span className={`tag${item.baseLabel === '中国' ? ' tag-ok' : ''}`}>
+                          {item.baseLabel}
+                        </span>
+                        <span className="url" title={item.baseUrl}>
+                          {item.baseUrl}
+                        </span>
                       </div>
                     </td>
                     <td>
-                      <span className={`tag${user.role === 'admin' ? ' tag-ok' : ''}`}>
-                        {ROLE_LABEL[user.role]}
+                      <span className={`tag${item.enabled ? ' tag-ok' : ''}`}>
+                        {item.enabled ? '启用' : '停用'}
                       </span>
                     </td>
-                    <td>
-                      <span className={`tag${user.status === 'active' ? ' tag-ok' : ''}`}>
-                        {STATUS_LABEL[user.status]}
-                      </span>
-                    </td>
-                    <td>{user.email || '—'}</td>
-                    <td>{formatDate(user.createdAt)}</td>
+                    <td>{formatDate(item.updatedAt)}</td>
                     <td>
                       <div className="actions">
-                        <button type="button" className="link-btn" onClick={() => openEdit(user)}>
+                        <button type="button" className="link-btn" onClick={() => openEdit(item)}>
                           编辑
                         </button>
                         <button
                           type="button"
                           className="link-btn"
-                          disabled={user.id === session.userId && user.status === 'active'}
-                          onClick={() => void toggleStatus(user)}
+                          onClick={() => void toggleEnabled(item)}
                         >
-                          {user.status === 'active' ? '停用' : '启用'}
+                          {item.enabled ? '停用' : '启用'}
                         </button>
                         <button
                           type="button"
                           className="link-btn danger"
-                          disabled={user.id === session.userId}
-                          onClick={() => void removeUser(user)}
+                          onClick={() => void removeItem(item)}
                         >
                           删除
                         </button>
@@ -378,8 +376,8 @@ export default function UsersPage() {
         </div>
 
         <ListPagination
-          page={safePage}
-          pageCount={pageCount}
+          page={pageSafe}
+          pageCount={totalPages}
           total={filtered.length}
           onChange={setPage}
         />
@@ -390,77 +388,44 @@ export default function UsersPage() {
           <form
             className="modal"
             onClick={(event) => event.stopPropagation()}
-            onSubmit={(event) => void onSave(event)}
+            onSubmit={(event) => void onSubmit(event)}
           >
-            <h2 className="modal-title">{creating ? '新增用户' : '编辑用户'}</h2>
+            <h2 className="modal-title">{editing ? '编辑密钥' : '新增密钥'}</h2>
 
             <label className="field">
-              <span>用户名</span>
+              <span>密钥 Key</span>
               <input
-                value={draft.username}
-                onChange={(event) => setDraft((prev) => ({ ...prev, username: event.target.value }))}
+                value={draft.apiKey}
+                onChange={(event) => setDraft((prev) => ({ ...prev, apiKey: event.target.value }))}
+                placeholder="sk-..."
                 autoComplete="off"
-                required
+                spellCheck={false}
               />
             </label>
 
             <label className="field">
-              <span>显示名称</span>
-              <input
-                value={draft.displayName}
-                onChange={(event) => setDraft((prev) => ({ ...prev, displayName: event.target.value }))}
-                required
+              <span>Base URL</span>
+              <Select
+                value={draft.baseUrl}
+                options={AGNES_BASE_OPTIONS}
+                onChange={(value) => setDraft((prev) => ({ ...prev, baseUrl: value }))}
+                aria-label="Base URL"
               />
+              <span className="field-hint">
+                中国默认 https://api.agnes-ai.cn/v1 · 国际 https://apihub.agnes-ai.com/v1
+              </span>
             </label>
 
-            <label className="field">
-              <span>邮箱</span>
+            <label className="check">
               <input
-                type="email"
-                value={draft.email}
-                onChange={(event) => setDraft((prev) => ({ ...prev, email: event.target.value }))}
+                type="checkbox"
+                checked={draft.enabled}
+                onChange={(event) =>
+                  setDraft((prev) => ({ ...prev, enabled: event.target.checked }))
+                }
               />
+              <span>启用</span>
             </label>
-
-            <label className="field">
-              <span>{creating ? '密码' : '密码（可选）'}</span>
-              <input
-                type="password"
-                value={draft.password}
-                onChange={(event) => setDraft((prev) => ({ ...prev, password: event.target.value }))}
-                autoComplete="new-password"
-                placeholder={creating ? '至少 6 位' : '留空则不修改'}
-                required={creating}
-              />
-            </label>
-
-            <div className="row">
-              <label className="field">
-                <span>角色</span>
-                <Select
-                  value={draft.role}
-                  aria-label="角色"
-                  options={[
-                    { value: 'admin', label: '管理员' },
-                    { value: 'editor', label: '编辑' },
-                    { value: 'viewer', label: '访客' },
-                  ]}
-                  onChange={(role) => setDraft((prev) => ({ ...prev, role }))}
-                />
-              </label>
-              <label className="field">
-                <span>状态</span>
-                <Select
-                  value={draft.status}
-                  aria-label="状态"
-                  options={[
-                    { value: 'active', label: '启用' },
-                    { value: 'disabled', label: '停用' },
-                  ]}
-                  onChange={(status) => setDraft((prev) => ({ ...prev, status }))}
-                />
-              </label>
-            </div>
 
             {formError ? <div className="form-error">{formError}</div> : null}
 
@@ -509,6 +474,13 @@ const Style = styled.div`
     flex-shrink: 0;
   }
 
+  .head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
   .title {
     margin: 0;
     font-size: 22px;
@@ -522,6 +494,7 @@ const Style = styled.div`
     font-size: 13px;
     line-height: 1.4;
     color: #6b7280;
+    max-width: 42rem;
   }
 
   .btn-primary,
@@ -561,8 +534,22 @@ const Style = styled.div`
     color: #374151;
   }
 
-  .btn:hover {
+  .btn:hover:not(:disabled) {
     background: #f9fafb;
+  }
+
+  .btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .btn-warn {
+    border-color: #fecaca;
+    color: #b91c1c;
+  }
+
+  .btn-warn:hover:not(:disabled) {
+    background: #fef2f2;
   }
 
   .stats {
@@ -657,7 +644,7 @@ const Style = styled.div`
   table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 720px;
+    min-width: 760px;
   }
 
   th,
@@ -685,41 +672,31 @@ const Style = styled.div`
     padding: 32px 16px;
   }
 
-  .user-cell {
+  .key {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: #111827;
+  }
+
+  .base {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
   }
 
-  .avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: #ecfdf5;
-    color: #0f766e;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
-  .user-name {
-    font-weight: 600;
-    line-height: 1.3;
-  }
-
-  .user-handle {
-    margin-top: 2px;
-    color: #9ca3af;
+  .url {
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #6b7280;
     font-size: 12px;
-    line-height: 1.3;
   }
 
   .tag {
     display: inline-block;
+    width: fit-content;
     padding: 2px 8px;
     border-radius: 999px;
     background: #f3f4f6;
@@ -753,11 +730,6 @@ const Style = styled.div`
     color: #dc2626;
   }
 
-  .link-btn:disabled {
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-
   .modal-mask {
     position: fixed;
     inset: 0;
@@ -769,7 +741,7 @@ const Style = styled.div`
   }
 
   .modal {
-    width: min(100%, 460px);
+    width: min(100%, 520px);
     background: #fff;
     border-radius: 14px;
     padding: 20px;
@@ -791,7 +763,6 @@ const Style = styled.div`
     gap: 6px;
     font-size: 13px;
     color: #374151;
-    flex: 1;
   }
 
   .field input {
@@ -803,15 +774,27 @@ const Style = styled.div`
     color: #111827;
     background: #fff;
     outline: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
 
   .field input:focus {
     border-color: #0f766e;
   }
 
-  .row {
+  .field-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    line-height: 1.4;
+  }
+
+  .check {
     display: flex;
-    gap: 12px;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
   }
 
   .form-error {
@@ -831,7 +814,7 @@ const Style = styled.div`
 
   @media (max-width: 860px) {
     .stats {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: 1fr 1fr;
     }
 
     .toolbar {
