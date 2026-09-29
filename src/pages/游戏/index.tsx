@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import Layout from './model/Layout'
 import ListPage from './model/ListPage'
+import SearchPage from './model/SearchPage'
 import DetailPage from './model/DetailPage'
 
 export default function GamePage() {
@@ -8,6 +9,7 @@ export default function GamePage() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<ListPage />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path=":id" element={<DetailPage />} />
         <Route path="*" element={<Navigate to="/game" replace />} />
       </Route>

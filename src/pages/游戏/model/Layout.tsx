@@ -1,10 +1,10 @@
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { Outlet } from 'react-router'
 import styled, { createGlobalStyle } from 'styled-components'
 import { ThemeToggle } from '../../音乐/utils/ThemeToggle'
 import { themeColor, useTheme } from '../../音乐/utils/theme'
 
-/** FC 游戏模块外壳：与首页共用主题变量，并提供深浅色切换。 */
+/** 游戏模块外壳：与首页共用主题变量，并提供深浅色切换。 */
 export default function Layout() {
   const { theme, toggleTheme } = useTheme()
 
@@ -30,6 +30,77 @@ export function GameThemeToggle({
 }) {
   return <ThemeToggle className={className} onClick={onToggle} />
 }
+
+/** 封面图；无图或加载失败时展示「铭游戏」缺省图 */
+export function GameCover({ src }: { src?: string | null }) {
+  const [failed, setFailed] = useState(false)
+  const url = src?.trim() || ''
+
+  useEffect(() => {
+    setFailed(false)
+  }, [url])
+
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt=""
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+
+  return (
+    <CoverPh aria-hidden>
+      <span className="mark">铭</span>
+      <span className="word">铭游戏</span>
+    </CoverPh>
+  )
+}
+
+const CoverPh = styled.span`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background:
+    radial-gradient(
+      ellipse 85% 70% at 50% 32%,
+      color-mix(in srgb, var(--purple) 26%, transparent),
+      transparent 68%
+    ),
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--purple) 10%, var(--cover-ph)) 0%,
+      var(--cover-ph) 55%,
+      color-mix(in srgb, var(--blob-c) 18%, var(--cover-ph)) 100%
+    );
+
+  .mark {
+    width: clamp(1.9rem, 28%, 2.6rem);
+    height: clamp(1.9rem, 28%, 2.6rem);
+    display: grid;
+    place-items: center;
+    border-radius: 0.65rem;
+    background: var(--grad);
+    color: #fff;
+    font-size: clamp(0.85rem, 12%, 1.05rem);
+    font-weight: 750;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--purple) 32%, transparent);
+  }
+
+  .word {
+    font-size: clamp(0.68rem, 9%, 0.82rem);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: color-mix(in srgb, var(--purple) 65%, var(--text-soft));
+  }
+`
 
 const Global = createGlobalStyle`
   :root {

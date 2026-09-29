@@ -1,11 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { Browser, Controller } from 'jsnes'
 import styled from 'styled-components'
 import { gameRomUrl } from '../utils/server'
 
+export type FcPlayerControls = {
+  status: 'idle' | 'loading' | 'ready' | 'error'
+  paused: boolean
+  togglePause: () => void
+  hardReset: () => void
+}
+
 type Props = {
   gameId: string
   gameName: string
+  /** 由外层渲染暂停/重置时传入，组件内不再显示底部栏 */
+  onControlsChange?: (controls: FcPlayerControls) => void
+  hideBar?: boolean
 }
 
 type KeyMap = Record<number, [number, number, string]>
@@ -90,18 +100,43 @@ function formatEmulatorError(err: unknown): string {
   const message = err instanceof Error ? err.message : 'ROM 加载失败'
   const mapper = /^Unsupported mapper:\s*(\d+)$/i.exec(message)
   if (mapper) {
-    return `当前模拟器暂不支持该 ROM 的 Mapper ${mapper[1]}，请下载后用本地模拟器游玩`
+    return `当前模拟器暂不支持该 ROM 的 Mapper ${mapper[1]}`
   }
   return message
 }
 
-export default function FcPlayer({ gameId, gameName }: Props) {
+export default function FcPlayer({ gameId, gameName, onControlsChange, hideBar }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const browserRef = useRef<Browser | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [error, setError] = useState('')
   const [paused, setPaused] = useState(false)
   const [bootKey, setBootKey] = useState(0)
+
+  function togglePause() {
+    const browser = browserRef.current
+    if (!browser || status !== 'ready') return
+    if (paused) {
+      browser.start()
+      setPaused(false)
+    } else {
+      browser.stop()
+      setPaused(true)
+    }
+  }
+
+  function hardReset() {
+    if (status !== 'ready' && status !== 'error') return
+    setBootKey((n) => n + 1)
+  }
+
+  const reportControls = useEffectEvent((next: FcPlayerControls) => {
+    onControlsChange?.(next)
+  })
+
+  useEffect(() => {
+    reportControls({ status, paused, togglePause, hardReset })
+  }, [status, paused, bootKey])
 
   useEffect(() => {
     const container = containerRef.current
@@ -139,79 +174,84 @@ export default function FcPlayer({ gameId, gameName }: Props) {
 
     const onResize = () => browserRef.current?.fitInParent()
     window.addEventListener('resize', onResize)
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onResize) : null
+    ro?.observe(container)
 
     return () => {
       ac.abort()
       window.removeEventListener('resize', onResize)
+      ro?.disconnect()
       browser?.destroy()
       browserRef.current = null
       container.replaceChildren()
     }
   }, [gameId, bootKey])
 
-  function togglePause() {
-    const browser = browserRef.current
-    if (!browser || status !== 'ready') return
-    if (paused) {
-      browser.start()
-      setPaused(false)
-    } else {
-      browser.stop()
-      setPaused(true)
-    }
-  }
-
-  function hardReset() {
-    if (status !== 'ready' && status !== 'error') return
-    setBootKey((n) => n + 1)
-  }
-
   return (
-    <Style>
+    <Style $fill={Boolean(hideBar)}>
       <div className="stage">
         <div ref={containerRef} className="screen" aria-label={`${gameName} 游戏画面`} />
-        {status === 'loading' ? <div className="overlay">加载 ROM…</div> : null}
+        {status === 'loading' ? <div className="overlay">加载中…</div> : null}
         {status === 'error' ? <div className="overlay overlay--err">{error}</div> : null}
         {status === 'ready' && paused ? <div className="overlay">已暂停</div> : null}
       </div>
 
-      <div className="bar">
-        <button type="button" className="btn" disabled={status !== 'ready'} onClick={togglePause}>
-          {paused ? '继续' : '暂停'}
-        </button>
-        <button type="button" className="btn" disabled={status !== 'ready'} onClick={hardReset}>
-          重置
-        </button>
-        <p className="hint">
-          P1: WASD · J=B · K=A · L=连发 · U=Select · I=Start · Enter=Start · Ctrl=Select
-          <br />
-          P2: 方向键 · 1=B · 2=A · 4=Select · 5=Start
-        </p>
-      </div>
+      {!hideBar ? (
+        <div className="bar">
+          <button type="button" className="btn" disabled={status !== 'ready'} onClick={togglePause}>
+            {paused ? '继续' : '暂停'}
+          </button>
+          <button type="button" className="btn" disabled={status !== 'ready' && status !== 'error'} onClick={hardReset}>
+            重置
+          </button>
+        </div>
+      ) : null}
     </Style>
   )
 }
 
-const Style = styled.div`
+const Style = styled.div<{ $fill?: boolean }>`
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: ${(p) => (p.$fill ? '0' : '0.9rem')};
+  width: 100%;
+  ${(p) => (p.$fill ? 'flex: 1; min-height: 0;' : '')}
 
   .stage {
     position: relative;
-    width: min(100%, 640px);
-    margin: 0 auto;
-    aspect-ratio: 256 / 240;
     border-radius: 0.9rem;
     overflow: hidden;
     border: 1px solid var(--line);
     background: #0a0c12;
     box-shadow: var(--shadow);
+    ${(p) =>
+      p.$fill
+        ? `
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      container-type: size;
+      display: grid;
+      place-items: center;
+    `
+        : `
+      width: 100%;
+      aspect-ratio: 256 / 240;
+    `}
   }
 
   .screen {
-    width: 100%;
-    height: 100%;
+    ${(p) =>
+      p.$fill
+        ? `
+      aspect-ratio: 256 / 240;
+      width: min(100cqw, calc(100cqh * 256 / 240));
+      height: min(100cqh, calc(100cqw * 240 / 256));
+    `
+        : `
+      width: 100%;
+      height: 100%;
+    `}
   }
 
   .screen canvas {
@@ -271,15 +311,5 @@ const Style = styled.div`
   .btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
-  }
-
-  .hint {
-    margin: 0.15rem 0 0;
-    width: 100%;
-    text-align: center;
-    font-size: 0.76rem;
-    line-height: 1.55;
-    color: var(--muted);
-    letter-spacing: 0.01em;
   }
 `
