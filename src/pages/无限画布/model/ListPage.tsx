@@ -99,6 +99,7 @@ function layoutPosition(kind: CanvasNodeKind, index: number) {
     text: 80,
     image: 420,
     video: 780,
+    compose: 1140,
   }
   const rowBase: Record<CanvasNodeKind, number> = {
     script: 80,
@@ -109,6 +110,7 @@ function layoutPosition(kind: CanvasNodeKind, index: number) {
     text: 80,
     image: 80,
     video: 80,
+    compose: 80,
   }
   return {
     x: col[kind] ?? 80,
@@ -1478,69 +1480,90 @@ ${assetHint ? `\n关联资产：\n${assetHint}` : ''}`,
         </div>
       ) : (
         <div className="shell">
-          <nav className="flow-steps" aria-label="制作步骤">
-            <ol className="flow-track">
-              {flowSteps.map((step, idx) => {
-                const isActive = step.key === activeStep
-                const locked = !step.unlocked
-                return (
-                  <li key={step.key} className="flow-item">
-                    {idx > 0 ? (
-                      <span
-                        className={`flow-connector ${
-                          flowSteps[idx - 1]?.status === 'done' ? 'done' : ''
-                        }`}
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <button
-                      type="button"
-                      className={`flow-step status-${step.status}${
-                        isActive ? ' active' : ''
-                      }${locked ? ' locked' : ''}`}
-                      disabled={locked}
-                      title={locked ? '请先完成上一步' : step.desc}
-                      onClick={() => {
-                        if (!locked) goStep(step.key)
-                      }}
-                    >
-                      <span className="flow-index">
-                        {step.status === 'done' ? '✓' : idx + 1}
-                      </span>
-                      <span className="flow-meta">
-                        <span className="flow-label">{step.label}</span>
-                        <span className="flow-desc">{step.desc}</span>
-                      </span>
-                      {step.count > 0 ? (
-                        <span className="flow-count">{step.count}</span>
-                      ) : null}
-                    </button>
-                  </li>
-                )
-              })}
-            </ol>
-            {activeStep === 'assets' ? (
-              <div className="flow-subnav">
-                {assetNavSteps.map((child) => (
+          <nav className="steps" aria-label="制作步骤">
+            <div className="steps-title">制作步骤</div>
+            {topNavSteps.map((step, idx) => {
+              const flowKey =
+                step.key === 'script'
+                  ? 'script'
+                  : step.key === 'assets'
+                    ? 'assets'
+                    : step.key === 'sb'
+                      ? 'storyboard'
+                      : null
+              const flow = flowKey
+                ? flowSteps.find((s) => s.key === flowKey)
+                : null
+              const isActive = flowKey === activeStep
+              const locked = Boolean(flow && !flow.unlocked)
+              const assetsExpanded = activeStep === 'assets'
+              return (
+                <div key={step.key} className="step-block">
                   <button
-                    key={child.key}
                     type="button"
-                    className={`flow-subnav-item status-${child.status}`}
-                    onClick={() => scrollToAnchor(child.anchor)}
+                    className={`step status-${step.status}${
+                      isActive ? ' active' : ''
+                    }${locked ? ' locked' : ''}`}
+                    disabled={locked}
+                    title={
+                      locked
+                        ? '请先完成上一步'
+                        : flow?.desc || step.label
+                    }
+                    onClick={() => {
+                      if (!flowKey || locked) return
+                      goStep(flowKey)
+                    }}
                   >
-                    {child.label}
-                    {child.count > 0 ? ` · ${child.count}` : ''}
+                    <span className="step-index">
+                      {step.status === 'done' ? '✓' : idx + 1}
+                    </span>
+                    <span className="step-label">{step.label}</span>
+                    {step.count > 0 ? (
+                      <span className="step-count">{step.count}</span>
+                    ) : null}
+                    {step.key === 'assets' ? (
+                      <span
+                        className={`step-fold ${assetsExpanded ? 'open' : ''}`}
+                        aria-hidden="true"
+                      >
+                        ▾
+                      </span>
+                    ) : null}
                   </button>
-                ))}
-              </div>
-            ) : null}
+
+                  {step.key === 'assets' && assetsExpanded ? (
+                    <div className="step-children">
+                      {assetNavSteps.map((child) => (
+                        <button
+                          key={child.key}
+                          type="button"
+                          className={`step child status-${child.status}`}
+                          onClick={() => scrollToAnchor(child.anchor)}
+                        >
+                          <span className="step-index">
+                            {child.status === 'done' ? '✓' : '·'}
+                          </span>
+                          <span className="step-label">{child.label}</span>
+                          {child.count > 0 ? (
+                            <span className="step-count">{child.count}</span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+
             {activeStep === 'storyboard' && storyboards.length > 0 ? (
-              <div className="flow-subnav">
+              <div className="sub-list">
+                <div className="sub-title">分镜列表</div>
                 {storyboards.map((sb, i) => (
                   <button
                     key={sb.id}
                     type="button"
-                    className="flow-subnav-item"
+                    className="sub-item"
                     onClick={() => scrollToAnchor(`item-${sb.id}`)}
                   >
                     {i + 1}. {sb.data.title || '分镜'}
@@ -2379,8 +2402,9 @@ const Style = styled.div`
   }
 
   .shell {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 0;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -2389,70 +2413,47 @@ const Style = styled.div`
     overflow: hidden;
   }
 
-  .flow-steps {
-    flex: none;
-    border-bottom: 1px solid var(--line);
-    background: linear-gradient(180deg, #16161a 0%, #121214 100%);
-    padding: 14px 20px 12px;
+  .steps {
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
+    border-right: 1px solid var(--line);
+    background: #121214;
+    padding: 14px 10px;
   }
 
-  .flow-track {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    max-width: 960px;
+  .steps-title {
+    font-size: 12px;
+    color: var(--faint);
+    margin: 0 8px 10px;
   }
 
-  .flow-item {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
+  .step-block {
+    margin-bottom: 4px;
   }
 
-  .flow-connector {
-    width: 28px;
-    height: 2px;
-    flex: none;
-    margin: 0 6px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-
-    &.done {
-      background: linear-gradient(90deg, rgba(61, 214, 198, 0.75), rgba(61, 214, 198, 0.3));
-    }
-  }
-
-  .flow-step {
-    flex: 1;
-    min-width: 0;
+  .step {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid transparent;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.02);
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
     color: var(--ink);
     font: inherit;
     cursor: pointer;
     text-align: left;
-    transition:
-      background 0.18s ease,
-      border-color 0.18s ease,
-      box-shadow 0.18s ease;
 
     &:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
     }
 
     &.active {
-      border-color: rgba(61, 214, 198, 0.45);
       background: rgba(61, 214, 198, 0.1);
-      box-shadow: 0 0 0 1px rgba(61, 214, 198, 0.08);
     }
 
     &.locked {
@@ -2460,90 +2461,105 @@ const Style = styled.div`
       cursor: not-allowed;
     }
 
-    &.status-done .flow-index {
-      background: rgba(61, 214, 198, 0.2);
-      color: #5eead4;
-      border-color: rgba(61, 214, 198, 0.45);
-    }
+    &.child {
+      padding: 6px 8px 6px 18px;
+      margin-bottom: 2px;
 
-    &.status-partial .flow-index {
-      background: rgba(251, 191, 36, 0.14);
-      color: #fbbf24;
-      border-color: rgba(251, 191, 36, 0.35);
+      .step-label {
+        font-size: 12px;
+      }
+
+      .step-index {
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
+      }
     }
   }
 
-  .flow-index {
-    width: 28px;
-    height: 28px;
+  .step-children {
+    padding: 2px 0 4px;
+  }
+
+  .step-fold {
+    font-size: 12px;
+    color: var(--faint);
+    transition: transform 0.18s ease;
     flex: none;
-    border-radius: 999px;
+
+    &.open {
+      transform: rotate(0deg);
+    }
+
+    &:not(.open) {
+      transform: rotate(-90deg);
+    }
+  }
+
+  .step-index {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
     display: grid;
     place-items: center;
-    font-family: var(--display);
-    font-size: 13px;
-    font-weight: 750;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(0, 0, 0, 0.28);
+    font-size: 11px;
+    border: 1px solid var(--line);
     color: var(--muted);
+    flex: none;
   }
 
-  .flow-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+  .step.status-done .step-index {
+    background: rgba(61, 214, 198, 0.18);
+    border-color: rgba(61, 214, 198, 0.45);
+    color: #5eead4;
   }
 
-  .flow-label {
+  .step.status-partial .step-index {
+    border-color: rgba(251, 191, 36, 0.5);
+    color: #fbbf24;
+  }
+
+  .step-label {
+    flex: 1;
     font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
   }
 
-  .flow-desc {
+  .step-count {
     font-size: 11px;
     color: var(--faint);
+  }
+
+  .sub-list {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  .sub-title {
+    font-size: 11px;
+    color: var(--faint);
+    margin: 0 8px 8px;
+  }
+
+  .sub-item {
+    width: 100%;
+    display: block;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    text-align: left;
+    font: inherit;
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .flow-count {
-    margin-left: auto;
-    flex: none;
-    font-size: 11px;
-    color: var(--muted);
-    padding: 2px 7px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  .flow-subnav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
-  }
-
-  .flow-subnav-item {
-    border: 1px solid var(--line);
-    background: rgba(0, 0, 0, 0.22);
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 4px 10px;
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
 
     &:hover {
       color: var(--ink);
-      border-color: rgba(61, 214, 198, 0.35);
-    }
-
-    &.status-done {
-      color: #5eead4;
-      border-color: rgba(61, 214, 198, 0.3);
+      background: rgba(255, 255, 255, 0.04);
     }
   }
 
@@ -3432,33 +3448,36 @@ const Style = styled.div`
     overflow: auto;
 
     .shell {
+      grid-template-columns: 1fr;
       flex: none;
       min-height: auto;
       overflow: visible;
     }
 
-    .flow-steps {
-      padding: 12px 12px 10px;
+    .steps {
       position: sticky;
       top: 0;
       z-index: 20;
-    }
+      height: auto;
+      max-height: none;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 6px;
+      overflow: auto;
+      padding: 10px;
 
-    .flow-desc {
-      display: none;
-    }
+      .steps-title,
+      .sub-list,
+      .step-children,
+      .step-fold {
+        display: none;
+      }
 
-    .flow-connector {
-      width: 14px;
-      margin: 0 4px;
-    }
-
-    .flow-step {
-      padding: 8px 10px;
-    }
-
-    .flow-label {
-      font-size: 12px;
+      .step {
+        flex: none;
+        margin: 0;
+      }
     }
 
     .sb-media-row {
@@ -3493,22 +3512,6 @@ const Style = styled.div`
   }
 
   @media (max-width: 640px) {
-    .flow-track {
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .flow-item {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .flow-connector {
-      width: 2px;
-      height: 12px;
-      margin: 0 auto;
-    }
-
     .sb-frame {
       width: min(100%, 200px);
       max-height: 360px;
