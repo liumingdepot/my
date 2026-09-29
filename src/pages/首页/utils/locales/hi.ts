@@ -46,6 +46,14 @@ export const hi = {
   },
   works: [
     {
+      name: "अनंत कैनवास",
+      desc: "AI शॉर्ट ड्रामा कैनवास: प्रॉम्प्ट लिखें और सामग्री बनाएँ। विकास में।",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "ज्योतिष",
       desc: "जन्म विवरण और प्रश्न दर्ज करें, यी जिंग पाठन बनाएँ। केवल पारंपरिक संस्कृति और मनोरंजन के लिए।",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const hi = {
     },
     {
       name: "गेम्स",
-      desc: "ब्राउज़र में क्लासिक गेम: श्रेणी ब्राउज़, फीचर्ड और डिटेल पेज। केवल सीखने और आदान-प्रदान के लिए।",
+      desc: "Classic FC / arcade in browser: switch platforms, browse genres, play on detail pages. For learning and exchange only.",
       href: "/game",
       tag: "लाइव",
       tone: "emerald",

@@ -46,6 +46,14 @@ export const en = {
   },
   works: [
     {
+      name: "Infinite Canvas",
+      desc: "AI short-drama infinite canvas: enter a prompt to generate content. Under development.",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "Zhouyi",
       desc: "Enter birth details and a question, then get an I Ching reading. For traditional culture and entertainment only.",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const en = {
     },
     {
       name: "Games",
-      desc: "Play classic games in the browser: browse by category, featured picks, and detail pages. For learning & exchange only.",
+      desc: "Play classic FC / arcade games in the browser: switch platforms, browse by genre, and play on detail pages. For learning and exchange only.",
       href: "/game",
       tag: "Live",
       tone: "emerald",

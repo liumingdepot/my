@@ -46,6 +46,14 @@ export const zh = {
   },
   works: [
     {
+      name: "无限画布",
+      desc: "AI 短剧无限画布：输入提示词即可生成内容。功能开发中。",
+      href: "/canvas",
+      tag: "开发中",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "周易",
       desc: "填写生辰与问题，生成一份周易命盘解读。观象于天，仅作传统文化与娱乐参考。",
       href: "/fortune",
@@ -78,8 +86,8 @@ export const zh = {
       glyph: "剧",
     },
     {
-      name: "FC游戏",
-      desc: "经典 FC 游戏在线玩：热门推荐与详情页，支持网页端游玩。仅供学习交流。",
+      name: "游戏",
+      desc: "经典 FC / 街机在线玩：按平台与类型浏览、详情页网页端游玩。仅供学习交流。",
       href: "/game",
       tag: "已上线",
       tone: "emerald",
@@ -92,6 +100,14 @@ export const zh = {
       tag: "已上线",
       tone: "sky",
       glyph: "教",
+    },
+    {
+      name: "摸鱼助手",
+      desc: "铭摸鱼：模拟 Windows 故障/升级与 Mac 升级全屏画面，老板来了也不慌。仅供娱乐。",
+      href: "/fish",
+      tag: "已上线",
+      tone: "cyan",
+      glyph: "鱼",
     },
     {
       name: "测试模块",

@@ -46,6 +46,14 @@ export const fr = {
   },
   works: [
     {
+      name: "Toile infinie",
+      desc: "Toile AI pour courts-métrages : saisissez un prompt pour générer du contenu. En développement.",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "Divination",
       desc: "Saisissez date de naissance et question, générez une lecture Yi Jing. Culture traditionnelle et divertissement uniquement.",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const fr = {
     },
     {
       name: "Jeux",
-      desc: "Jeux classiques dans le navigateur : catégories, sélection et fiches détail. Pour l'apprentissage et l'échange uniquement.",
+      desc: "Jouez aux classiques FC / arcade dans le navigateur: bascule de plateforme, genres et pages detail. Apprentissage et echange uniquement.",
       href: "/game",
       tag: "En ligne",
       tone: "emerald",

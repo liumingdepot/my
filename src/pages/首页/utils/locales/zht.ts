@@ -46,6 +46,14 @@ export const zht = {
   },
   works: [
     {
+      name: "無限畫布",
+      desc: "AI 短劇無限畫布：輸入提示詞即可生成內容。功能開發中。",
+      href: "/canvas",
+      tag: "開發中",
+      tone: "violet",
+      glyph: "畫",
+    },
+    {
       name: "周易",
       desc: "填寫生辰與問題，生成一份周易命盤解讀。觀象於天，僅作傳統文化與娛樂參考。",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const zht = {
     },
     {
       name: "遊戲",
-      desc: "經典遊戲線上玩：分類瀏覽、熱門推薦與詳情頁，支援網頁端遊玩。僅供學習交流。",
+      desc: "經典 FC / 街機線上玩：依平台與類型瀏覽、詳情頁網頁端遊玩。僅供學習交流。",
       href: "/game",
       tag: "已上線",
       tone: "emerald",

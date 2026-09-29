@@ -46,6 +46,14 @@ export const ar = {
   },
   works: [
     {
+      name: "لوحة لا نهائية",
+      desc: "لوحة AI للدراما القصيرة: أدخل موجهًا لتوليد المحتوى. قيد التطوير.",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "فأل",
       desc: "أدخل تاريخ الميلاد وسؤالًا، واحصل على قراءة من كتاب التغييرات. للثقافة التقليدية والترفيه فقط.",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const ar = {
     },
     {
       name: "ألعاب",
-      desc: "ألعاب كلاسيكية في المتصفح: تصفح حسب الفئة وإبرازات وصفحات تفصيل. للتعلّم والتبادل فقط.",
+      desc: "Play classic FC / arcade in the browser: switch platforms, browse genres, detail pages. For learning and exchange only.",
       href: "/game",
       tag: "مباشر",
       tone: "emerald",

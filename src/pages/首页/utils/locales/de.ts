@@ -46,6 +46,14 @@ export const de = {
   },
   works: [
     {
+      name: "Unendliche Leinwand",
+      desc: "KI-Kurzdrama-Leinwand: Prompt eingeben und Inhalte erzeugen. In Entwicklung.",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "Schicksal",
       desc: "Geburtsdaten und Frage eingeben, I-Ging-Deutung erzeugen. Nur für traditionelle Kultur und Unterhaltung.",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const de = {
     },
     {
       name: "Spiele",
-      desc: "Klassische Spiele im Browser: Kategorien, Highlights und Detailseiten. Nur zum Lernen & Austausch.",
+      desc: "Klassische FC-/Arcade-Spiele im Browser: Plattformwechsel, Genre-Browse und Detailseiten. Nur zum Lernen und Austausch.",
       href: "/game",
       tag: "Live",
       tone: "emerald",

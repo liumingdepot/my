@@ -144,7 +144,7 @@ function LangSelect({
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>(() => resolveLang(localStorage.getItem('lang')))
-  const [theme, setTheme] = useState(() => (localStorage.getItem('theme') === 'light' ? 'light' : 'dark'))
+  const [theme, setTheme] = useState(() => (localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'))
   const [menuOpen, setMenuOpen] = useState(false)
   const t = I18N[lang]
   const ui = t.ui
@@ -329,7 +329,8 @@ export default function Home() {
           <h2 className="section__title">{ui.worksTitle}</h2>
           <ul className="works-grid">
             {t.works.slice(0, WORKS_HOME_LIMIT).map((work, index) => {
-              const platformLabel = work.href === '/game' ? ui.platformPc : ui.platformAll
+              const platformLabel =
+                work.href === '/game' ? ui.platformPc : ui.platformAll
               const card = (
                 <>
                   <div className="work-card__top">

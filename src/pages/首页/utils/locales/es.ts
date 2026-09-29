@@ -46,6 +46,14 @@ export const es = {
   },
   works: [
     {
+      name: "Lienzo infinito",
+      desc: "Lienzo AI para cortos: escribe un prompt y genera contenido. En desarrollo.",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "Fortuna",
       desc: "Introduce fecha de nacimiento y una pregunta; genera una lectura del Yijing. Solo cultura tradicional y entretenimiento.",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const es = {
     },
     {
       name: "Juegos",
-      desc: "Juegos clásicos en el navegador: categorías, destacados y fichas. Solo aprendizaje e intercambio.",
+      desc: "Juega FC / arcade clasicos en el navegador: cambia de plataforma, explora por genero y juega en detalle. Solo aprendizaje e intercambio.",
       href: "/game",
       tag: "En línea",
       tone: "emerald",

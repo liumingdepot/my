@@ -23,6 +23,10 @@ Senior frontend engineer with 10 years of experience in micro-frontend architect
 
 My Portfolio
 
+### [Infinite Canvas](http://www.liuming1234.xyz/canvas) · WIP
+
+AI short-drama infinite canvas: enter a prompt to generate content. Under development.
+
 ### [Zhouyi](http://www.liuming1234.xyz/fortune) · Live
 
 Enter birth details and a question, then get an I Ching reading. For traditional culture and entertainment only.
@@ -39,9 +43,9 @@ Video site: home feed, movie / TV categories, search and playback. Public APIs; 
 
 Qimao short dramas: hot home, category browse, search and episode playback. Public APIs; for learning only.
 
-### [FC Games](http://www.liuming1234.xyz/game) · Live
+### [Games](http://www.liuming1234.xyz/game) · Live
 
-Play classic FC games in the browser: featured picks and detail pages. For learning & exchange only.
+Play classic FC / arcade games in the browser: switch platforms, browse by genre, and play on detail pages. For learning & exchange only.
 
 ### [Education](http://www.liuming1234.xyz/education) · Live
 

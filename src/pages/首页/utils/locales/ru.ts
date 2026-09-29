@@ -46,6 +46,14 @@ export const ru = {
   },
   works: [
     {
+      name: "Бесконечный холст",
+      desc: "AI-холст для коротких драм: введите промпт и получите контент. В разработке.",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "Гадание",
       desc: "Введите дату рождения и вопрос — получите трактовку по Ицзин. Только традиционная культура и развлечение.",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const ru = {
     },
     {
       name: "Игры",
-      desc: "Классические игры в браузере: категории, подборки и страницы деталей. Только для обучения и обмена.",
+      desc: "Classic FC / arcade in the browser: switch platforms, browse genres, play on detail pages. For learning and exchange only.",
       href: "/game",
       tag: "Онлайн",
       tone: "emerald",

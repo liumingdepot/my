@@ -46,6 +46,14 @@ export const pt = {
   },
   works: [
     {
+      name: "Canvas infinito",
+      desc: "Canvas AI para curtas: digite um prompt e gere conteúdo. Em desenvolvimento.",
+      href: "/canvas",
+      tag: "WIP",
+      tone: "violet",
+      glyph: "画",
+    },
+    {
       name: "Oráculo",
       desc: "Informe nascimento e uma pergunta; gere uma leitura do Yi Jing. Apenas cultura tradicional e entretenimento.",
       href: "/fortune",
@@ -79,7 +87,7 @@ export const pt = {
     },
     {
       name: "Jogos",
-      desc: "Jogos clássicos no navegador: categorias, destaques e páginas de detalhe. Apenas para aprendizado e troca.",
+      desc: "Jogue FC / arcade classicos no navegador: troque de plataforma, navegue por genero e jogue nas paginas. Apenas aprendizado e troca.",
       href: "/game",
       tag: "No ar",
       tone: "emerald",
