@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import styled from 'styled-components'
 import {
+  ensureStoryboardVideoPipeline,
   getUpstreamPayload,
   kindMeta,
   parseCanvasDocument,
   serializeCanvasDocument,
   syncAssetStoryboardEdges,
+  syncStoryboardVideoFields,
   type CanvasDocument,
   type CanvasNodeData,
   type CanvasNodeKind,
@@ -33,6 +35,7 @@ const FILTERS: { id: 'all' | CanvasNodeKind; label: string }[] = [
   { id: 'scene', label: '场景' },
   { id: 'prop', label: '道具' },
   { id: 'storyboard', label: '分镜' },
+  { id: 'compose', label: '成片合成' },
 ]
 
 export default function EditPage() {
@@ -54,6 +57,7 @@ export default function EditPage() {
   const updateNodeRef = useRef<
     ((nodeId: string, patch: Partial<CanvasNodeData>) => void) | null
   >(null)
+  const autoLayoutRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -65,16 +69,25 @@ export default function EditPage() {
       .then(async (data) => {
         if (cancelled) return
         const parsed = parseCanvasDocument(data.item.content, data.item.title)
+        const pipeline = ensureStoryboardVideoPipeline(parsed.nodes, parsed.edges)
+        const pipelineChanged =
+          pipeline.nodes.length !== parsed.nodes.length ||
+          pipeline.edges.length !== parsed.edges.length
+        const withPipeline: CanvasDocument = {
+          ...parsed,
+          nodes: pipeline.nodes,
+          edges: pipeline.edges,
+        }
         setItem(data.item)
-        setDoc(parsed)
-        if (!data.item.content?.trim()) {
+        setDoc(withPipeline)
+        if (!data.item.content?.trim() || pipelineChanged) {
           try {
             const { item: saved } = await updateProject(id, {
-              content: serializeCanvasDocument(parsed),
+              content: serializeCanvasDocument(withPipeline),
             })
             if (!cancelled) setItem(saved)
           } catch {
-            /* first-time seed best-effort */
+            /* first-time seed / pipeline sync best-effort */
           }
         }
       })
@@ -194,13 +207,14 @@ export default function EditPage() {
       updateNodeRef.current?.(nodeId, patch)
       setDoc((prev) => {
         if (!prev) return prev
+        const patched = prev.nodes.map((node) =>
+          node.id === nodeId
+            ? { ...node, data: { ...node.data, ...patch } }
+            : node,
+        )
         return {
           ...prev,
-          nodes: prev.nodes.map((node) =>
-            node.id === nodeId
-              ? { ...node, data: { ...node.data, ...patch } }
-              : node,
-          ),
+          nodes: syncStoryboardVideoFields(patched, nodeId, patch),
         }
       })
     },
@@ -261,6 +275,15 @@ export default function EditPage() {
           ) : null}
 
           <div className="header-actions">
+            <button
+              type="button"
+              className="align-btn"
+              disabled={!doc || loading}
+              onClick={() => autoLayoutRef.current?.()}
+              title="补齐分镜视频与成片合成，并按列竖排：资产 / 分镜图 / 分镜视频"
+            >
+              一键对齐
+            </button>
             <Link to={`/canvas/edit/${id}`} className="list-mode">
               列表模式
             </Link>
@@ -349,6 +372,7 @@ export default function EditPage() {
                 onSelectNode={setSelectedId}
                 onDocumentChange={onDocumentChange}
                 updateNodeRef={updateNodeRef}
+                autoLayoutRef={autoLayoutRef}
               />
               <NodeInspector
                 nodeId={selectedId}
@@ -539,6 +563,33 @@ const Style = styled.div`
     gap: 8px;
   }
 
+  .align-btn {
+    border: 1px solid #3f3f46;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s,
+      background 0.15s;
+
+    &:hover:not(:disabled) {
+      color: #fafafa;
+      border-color: #52525b;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+
   .list-mode {
     text-decoration: none;
     color: #5eead4;
@@ -684,6 +735,7 @@ const Style = styled.div`
     position: relative;
     flex: 1;
     min-width: 0;
+    min-height: 0;
     background: #0a0a0c;
   }
 
