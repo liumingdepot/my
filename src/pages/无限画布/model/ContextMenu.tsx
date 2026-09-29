@@ -20,7 +20,7 @@ const NODE_ITEMS: Item[] = [
   { id: 'image', label: '图片', enabled: true, icon: 'image' },
   { id: 'video', label: '视频', enabled: true, icon: 'video' },
   { id: 'audio', label: '音频', enabled: false, icon: 'audio' },
-  { id: 'compose', label: '视频合成', enabled: false, icon: 'compose' },
+  { id: 'compose', label: '成片合成', enabled: true, icon: 'compose' },
   { id: 'director', label: '导演台', enabled: false, icon: 'director' },
 ]
 
@@ -122,7 +122,12 @@ export default function ContextMenu({ state, onClose, onAddNode }: Props) {
 
   const pick = (item: Item) => {
     if (!item.enabled) return
-    if (item.id === 'text' || item.id === 'image' || item.id === 'video') {
+    if (
+      item.id === 'text' ||
+      item.id === 'image' ||
+      item.id === 'video' ||
+      item.id === 'compose'
+    ) {
       onAddNode(item.id, { x: state.flowX, y: state.flowY })
       onClose()
     }

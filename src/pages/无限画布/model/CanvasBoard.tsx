@@ -26,11 +26,14 @@ import {
 import styled from 'styled-components'
 import {
   createNodeAt,
+  autoLayoutDocument,
+  syncStoryboardVideoFields,
   type CanvasNodeData,
   type CanvasNodeKind,
 } from '../utils/canvasContent'
 import ContextMenu, { type ContextMenuState } from './ContextMenu'
 import AssetNode from './nodes/AssetNode'
+import ComposeNode from './nodes/ComposeNode'
 import ImageFlowNode from './nodes/ImageFlowNode'
 import ScriptNode from './nodes/ScriptNode'
 import StoryboardNode from './nodes/StoryboardNode'
@@ -44,6 +47,7 @@ const nodeTypes = {
   canvasScript: ScriptNode,
   canvasAsset: AssetNode,
   canvasStoryboard: StoryboardNode,
+  canvasCompose: ComposeNode,
 }
 
 const defaultEdgeOptions = {
@@ -67,6 +71,7 @@ type Props = {
   updateNodeRef?: MutableRefObject<
     ((nodeId: string, patch: Partial<CanvasNodeData>) => void) | null
   >
+  autoLayoutRef?: MutableRefObject<(() => void) | null>
 }
 
 function CanvasBoardInner({
@@ -77,6 +82,7 @@ function CanvasBoardInner({
   onSelectNode,
   onDocumentChange,
   updateNodeRef,
+  autoLayoutRef,
 }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -93,11 +99,12 @@ function CanvasBoardInner({
   const updateNodeData = useCallback(
     (nodeId: string, patch: Partial<CanvasNodeData>) => {
       setNodes((prev) => {
-        const next = prev.map((node) =>
+        const patched = prev.map((node) =>
           node.id === nodeId
             ? { ...node, data: { ...node.data, ...patch } }
             : node,
         )
+        const next = syncStoryboardVideoFields(patched, nodeId, patch)
         nodesRef.current = next
         return next
       })
@@ -179,8 +186,38 @@ function CanvasBoardInner({
     })
   }, [onDocumentChange])
 
+  const runAutoLayout = useCallback(() => {
+    const { nodes: nextNodes, edges: nextEdges } = autoLayoutDocument(
+      nodesRef.current,
+      edgesRef.current,
+    )
+    nodesRef.current = nextNodes
+    edgesRef.current = nextEdges
+    setNodes(nextNodes)
+    setEdges(nextEdges)
+    queueMicrotask(flushEmit)
+    window.setTimeout(() => {
+      void fitView({ padding: 0.2, duration: 420 })
+    }, 50)
+  }, [fitView, flushEmit, setEdges, setNodes])
+
+  useEffect(() => {
+    if (!autoLayoutRef) return
+    autoLayoutRef.current = runAutoLayout
+    return () => {
+      autoLayoutRef.current = null
+    }
+  }, [autoLayoutRef, runAutoLayout])
+
   const addNodeAt = useCallback(
     (kind: CanvasNodeKind, position: { x: number; y: number }) => {
+      if (kind === 'compose') {
+        const exists = nodesRef.current.find((n) => n.data.kind === 'compose')
+        if (exists) {
+          onSelectNode(exists.id)
+          return
+        }
+      }
       const node = createNodeAt(kind, {
         x: position.x + (Math.random() * 24 - 12),
         y: position.y + (Math.random() * 24 - 12),
@@ -321,10 +358,10 @@ export default function CanvasBoard(props: Props) {
 }
 
 const Board = styled.div`
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   background: #0f0f12;
 
   .react-flow__edge-path {
