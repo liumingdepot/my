@@ -1,7 +1,8 @@
 import Hls from 'hls.js'
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import styled from 'styled-components'
+import { saveWatchHistory } from '../utils/history'
 import { fetchDramaDetail, type DramaDetail, type DramaEpisode } from '../utils/server'
 
 const PLAY_FROM_KEY = 'short-play-from'
@@ -29,18 +30,22 @@ function pickUrl(ep: DramaEpisode) {
   return ep.video_url || ep.video_h265_url || ''
 }
 
+const PLAY_RATES = [0.75, 1, 1.25, 1.5, 2] as const
+
 type SlideProps = {
   ep: DramaEpisode
   title: string
   total: number
   active: boolean
+  clean: boolean
+  rate: number
   onEnded: () => void
+  onTap: () => void
 }
 
-function EpisodeSlide({ ep, title, total, active, onEnded }: SlideProps) {
+function EpisodeSlide({ ep, title, total, active, clean, rate, onEnded, onTap }: SlideProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
-  const [muted, setMuted] = useState(false)
   const [playError, setPlayError] = useState('')
   const playUrl = pickUrl(ep)
 
@@ -76,8 +81,15 @@ function EpisodeSlide({ ep, title, total, active, onEnded }: SlideProps) {
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    video.playbackRate = rate
+  }, [rate, playUrl, active])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
     if (active) {
-      video.muted = muted
+      video.muted = false
+      video.playbackRate = rate
       void video.play().catch(() => {})
     } else {
       video.pause()
@@ -87,28 +99,32 @@ function EpisodeSlide({ ep, title, total, active, onEnded }: SlideProps) {
         /* ignore */
       }
     }
-  }, [active, muted])
+  }, [active, rate])
 
-  function toggleMute(e: MouseEvent) {
-    e.stopPropagation()
-    setMuted((m) => !m)
-  }
-
-  function togglePlay() {
+  function handleTap() {
+    if (clean) {
+      onTap()
+      return
+    }
     const video = videoRef.current
     if (!video || !active) return
     if (video.paused) void video.play().catch(() => {})
     else video.pause()
   }
 
+  const cover = ep.first_img || ''
+
   return (
-    <Slide onClick={togglePlay}>
+    <Slide className={clean ? 'is-clean' : undefined} onClick={handleTap}>
+      <div className="glass" aria-hidden="true">
+        {cover ? <img src={cover} alt="" draggable={false} /> : null}
+      </div>
       <video
         ref={videoRef}
         playsInline
         loop={false}
-        muted={muted}
-        poster={ep.first_img || ''}
+        muted={false}
+        poster={cover}
         onEnded={onEnded}
       />
       <div className="shade" />
@@ -120,9 +136,6 @@ function EpisodeSlide({ ep, title, total, active, onEnded }: SlideProps) {
         </p>
         {playError ? <p className="err">{playError}</p> : null}
       </div>
-      <button type="button" className="mute" onClick={toggleMute} aria-label={muted ? '取消静音' : '静音'}>
-        {muted ? '🔇' : '🔊'}
-      </button>
     </Slide>
   )
 }
@@ -139,6 +152,9 @@ export default function PlayPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [epPanelOpen, setEpPanelOpen] = useState(false)
+  const [clean, setClean] = useState(false)
+  const [rate, setRate] = useState(1)
+  const [rateOpen, setRateOpen] = useState(false)
 
   epIndexRef.current = epIndex
 
@@ -172,6 +188,8 @@ export default function PlayPage() {
       setEpisodes([])
       setEpIndex(0)
       setEpPanelOpen(false)
+      setClean(false)
+      setRateOpen(false)
       try {
         const data = await fetchDramaDetail(id, ac.signal)
         if (cancelled) return
@@ -190,6 +208,18 @@ export default function PlayPage() {
       ac.abort()
     }
   }, [id])
+
+  useEffect(() => {
+    if (!detail) return
+    const current = episodes[epIndex]
+    saveWatchHistory({
+      id: String(detail.playlet_id || id),
+      title: detail.title,
+      pic: detail.image_link || current?.first_img || '',
+      sub: detail.total_episode_num ? `共 ${detail.total_episode_num} 集` : '短剧',
+      episode: current?.sort ? `第 ${current.sort} 集` : undefined,
+    })
+  }, [detail, epIndex, episodes, id])
 
   useEffect(() => {
     const root = scrollerRef.current
@@ -238,7 +268,7 @@ export default function PlayPage() {
     let dragMoved = false
 
     const go = (dir: 1 | -1) => {
-      if (locked || epPanelOpen) return
+      if (locked || epPanelOpen || rateOpen) return
       const cur = epIndexRef.current
       const max = episodes.length - 1
       const next = cur + dir
@@ -252,7 +282,7 @@ export default function PlayPage() {
     }
 
     const onWheel = (e: WheelEvent) => {
-      if (epPanelOpen) return
+      if (epPanelOpen || rateOpen) return
       if (Math.abs(e.deltaY) < 8 && Math.abs(e.deltaX) < 8) return
       e.preventDefault()
       if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
@@ -261,7 +291,7 @@ export default function PlayPage() {
     }
 
     const onPointerDown = (e: PointerEvent) => {
-      if (epPanelOpen) return
+      if (epPanelOpen || rateOpen) return
       if (e.pointerType !== 'mouse' || e.button !== 0) return
       const t = e.target as HTMLElement | null
       if (t?.closest('a, button, input')) return
@@ -306,12 +336,29 @@ export default function PlayPage() {
       root.removeEventListener('pointerup', onPointerUp)
       root.removeEventListener('pointercancel', onPointerUp)
     }
-  }, [episodes.length, epPanelOpen])
+  }, [episodes.length, epPanelOpen, rateOpen])
 
   function pickEpisode(i: number) {
     setEpPanelOpen(false)
+    setRateOpen(false)
     // 等面板关掉再滚，避免布局抖动
     requestAnimationFrame(() => scrollToIndex(i, 'auto'))
+  }
+
+  function enterClean() {
+    setClean(true)
+    setEpPanelOpen(false)
+    setRateOpen(false)
+  }
+
+  function toggleRatePanel() {
+    setRateOpen((o) => !o)
+    setEpPanelOpen(false)
+  }
+
+  function pickRate(next: number) {
+    setRate(next)
+    setRateOpen(false)
   }
 
   if (loading) {
@@ -341,7 +388,7 @@ export default function PlayPage() {
   const total = Number(detail.total_episode_num) || episodes.length
 
   return (
-    <Page>
+    <Page className={clean ? 'is-clean' : undefined}>
       <div className="top-bar">
         <Link className="back" to={back.to}>
           ← {back.label}
@@ -364,6 +411,9 @@ export default function PlayPage() {
               title={detail.title}
               total={total}
               active={i === epIndex}
+              clean={clean}
+              rate={rate}
+              onTap={() => setClean(false)}
               onEnded={() => {
                 if (i < episodes.length - 1) scrollToIndex(i + 1)
               }}
@@ -381,24 +431,72 @@ export default function PlayPage() {
         <aside className="side-actions">
           <button
             type="button"
+            className="tool-fab"
+            onClick={enterClean}
+            aria-label="清屏"
+            title="清屏"
+          >
+            <svg className="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M3 5h4V3H1v6h2V5zm16 0v2h2V3h-6v2h4zM5 19H3v-4H1v6h6v-2H5zm16-4h2v6h-6v-2h4v-4zM8 8h8v8H8V8z"
+              />
+            </svg>
+          </button>
+
+          <div className={`rate-wrap${rateOpen ? ' open' : ''}`}>
+            {rateOpen ? (
+              <div className="rate-menu" role="listbox" aria-label="播放速度">
+                {PLAY_RATES.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    role="option"
+                    aria-selected={rate === r}
+                    className={rate === r ? 'on' : ''}
+                    onClick={() => pickRate(r)}
+                  >
+                    {r === 1 ? '1x' : `${r}x`}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className={`tool-fab rate-fab${rate !== 1 ? ' on' : ''}`}
+              onClick={toggleRatePanel}
+              aria-expanded={rateOpen}
+              aria-label={`倍速 ${rate}x`}
+              title="倍速"
+            >
+              <span className="rate-label">{rate === 1 ? '倍速' : `${rate}x`}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
             className={`ep-fab${epPanelOpen ? ' on' : ''}`}
-            onClick={() => setEpPanelOpen((o) => !o)}
+            onClick={() => {
+              setEpPanelOpen((o) => !o)
+              setRateOpen(false)
+            }}
             aria-expanded={epPanelOpen}
             aria-label={`选集，当前第 ${current?.sort ?? epIndex + 1} 集`}
             title="选集"
           >
             <svg className="ep-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="4" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.95" />
-              <rect x="14" y="4" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.55" />
-              <rect x="3" y="13" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.55" />
-              <rect x="14" y="13" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.55" />
+              <rect x="3" y="3.5" width="5" height="5" rx="1.2" fill="currentColor" />
+              <rect x="10" y="4.5" width="11" height="3" rx="1" fill="currentColor" opacity="0.9" />
+              <rect x="3" y="9.5" width="5" height="5" rx="1.2" fill="currentColor" opacity="0.85" />
+              <rect x="10" y="10.5" width="11" height="3" rx="1" fill="currentColor" opacity="0.75" />
+              <rect x="3" y="15.5" width="5" height="5" rx="1.2" fill="currentColor" opacity="0.7" />
+              <rect x="10" y="16.5" width="11" height="3" rx="1" fill="currentColor" opacity="0.6" />
             </svg>
-            <span className="ep-fab-num">{current?.sort ?? epIndex + 1}</span>
           </button>
         </aside>
       ) : null}
 
-      {episodes.length > 1 ? <p className="hint">上下滑动切换集数</p> : null}
+      {episodes.length > 1 ? <p className="hint">上下滑动切换集数 · 播完自动下一集</p> : null}
 
       {epPanelOpen ? (
         <div className="ep-sheet" role="dialog" aria-label="分集列表">
@@ -547,15 +645,13 @@ const Page = styled.div`
     gap: 12px;
   }
 
+  .tool-fab,
   .ep-fab {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
+    display: grid;
+    place-items: center;
     width: 44px;
-    min-height: 44px;
-    padding: 6px 0 4px;
+    height: 44px;
+    padding: 0;
     border: 0;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.45);
@@ -580,21 +676,68 @@ const Page = styled.div`
     }
   }
 
+  .tool-icon,
   .ep-icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     display: block;
   }
 
-  .ep-fab-num {
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1;
-    color: rgba(255, 255, 255, 0.72);
+  .rate-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
-  .ep-fab.on .ep-fab-num {
-    color: #3eba7a;
+  .rate-fab {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .rate-label {
+    line-height: 1;
+  }
+
+  .rate-menu {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 14px;
+    background: rgba(8, 14, 11, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+
+    button {
+      min-width: 52px;
+      min-height: 34px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.85);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+
+      &:hover {
+        color: #3eba7a;
+        background: rgba(62, 186, 122, 0.16);
+      }
+
+      &.on {
+        color: #04120a;
+        background: linear-gradient(145deg, #4fd18a, #2f9d5f);
+      }
+    }
   }
 
   .hint {
@@ -608,6 +751,16 @@ const Page = styled.div`
     letter-spacing: 0.18em;
     color: rgba(255, 255, 255, 0.35);
     pointer-events: none;
+  }
+
+  &.is-clean {
+    .top-bar,
+    .hint,
+    .side-actions {
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+    }
   }
 
   .ep-sheet {
@@ -728,12 +881,18 @@ const Page = styled.div`
 
     .ep-fab {
       width: 48px;
-      min-height: 48px;
+      height: 48px;
     }
 
+    .tool-fab {
+      width: 48px;
+      height: 48px;
+    }
+
+    .tool-icon,
     .ep-icon {
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
     }
 
     .ep-panel {
@@ -771,20 +930,52 @@ const Slide = styled.article`
   background: #000;
   cursor: pointer;
   user-select: none;
+  overflow: hidden;
+
+  .glass {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #0a0a0a;
+
+    img {
+      position: absolute;
+      inset: -18%;
+      width: 136%;
+      height: 136%;
+      object-fit: cover;
+      filter: blur(56px) brightness(0.48) saturate(1.25);
+      transform: scale(1.05);
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 55% 70% at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.35) 100%),
+        rgba(0, 0, 0, 0.22);
+    }
+  }
 
   video {
     position: absolute;
     inset: 0;
+    z-index: 1;
     width: 100%;
     height: 100%;
     object-fit: contain;
-    background: #000;
+    background: transparent;
     pointer-events: none;
   }
 
   .shade {
     position: absolute;
     inset: 0;
+    z-index: 2;
     background: linear-gradient(
       180deg,
       rgba(0, 0, 0, 0.4) 0%,
@@ -793,6 +984,7 @@ const Slide = styled.article`
       rgba(0, 0, 0, 0.7) 100%
     );
     pointer-events: none;
+    transition: opacity 0.2s ease;
   }
 
   .meta {
@@ -800,9 +992,23 @@ const Slide = styled.article`
     left: 0;
     right: 84px;
     bottom: 0;
-    z-index: 2;
+    z-index: 3;
     padding: 20px 20px 36px;
     pointer-events: none;
+    transition:
+      opacity 0.2s ease,
+      visibility 0.2s ease;
+  }
+
+  &.is-clean {
+    .shade {
+      opacity: 0.25;
+    }
+
+    .meta {
+      opacity: 0;
+      visibility: hidden;
+    }
   }
 
   h2 {
@@ -827,34 +1033,14 @@ const Slide = styled.article`
     color: #e07070;
   }
 
-  .mute {
-    position: absolute;
-    right: 16px;
-    bottom: 120px;
-    z-index: 3;
-    width: 44px;
-    height: 44px;
-    border: 0;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    font-size: 18px;
-    cursor: pointer;
-    backdrop-filter: blur(6px);
-    -webkit-tap-highlight-color: transparent;
-  }
-
   @media (max-width: 600px) {
     .meta {
       right: 72px;
       padding: 16px 14px 28px;
     }
 
-    .mute {
-      right: 12px;
-      bottom: 108px;
-      width: 40px;
-      height: 40px;
+    .glass img {
+      filter: blur(40px) brightness(0.5) saturate(1.2);
     }
   }
 `

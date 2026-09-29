@@ -3,6 +3,14 @@ import { useSearchParams } from 'react-router'
 import styled from 'styled-components'
 import DramaCard from './DramaCard'
 import Pager from './Pager'
+import SearchHistory from './SearchHistory'
+import {
+  clearSearchHistory,
+  deleteSearchHistory,
+  readSearchHistory,
+  saveSearchHistory,
+  subscribeSearchHistory,
+} from '../utils/history'
 import { searchDramas, type DramaListItem } from '../utils/server'
 
 function parsePage(raw: string | null) {
@@ -20,9 +28,16 @@ export default function SearchPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
+
+  useEffect(() => subscribeSearchHistory(() => setSearchHistory(readSearchHistory())), [])
 
   useEffect(() => {
     setDraft(q)
+  }, [q])
+
+  useEffect(() => {
+    if (q) saveSearchHistory(q)
   }, [q])
 
   useEffect(() => {
@@ -64,7 +79,18 @@ export default function SearchPage() {
     e.preventDefault()
     const text = draft.trim()
     const sp = new URLSearchParams()
-    if (text) sp.set('q', text)
+    if (text) {
+      saveSearchHistory(text)
+      sp.set('q', text)
+    }
+    setParams(sp, { replace: true })
+  }
+
+  function pickHistory(keyword: string) {
+    setDraft(keyword)
+    saveSearchHistory(keyword)
+    const sp = new URLSearchParams()
+    sp.set('q', keyword)
     setParams(sp, { replace: true })
   }
 
@@ -90,7 +116,20 @@ export default function SearchPage() {
           <button type="submit">搜索</button>
         </form>
 
-        {!q ? <Status>输入剧名开始搜索</Status> : null}
+        {!q ? (
+          searchHistory.length ? (
+            <div className="history-wrap">
+              <SearchHistory
+                items={searchHistory}
+                onPick={pickHistory}
+                onDelete={deleteSearchHistory}
+                onClear={clearSearchHistory}
+              />
+            </div>
+          ) : (
+            <Status>输入剧名开始搜索</Status>
+          )
+        ) : null}
         {q && loading && !list.length ? <Status>检索中…</Status> : null}
         {q && !loading && error ? <Status className="err">{error}</Status> : null}
         {q && !loading && !error ? (
@@ -159,6 +198,10 @@ const Page = styled.div`
       font-weight: 700;
       cursor: pointer;
     }
+  }
+
+  .history-wrap {
+    margin: 0 0 20px;
   }
 
   .hint {

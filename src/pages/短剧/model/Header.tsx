@@ -1,7 +1,16 @@
 import { Link, useNavigate } from 'react-router'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
+import SearchHistory from './SearchHistory'
+import WatchHistoryMenu from './WatchHistoryMenu'
 import { CATEGORY_LINKS, type NavKey } from '../utils/categories'
+import {
+  clearSearchHistory,
+  deleteSearchHistory,
+  readSearchHistory,
+  saveSearchHistory,
+  subscribeSearchHistory,
+} from '../utils/history'
 
 type Props = {
   active: NavKey
@@ -12,9 +21,12 @@ type Props = {
 export default function Header({ active, hideSearch, overlay }: Props) {
   const navigate = useNavigate()
   const catWrapRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLFormElement>(null)
   const [scrolled, setScrolled] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [catOpen, setCatOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
 
   const isCatActive = active !== 'home'
 
@@ -28,6 +40,8 @@ export default function Header({ active, hideSearch, overlay }: Props) {
   useEffect(() => {
     setCatOpen(false)
   }, [active])
+
+  useEffect(() => subscribeSearchHistory(() => setSearchHistory(readSearchHistory())), [])
 
   useEffect(() => {
     if (!catOpen) return
@@ -45,18 +59,47 @@ export default function Header({ active, hideSearch, overlay }: Props) {
     }
   }, [catOpen])
 
-  function onSearch(e: FormEvent) {
-    e.preventDefault()
-    const q = keyword.trim()
-    if (!q) {
+  useEffect(() => {
+    if (!focused) return
+    function onPointer(e: PointerEvent) {
+      if (!searchRef.current?.contains(e.target as Node)) setFocused(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFocused(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [focused])
+
+  function goSearch(q: string) {
+    const text = q.trim()
+    if (!text) {
       navigate('/short/search')
+      setFocused(false)
       return
     }
-    navigate(`/short/search?q=${encodeURIComponent(q)}`)
+    saveSearchHistory(text)
+    setFocused(false)
+    navigate(`/short/search?q=${encodeURIComponent(text)}`)
   }
 
+  function onSearch(e: FormEvent) {
+    e.preventDefault()
+    goSearch(keyword)
+  }
+
+  const showHistory = focused && !hideSearch && searchHistory.length > 0
+
   return (
-    <Bar data-scrolled={scrolled || overlay ? '1' : '0'} data-overlay={overlay ? '1' : '0'}>
+    <Bar
+      data-scrolled={scrolled || overlay ? '1' : '0'}
+      data-overlay={overlay ? '1' : '0'}
+      data-hide-search={hideSearch ? '1' : '0'}
+    >
       <div className="inner">
         <div className="top">
           <Link to="/short" className="brand">
@@ -64,69 +107,83 @@ export default function Header({ active, hideSearch, overlay }: Props) {
             <span className="brand-text">铭短剧</span>
           </Link>
 
-          {hideSearch ? null : (
-            <form className="search" onSubmit={onSearch} role="search">
-              <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-                <path
-                  d="M16.5 16.5L21 21"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <input
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="搜索短剧名称…"
-                aria-label="搜索短剧"
-              />
-              <button type="submit" className="go">
-                搜索
+          <nav className="nav">
+            <Link to="/short" className={active === 'home' ? 'is-active' : ''} onClick={() => setCatOpen(false)}>
+              首页
+            </Link>
+            <div className="cat-wrap" ref={catWrapRef}>
+              <button
+                type="button"
+                className={`cat-btn${isCatActive ? ' is-active' : ''}${catOpen ? ' is-open' : ''}`}
+                aria-expanded={catOpen}
+                aria-haspopup="listbox"
+                onClick={() => setCatOpen((o) => !o)}
+              >
+                分类
+                <span className="chev" aria-hidden="true" />
               </button>
-            </form>
-          )}
+              {catOpen ? (
+                <div className="cat-panel" role="listbox" aria-label="短剧分类">
+                  {CATEGORY_LINKS.map((item) => (
+                    <Link
+                      key={item.key}
+                      to={item.path}
+                      role="option"
+                      aria-selected={active === item.key}
+                      className={active === item.key ? 'is-active' : ''}
+                      onClick={() => setCatOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </nav>
 
-          <Link to="/works" className="works-back" aria-label="返回作品集">
-            <span className="full">返回作品集</span>
-            <span className="short">作品集</span>
-          </Link>
+          <div className="actions">
+            <WatchHistoryMenu />
+          </div>
         </div>
 
-        <nav className="nav">
-          <Link to="/short" className={active === 'home' ? 'is-active' : ''} onClick={() => setCatOpen(false)}>
-            首页
-          </Link>
-          <div className="cat-wrap" ref={catWrapRef}>
-            <button
-              type="button"
-              className={`cat-btn${isCatActive ? ' is-active' : ''}${catOpen ? ' is-open' : ''}`}
-              aria-expanded={catOpen}
-              aria-haspopup="listbox"
-              onClick={() => setCatOpen((o) => !o)}
-            >
-              分类
-              <span className="chev" aria-hidden="true" />
+        {hideSearch ? null : (
+          <form className="search" onSubmit={onSearch} role="search" ref={searchRef}>
+            <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="M16.5 16.5L21 21"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onFocus={() => setFocused(true)}
+              placeholder="搜索短剧名称…"
+              aria-label="搜索短剧"
+              aria-expanded={showHistory}
+            />
+            <button type="submit" className="go">
+              搜索
             </button>
-            {catOpen ? (
-              <div className="cat-panel" role="listbox" aria-label="短剧分类">
-                {CATEGORY_LINKS.map((item) => (
-                  <Link
-                    key={item.key}
-                    to={item.path}
-                    role="option"
-                    aria-selected={active === item.key}
-                    className={active === item.key ? 'is-active' : ''}
-                    onClick={() => setCatOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+            {showHistory ? (
+              <div className="history-panel">
+                <SearchHistory
+                  items={searchHistory}
+                  onPick={(q) => {
+                    setKeyword(q)
+                    goSearch(q)
+                  }}
+                  onDelete={deleteSearchHistory}
+                  onClear={clearSearchHistory}
+                />
               </div>
             ) : null}
-          </div>
-        </nav>
+          </form>
+        )}
       </div>
     </Bar>
   )
@@ -184,37 +241,12 @@ const Bar = styled.header`
     display: contents;
   }
 
-  .works-back {
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-shrink: 0;
     order: 4;
-    display: inline-flex;
-    align-items: center;
-    min-height: 34px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(232, 245, 238, 0.78);
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-    transition:
-      color 0.2s,
-      border-color 0.2s,
-      background 0.2s;
-
-    .short {
-      display: none;
-    }
-
-    &:hover {
-      color: #e8f5ee;
-      border-color: rgba(62, 186, 122, 0.45);
-      background: rgba(62, 186, 122, 0.12);
-    }
   }
 
   .brand {
@@ -456,6 +488,22 @@ const Bar = styled.header`
         opacity: 0.92;
       }
     }
+
+    .history-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      right: 0;
+      min-width: 280px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(10, 18, 14, 0.96);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      z-index: 60;
+    }
   }
 
   /* PC 首页 feed：仍显示搜索，顶栏单行 */
@@ -467,6 +515,20 @@ const Bar = styled.header`
 
   @media (max-width: 900px) {
     height: 96px;
+
+    &[data-hide-search='1'] {
+      height: 52px;
+
+      .inner {
+        height: 52px;
+        padding: 0 12px;
+      }
+
+      .top {
+        flex: 1;
+        min-width: 0;
+      }
+    }
 
     .inner {
       max-width: 100%;
@@ -481,8 +543,9 @@ const Bar = styled.header`
     .top {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       min-width: 0;
+      order: 1;
     }
 
     .brand {
@@ -500,43 +563,29 @@ const Bar = styled.header`
       font-size: 18px;
     }
 
-    .search {
-      order: 0;
-      flex: 1;
-      min-width: 0;
-      height: 36px;
-      padding-left: 34px;
-
-      input {
-        width: auto;
-        font-size: 13px;
-      }
-
-      .go {
-        padding: 0 12px;
-      }
-    }
-
     .nav {
       order: 0;
-      flex: none;
-      width: 100%;
+      flex: 1;
+      width: auto;
+      min-width: 0;
       height: 36px;
       gap: 4px;
 
       > a,
       .cat-btn {
-        padding: 8px 14px;
+        padding: 8px 12px;
         font-size: 13px;
 
         &::after {
-          left: 14px;
-          right: 14px;
+          left: 12px;
+          right: 12px;
           bottom: 0;
         }
       }
 
       .cat-panel {
+        left: auto;
+        right: 0;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         width: min(92vw, 320px);
         max-height: min(58vh, 360px);
@@ -551,55 +600,37 @@ const Bar = styled.header`
       }
     }
 
-    .works-back {
+    .actions {
       order: 0;
-      min-height: 32px;
-      padding: 0 10px;
-      font-size: 11px;
+      gap: 6px;
+    }
 
-      .full {
-        display: none;
+    .search {
+      order: 2;
+      flex: none;
+      width: 100%;
+      height: 36px;
+      padding-left: 34px;
+
+      input {
+        width: auto;
+        font-size: 13px;
       }
 
-      .short {
-        display: inline;
+      .go {
+        padding: 0 12px;
+      }
+
+      .history-panel {
+        left: 0;
+        right: 0;
+        min-width: 0;
       }
     }
 
     &[data-overlay='1'] {
-      height: 52px;
-
-      .inner {
-        height: 52px;
-        flex-direction: row;
-        align-items: center;
-        gap: 10px;
-        padding: 0 12px;
-      }
-
-      .top {
-        display: contents;
-      }
-
-      .nav {
-        flex: 1;
-        width: auto;
-        height: auto;
-        min-width: 0;
-      }
-
-      /* 移动端 feed 仍隐藏搜索，避免挤占 */
       .search {
-        display: none;
-      }
-
-      .works-back {
-        order: 3;
-      }
-
-      .cat-panel {
-        left: auto;
-        right: 0;
+        display: flex;
       }
     }
   }
@@ -616,10 +647,6 @@ const Bar = styled.header`
         padding: 0 10px;
         font-size: 11px;
       }
-    }
-
-    .works-back {
-      padding: 0 8px;
     }
   }
 `

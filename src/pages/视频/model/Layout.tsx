@@ -71,7 +71,11 @@ export default function Layout() {
   return (
     <>
       <Global />
-      <Shell data-compact={hideFooter ? '1' : '0'} data-theme={active}>
+      <Shell
+        data-compact={hideFooter ? '1' : '0'}
+        data-theme={active}
+        data-hide-search={hideSearch ? '1' : '0'}
+      >
         <Header active={active} hideSearch={hideSearch} />
         <main>
           <Outlet />
@@ -212,11 +216,19 @@ const Shell = styled.div`
 
   @media (max-width: 900px) {
     main {
+      padding-top: 132px;
+    }
+
+    &[data-hide-search='1'] main {
       padding-top: 96px;
     }
 
     &[data-compact='1'] main {
       height: 100dvh;
+      padding-top: 132px;
+    }
+
+    &[data-compact='1'][data-hide-search='1'] main {
       padding-top: 96px;
     }
   }

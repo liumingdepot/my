@@ -1,6 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import styled from 'styled-components'
+import SearchHistory from './SearchHistory'
+import WatchHistoryMenu from './WatchHistoryMenu'
+import {
+  clearSearchHistory,
+  deleteSearchHistory,
+  readSearchHistory,
+  saveSearchHistory,
+  saveWatchHistory,
+  subscribeSearchHistory,
+} from '../utils/history'
 import {
   fetchEducationDetail,
   fetchEducationPlay,
@@ -13,6 +23,7 @@ export default function PlayPage() {
   const { bvid: bvidParam = '' } = useParams()
   const bvid = decodeURIComponent(bvidParam).trim()
   const navigate = useNavigate()
+  const searchRef = useRef<HTMLFormElement>(null)
 
   const [detail, setDetail] = useState<EducationDetail | null>(null)
   const [episodeIndex, setEpisodeIndex] = useState(0)
@@ -23,6 +34,8 @@ export default function PlayPage() {
   const [playError, setPlayError] = useState('')
   const [mediaReady, setMediaReady] = useState(false)
   const [draftQ, setDraftQ] = useState('')
+  const [focused, setFocused] = useState(false)
+  const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useLayoutEffect(() => {
@@ -62,6 +75,35 @@ export default function PlayPage() {
   }, [bvid])
 
   const currentPage = detail?.pages[episodeIndex] ?? detail?.pages[0] ?? null
+
+  useEffect(() => {
+    if (!detail) return
+    saveWatchHistory({
+      bvid: detail.bvid,
+      title: detail.title,
+      pic: detail.pic,
+      author: detail.author,
+      episode: currentPage?.part || (detail.pages.length > 1 ? `P${episodeIndex + 1}` : undefined),
+    })
+  }, [detail, currentPage?.part, episodeIndex])
+
+  useEffect(() => subscribeSearchHistory(() => setSearchHistory(readSearchHistory())), [])
+
+  useEffect(() => {
+    if (!focused) return
+    function onPointer(e: PointerEvent) {
+      if (!searchRef.current?.contains(e.target as Node)) setFocused(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFocused(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [focused])
 
   useEffect(() => {
     if (!detail?.pages.length) return
@@ -120,12 +162,23 @@ export default function PlayPage() {
   function onSearch(e: FormEvent) {
     e.preventDefault()
     const trimmed = draftQ.trim()
+    setFocused(false)
     if (!trimmed) {
       navigate('/education')
       return
     }
+    saveSearchHistory(trimmed)
     navigate(`/education?q=${encodeURIComponent(trimmed)}`)
   }
+
+  function pickHistory(keyword: string) {
+    setDraftQ(keyword)
+    setFocused(false)
+    saveSearchHistory(keyword)
+    navigate(`/education?q=${encodeURIComponent(keyword)}`)
+  }
+
+  const showSearchHistory = focused && searchHistory.length > 0
 
   return (
     <Style>
@@ -136,7 +189,7 @@ export default function PlayPage() {
             <span className="brand__text">铭教育</span>
           </Link>
 
-          <form className="search" onSubmit={onSearch} role="search">
+          <form className="search" onSubmit={onSearch} role="search" ref={searchRef}>
             <svg className="search__icon" viewBox="0 0 24 24" aria-hidden>
               <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
               <path
@@ -150,17 +203,29 @@ export default function PlayPage() {
             <input
               value={draftQ}
               onChange={(e) => setDraftQ(e.target.value)}
+              onFocus={() => setFocused(true)}
               placeholder="搜索课程…"
               aria-label="在教育范围内搜索"
+              aria-expanded={showSearchHistory}
             />
             <button type="submit" className="search__go">
               搜索
             </button>
+            {showSearchHistory ? (
+              <div className="search__history">
+                <SearchHistory
+                  items={searchHistory}
+                  onPick={pickHistory}
+                  onDelete={deleteSearchHistory}
+                  onClear={clearSearchHistory}
+                />
+              </div>
+            ) : null}
           </form>
 
-          <Link to="/works" className="works-back">
-            返回作品集
-          </Link>
+          <div className="actions">
+            <WatchHistoryMenu />
+          </div>
         </div>
       </header>
 
@@ -359,29 +424,15 @@ const Style = styled.div`
     letter-spacing: 0.12em;
   }
 
-  .works-back {
-    flex-shrink: 0;
-    display: inline-flex;
+  .actions {
+    display: flex;
     align-items: center;
-    min-height: 2.1rem;
-    padding: 0 0.85rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-
-    &:hover {
-      color: var(--text);
-      border-color: color-mix(in srgb, #c9a46a 45%, transparent);
-    }
+    gap: 0.5rem;
+    flex-shrink: 0;
   }
 
   .search {
+    position: relative;
     display: flex;
     align-items: center;
     flex: 0 1 18rem;
@@ -446,6 +497,22 @@ const Style = styled.div`
     }
   }
 
+  .search__history {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    min-width: 260px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(14, 16, 20, 0.97);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 60;
+  }
+
   .main {
     padding: 1.5rem 0 3rem;
     flex: 1;
@@ -464,24 +531,30 @@ const Style = styled.div`
   .back {
     display: inline-flex;
     align-items: center;
-    margin: 0 0 0.85rem;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--muted);
+    gap: 0.25rem;
+    margin: 0 0 0.9rem;
+    min-height: 2.125rem;
+    padding: 0 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(201, 164, 106, 0.45);
+    background: rgba(201, 164, 106, 0.14);
+    color: var(--gold);
     font: inherit;
     font-size: 0.85rem;
+    font-weight: 600;
     letter-spacing: 0.02em;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
 
     &:hover {
-      color: var(--gold);
+      border-color: var(--gold);
+      background: linear-gradient(145deg, #e2c48a, #c9a46a);
+      color: #14110c;
     }
   }
 
   .status .back {
-    display: block;
+    display: inline-flex;
   }
 
   .main-row {

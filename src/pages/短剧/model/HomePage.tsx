@@ -1,5 +1,5 @@
 import Hls from 'hls.js'
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import styled from 'styled-components'
 import { fetchFeed, type FeedItem } from '../utils/server'
@@ -21,7 +21,6 @@ type SlideProps = {
 function FeedSlide({ item, active, onEnded }: SlideProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
-  const [muted, setMuted] = useState(true)
   const [playError, setPlayError] = useState('')
   const playUrl = pickUrl(item.episode)
 
@@ -58,7 +57,7 @@ function FeedSlide({ item, active, onEnded }: SlideProps) {
     const video = videoRef.current
     if (!video) return
     if (active) {
-      video.muted = muted
+      video.muted = false
       void video.play().catch(() => {})
     } else {
       video.pause()
@@ -68,12 +67,7 @@ function FeedSlide({ item, active, onEnded }: SlideProps) {
         /* ignore */
       }
     }
-  }, [active, muted])
-
-  function toggleMute(e: MouseEvent) {
-    e.stopPropagation()
-    setMuted((m) => !m)
-  }
+  }, [active])
 
   function togglePlay() {
     const video = videoRef.current
@@ -82,14 +76,19 @@ function FeedSlide({ item, active, onEnded }: SlideProps) {
     else video.pause()
   }
 
+  const cover = item.episode.first_img || item.drama.image_link || ''
+
   return (
     <Slide onClick={togglePlay}>
+      <div className="glass" aria-hidden="true">
+        {cover ? <img src={cover} alt="" draggable={false} /> : null}
+      </div>
       <video
         ref={videoRef}
         playsInline
         loop={false}
-        muted={muted}
-        poster={item.episode.first_img || item.drama.image_link}
+        muted={false}
+        poster={cover}
         onEnded={onEnded}
       />
       <div className="shade" />
@@ -112,9 +111,6 @@ function FeedSlide({ item, active, onEnded }: SlideProps) {
           看全集 →
         </Link>
       </div>
-      <button type="button" className="mute" onClick={toggleMute} aria-label={muted ? '取消静音' : '静音'}>
-        {muted ? '🔇' : '🔊'}
-      </button>
     </Slide>
   )
 }
@@ -403,14 +399,45 @@ const Slide = styled.article`
   background: #000;
   cursor: pointer;
   user-select: none;
+  overflow: hidden;
+
+  .glass {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #0a0a0a;
+
+    img {
+      position: absolute;
+      inset: -18%;
+      width: 136%;
+      height: 136%;
+      object-fit: cover;
+      filter: blur(56px) brightness(0.48) saturate(1.25);
+      transform: scale(1.05);
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 55% 70% at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.35) 100%),
+        rgba(0, 0, 0, 0.22);
+    }
+  }
 
   video {
     position: absolute;
     inset: 0;
+    z-index: 1;
     width: 100%;
     height: 100%;
     object-fit: contain;
-    background: #000;
+    background: transparent;
     /* 让滚轮/拖拽落到外层 feed，避免 video 劫持 PC 交互 */
     pointer-events: none;
   }
@@ -418,6 +445,7 @@ const Slide = styled.article`
   .shade {
     position: absolute;
     inset: 0;
+    z-index: 2;
     background: linear-gradient(
       180deg,
       rgba(0, 0, 0, 0.45) 0%,
@@ -431,9 +459,9 @@ const Slide = styled.article`
   .meta {
     position: absolute;
     left: 0;
-    right: 72px;
+    right: 0;
     bottom: 0;
-    z-index: 2;
+    z-index: 3;
     padding: 20px 20px 36px;
     pointer-events: none;
 
@@ -509,34 +537,13 @@ const Slide = styled.article`
     }
   }
 
-  .mute {
-    position: absolute;
-    right: 16px;
-    bottom: 120px;
-    z-index: 3;
-    width: 44px;
-    height: 44px;
-    border: 0;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    font-size: 18px;
-    cursor: pointer;
-    backdrop-filter: blur(6px);
-    -webkit-tap-highlight-color: transparent;
-  }
-
   @media (max-width: 600px) {
     .meta {
-      right: 56px;
       padding: 16px 14px 28px;
     }
 
-    .mute {
-      right: 12px;
-      bottom: 100px;
-      width: 40px;
-      height: 40px;
+    .glass img {
+      filter: blur(40px) brightness(0.5) saturate(1.2);
     }
   }
 `

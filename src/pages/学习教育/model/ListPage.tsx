@@ -1,6 +1,15 @@
-import { useEffect, useLayoutEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import styled from 'styled-components'
+import SearchHistory from './SearchHistory'
+import WatchHistoryMenu from './WatchHistoryMenu'
+import {
+  clearSearchHistory,
+  deleteSearchHistory,
+  readSearchHistory,
+  saveSearchHistory,
+  subscribeSearchHistory,
+} from '../utils/history'
 import {
   fetchEducationSources,
   fetchEducationVideos,
@@ -78,6 +87,9 @@ export default function ListPage() {
   const [listLoading, setListLoading] = useState(false)
   const [error, setError] = useState('')
   const [draftQ, setDraftQ] = useState(q)
+  const [focused, setFocused] = useState(false)
+  const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
+  const searchRef = useRef<HTMLFormElement>(null)
 
   const activeSource = useMemo(
     () => sources.find((item) => item.id === sourceId) ?? null,
@@ -158,6 +170,28 @@ export default function ListPage() {
   }, [q])
 
   useEffect(() => {
+    if (q) saveSearchHistory(q)
+  }, [q])
+
+  useEffect(() => subscribeSearchHistory(() => setSearchHistory(readSearchHistory())), [])
+
+  useEffect(() => {
+    if (!focused) return
+    function onPointer(e: PointerEvent) {
+      if (!searchRef.current?.contains(e.target as Node)) setFocused(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFocused(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [focused])
+
+  useEffect(() => {
     if (!sourceId || !typeId) {
       setItems([])
       setTotal(0)
@@ -197,6 +231,8 @@ export default function ListPage() {
 
   function applySearch(next: string) {
     const trimmed = next.trim()
+    if (trimmed) saveSearchHistory(trimmed)
+    setFocused(false)
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev)
@@ -218,7 +254,13 @@ export default function ListPage() {
     applySearch('')
   }
 
+  function pickHistory(keyword: string) {
+    setDraftQ(keyword)
+    applySearch(keyword)
+  }
+
   const safePage = Math.min(page, pageCount)
+  const showSearchHistory = focused && searchHistory.length > 0
 
   return (
     <Style>
@@ -253,7 +295,7 @@ export default function ListPage() {
             </nav>
           )}
 
-          <form className="search" onSubmit={onSearch} role="search">
+          <form className="search" onSubmit={onSearch} role="search" ref={searchRef}>
             <svg className="search__icon" viewBox="0 0 24 24" aria-hidden>
               <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
               <path
@@ -267,8 +309,10 @@ export default function ListPage() {
             <input
               value={draftQ}
               onChange={(e) => setDraftQ(e.target.value)}
+              onFocus={() => setFocused(true)}
               placeholder="搜索课程…"
               aria-label="在教育范围内搜索"
+              aria-expanded={showSearchHistory}
             />
             {draftQ || q ? (
               <button type="button" className="search__clear" onClick={clearSearch} aria-label="清除搜索">
@@ -278,11 +322,21 @@ export default function ListPage() {
             <button type="submit" className="search__go">
               搜索
             </button>
+            {showSearchHistory ? (
+              <div className="search__history">
+                <SearchHistory
+                  items={searchHistory}
+                  onPick={pickHistory}
+                  onDelete={deleteSearchHistory}
+                  onClear={clearSearchHistory}
+                />
+              </div>
+            ) : null}
           </form>
 
-          <Link to="/works" className="works-back">
-            返回作品集
-          </Link>
+          <div className="actions">
+            <WatchHistoryMenu />
+          </div>
         </div>
       </header>
 
@@ -468,26 +522,11 @@ const Style = styled.div`
     letter-spacing: 0.12em;
   }
 
-  .works-back {
-    flex-shrink: 0;
-    display: inline-flex;
+  .actions {
+    display: flex;
     align-items: center;
-    min-height: 2.1rem;
-    padding: 0 0.85rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-
-    &:hover {
-      color: var(--text);
-      border-color: color-mix(in srgb, #c9a46a 45%, transparent);
-    }
+    gap: 0.5rem;
+    flex-shrink: 0;
   }
 
   .source-status {
@@ -557,6 +596,7 @@ const Style = styled.div`
   }
 
   .search {
+    position: relative;
     display: flex;
     align-items: center;
     flex: 0 1 18rem;
@@ -640,6 +680,22 @@ const Style = styled.div`
     &:hover {
       filter: brightness(1.06);
     }
+  }
+
+  .search__history {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    min-width: 260px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(14, 16, 20, 0.97);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 60;
   }
 
   .filters {
@@ -923,6 +979,11 @@ const Style = styled.div`
 
     .brand {
       order: 1;
+    }
+
+    .actions {
+      order: 1;
+      margin-left: auto;
     }
 
     .source-rail button {

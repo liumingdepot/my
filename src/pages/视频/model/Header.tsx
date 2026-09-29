@@ -1,7 +1,16 @@
 import { Link, useNavigate } from 'react-router'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
+import SearchHistory from './SearchHistory'
+import WatchHistoryMenu from './WatchHistoryMenu'
 import { NAV_LINKS } from '../utils/categories'
+import {
+  clearSearchHistory,
+  deleteSearchHistory,
+  readSearchHistory,
+  saveSearchHistory,
+  subscribeSearchHistory,
+} from '../utils/history'
 import type { NavKey } from '../utils/types'
 
 type Props = {
@@ -11,8 +20,11 @@ type Props = {
 
 export default function Header({ active, hideSearch }: Props) {
   const navigate = useNavigate()
+  const searchRef = useRef<HTMLFormElement>(null)
   const [scrolled, setScrolled] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [focused, setFocused] = useState(false)
+  const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -21,18 +33,45 @@ export default function Header({ active, hideSearch }: Props) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  function onSearch(e: FormEvent) {
-    e.preventDefault()
-    const q = keyword.trim()
-    if (!q) {
+  useEffect(() => subscribeSearchHistory(() => setSearchHistory(readSearchHistory())), [])
+
+  useEffect(() => {
+    if (!focused) return
+    function onPointer(e: PointerEvent) {
+      if (!searchRef.current?.contains(e.target as Node)) setFocused(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFocused(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [focused])
+
+  function goSearch(q: string) {
+    const keyword = q.trim()
+    if (!keyword) {
       navigate('/video/search')
+      setFocused(false)
       return
     }
-    navigate(`/video/search?q=${encodeURIComponent(q)}`)
+    saveSearchHistory(keyword)
+    setFocused(false)
+    navigate(`/video/search?q=${encodeURIComponent(keyword)}`)
   }
 
+  function onSearch(e: FormEvent) {
+    e.preventDefault()
+    goSearch(keyword)
+  }
+
+  const showHistory = focused && !hideSearch && searchHistory.length > 0
+
   return (
-    <Bar data-scrolled={scrolled ? '1' : '0'}>
+    <Bar data-scrolled={scrolled ? '1' : '0'} data-hide-search={hideSearch ? '1' : '0'}>
       <div className="inner">
         <div className="top">
           <Link to="/video" className="brand">
@@ -40,33 +79,9 @@ export default function Header({ active, hideSearch }: Props) {
             <span className="brand-text">铭影视</span>
           </Link>
 
-          {hideSearch ? null : (
-            <form className="search" onSubmit={onSearch} role="search">
-              <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-                <path
-                  d="M16.5 16.5L21 21"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <input
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="搜索影片、演员…"
-                aria-label="搜索关键词"
-              />
-              <button type="submit" className="go">
-                搜索
-              </button>
-            </form>
-          )}
-
-          <Link to="/works" className="works-back">
-            返回作品集
-          </Link>
+          <div className="actions">
+            <WatchHistoryMenu />
+          </div>
         </div>
 
         <nav className="nav">
@@ -80,6 +95,45 @@ export default function Header({ active, hideSearch }: Props) {
             </Link>
           ))}
         </nav>
+
+        {hideSearch ? null : (
+          <form className="search" onSubmit={onSearch} role="search" ref={searchRef}>
+            <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="M16.5 16.5L21 21"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onFocus={() => setFocused(true)}
+              placeholder="搜索影片、演员…"
+              aria-label="搜索关键词"
+              aria-expanded={showHistory}
+            />
+            <button type="submit" className="go">
+              搜索
+            </button>
+            {showHistory ? (
+              <div className="history-panel">
+                <SearchHistory
+                  items={searchHistory}
+                  onPick={(q) => {
+                    setKeyword(q)
+                    goSearch(q)
+                  }}
+                  onDelete={deleteSearchHistory}
+                  onClear={clearSearchHistory}
+                />
+              </div>
+            ) : null}
+          </form>
+        )}
       </div>
     </Bar>
   )
@@ -147,33 +201,12 @@ const Bar = styled.header`
     }
   }
 
-  .works-back {
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-shrink: 0;
     order: 4;
-    display: inline-flex;
-    align-items: center;
-    min-height: 34px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(245, 242, 234, 0.78);
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-    transition:
-      color 0.2s,
-      border-color 0.2s,
-      background 0.2s;
-
-    &:hover {
-      color: #f5f2ea;
-      border-color: rgba(232, 165, 75, 0.45);
-      background: rgba(232, 165, 75, 0.12);
-    }
   }
 
   .brand {
@@ -343,15 +376,39 @@ const Bar = styled.header`
         opacity: 0.92;
       }
     }
+
+    .history-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      right: 0;
+      min-width: 280px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(16, 16, 20, 0.96);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      z-index: 60;
+    }
   }
 
-  /* 平板 / 手机：品牌+搜索一行，导航单独一行横向滑动 */
+  /* 平板 / 手机：品牌+返回 → 导航 → 搜索独占第三行 */
   @media (max-width: 900px) {
-    height: 96px;
+    height: 132px;
+
+    &[data-hide-search='1'] {
+      height: 96px;
+
+      .inner {
+        height: 96px;
+      }
+    }
 
     .inner {
       max-width: 100%;
-      height: 96px;
+      height: 132px;
       flex-direction: column;
       align-items: stretch;
       justify-content: center;
@@ -364,6 +421,7 @@ const Bar = styled.header`
       align-items: center;
       gap: 10px;
       min-width: 0;
+      order: 1;
     }
 
     .back {
@@ -388,25 +446,14 @@ const Bar = styled.header`
       font-size: 18px;
     }
 
-    .search {
+    .actions {
       order: 0;
-      flex: 1;
-      min-width: 0;
-      height: 36px;
-      padding-left: 34px;
-
-      input {
-        width: auto;
-        font-size: 13px;
-      }
-
-      .go {
-        padding: 0 12px;
-      }
+      margin-left: auto;
+      gap: 6px;
     }
 
     .nav {
-      order: 0;
+      order: 2;
       flex: none;
       width: 100%;
       height: 36px;
@@ -421,6 +468,29 @@ const Bar = styled.header`
           right: 12px;
           bottom: 0;
         }
+      }
+    }
+
+    .search {
+      order: 3;
+      flex: none;
+      width: 100%;
+      height: 36px;
+      padding-left: 34px;
+
+      input {
+        width: auto;
+        font-size: 13px;
+      }
+
+      .go {
+        padding: 0 12px;
+      }
+
+      .history-panel {
+        left: 0;
+        right: 0;
+        min-width: 0;
       }
     }
   }

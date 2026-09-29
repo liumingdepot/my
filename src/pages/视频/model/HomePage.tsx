@@ -184,7 +184,7 @@ const Page = styled.div`
   }
 
   @media (max-width: 900px) {
-    margin-top: -96px;
+    margin-top: -132px;
 
     .container {
       max-width: 100%;

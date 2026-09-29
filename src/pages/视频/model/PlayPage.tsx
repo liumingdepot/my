@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import Hls from 'hls.js'
 import styled from 'styled-components'
 import VodCard from './VodCard'
+import { saveWatchHistory } from '../utils/history'
 import { fetchDetailItem, listVideos } from '../utils/server'
 import { loadMergedEntries, saveMergedEntries } from '../utils/merge'
 import { scoreOf, stripHtml } from '../utils/parse'
@@ -166,6 +167,21 @@ export default function PlayPage() {
   const lines = item?.playSources || []
   const currentLine = lines[lineIndex] || lines[0]
   const currentEp = currentLine?.episodes[episodeIndex] || currentLine?.episodes[0]
+
+  useEffect(() => {
+    if (!item) return
+    saveWatchHistory({
+      source: item.source,
+      vod_id: String(item.vod_id),
+      vod_name: item.vod_name,
+      vod_pic: item.vod_pic,
+      vod_remarks: item.vod_remarks,
+      vod_year: item.vod_year,
+      type_name: item.type_name,
+      episode: currentEp?.title,
+      mirrors,
+    })
+  }, [item, currentEp?.title, mirrors])
 
   useEffect(() => {
     const video = videoRef.current
@@ -616,18 +632,24 @@ const Page = styled.div`
     .back {
       display: inline-flex;
       align-items: center;
-      margin: 0 0 12px;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: rgba(245, 242, 234, 0.55);
+      gap: 4px;
+      margin: 0 0 14px;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(232, 165, 75, 0.45);
+      background: rgba(232, 165, 75, 0.14);
+      color: #e8a54b;
       font-size: 13px;
+      font-weight: 600;
       letter-spacing: 0.02em;
       cursor: pointer;
-      transition: color 0.2s;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
 
       &:hover {
-        color: #e8a54b;
+        border-color: #e8a54b;
+        background: #e8a54b;
+        color: #0a0a0c;
       }
     }
 
@@ -805,18 +827,25 @@ const Status = styled.div`
   font-size: 14px;
 
   .back {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin: 0 0 16px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: rgba(245, 242, 234, 0.55);
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(232, 165, 75, 0.45);
+    background: rgba(232, 165, 75, 0.14);
+    color: #e8a54b;
     font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
 
     &:hover {
-      color: #e8a54b;
+      border-color: #e8a54b;
+      background: #e8a54b;
+      color: #0a0a0c;
     }
   }
 

@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import styled from 'styled-components'
+import SearchHistory from './SearchHistory'
 import VodCard from './VodCard'
+import {
+  clearSearchHistory,
+  deleteSearchHistory,
+  readSearchHistory,
+  saveSearchHistory,
+  subscribeSearchHistory,
+} from '../utils/history'
 import { pickBestMatch } from '../utils/match'
 import { mergeVodLists, saveMergedEntries } from '../utils/merge'
 import { fetchSources, searchVideos } from '../utils/server'
@@ -26,13 +34,20 @@ export default function SearchPage() {
   const [error, setError] = useState('')
   const [matching, setMatching] = useState(auto)
   const [matchHint, setMatchHint] = useState('')
+  const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
   const abortRef = useRef<AbortController | null>(null)
   const jumpedRef = useRef(false)
   const earlyTimerRef = useRef<number | null>(null)
   const listRef = useRef<VodItem[]>([])
 
+  useEffect(() => subscribeSearchHistory(() => setSearchHistory(readSearchHistory())), [])
+
   useEffect(() => {
     setDraft(q)
+  }, [q])
+
+  useEffect(() => {
+    if (q) saveSearchHistory(q)
   }, [q])
 
   useEffect(() => {
@@ -196,6 +211,16 @@ export default function SearchPage() {
     const keyword = draft.trim()
     if (!keyword) return
 
+    saveSearchHistory(keyword)
+    const next = new URLSearchParams()
+    next.set('q', keyword)
+    setParams(next)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function pickHistory(keyword: string) {
+    setDraft(keyword)
+    saveSearchHistory(keyword)
     const next = new URLSearchParams()
     next.set('q', keyword)
     setParams(next)
@@ -233,7 +258,20 @@ export default function SearchPage() {
             </div>
           </form>
 
-          {!q && <Status>输入关键词后点击搜索</Status>}
+          {!q && (
+            <div className="history-wrap">
+              {searchHistory.length ? (
+                <SearchHistory
+                  items={searchHistory}
+                  onPick={pickHistory}
+                  onDelete={deleteSearchHistory}
+                  onClear={clearSearchHistory}
+                />
+              ) : (
+                <Status>输入关键词后点击搜索</Status>
+              )}
+            </div>
+          )}
           {q && matching && (
             <p className="progress match">
               正在匹配「{q}」{year ? ` · ${year}` : ''}
@@ -380,6 +418,11 @@ const Page = styled.div`
     &.match {
       color: rgba(232, 165, 75, 0.9);
     }
+  }
+
+  .history-wrap {
+    max-width: 560px;
+    margin: 16px auto 8px;
   }
 
   .grid {

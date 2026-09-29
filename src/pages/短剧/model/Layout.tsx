@@ -1,12 +1,11 @@
 import { Outlet, useLocation } from 'react-router'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useLayoutEffect } from 'react'
 import styled, { createGlobalStyle } from 'styled-components'
 import Header from './Header'
 import type { NavKey } from '../utils/categories'
 import { categoryByPath } from '../utils/categories'
 
 const THEME_BG = '#0a120e'
-const MOBILE_MQ = '(max-width: 960px)'
 
 function resolveNav(pathname: string): {
   active: NavKey
@@ -26,23 +25,12 @@ function resolveNav(pathname: string): {
 export default function Layout() {
   const { pathname } = useLocation()
   const { active, isFeed, isPlay } = resolveNav(pathname)
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia(MOBILE_MQ).matches : false,
-  )
-
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_MQ)
-    const sync = () => setIsMobile(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
 
   /** 首页 feed / 播放页：锁死视口，仅内部上下滑 */
   const lockViewport = isFeed || isPlay
   const showHeader = !isPlay
-  /** PC 首页保留搜索；移动端 feed 用 overlay 样式藏搜索；搜索页本身不再重复 */
-  const hideSearch = pathname.startsWith('/short/search') || (isFeed && isMobile)
+  /** 搜索页本身不再重复顶栏搜索 */
+  const hideSearch = pathname.startsWith('/short/search')
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
@@ -72,7 +60,11 @@ export default function Layout() {
   return (
     <>
       <Global $lock={lockViewport} />
-      <Shell data-lock={lockViewport ? '1' : '0'} data-feed={isFeed || isPlay ? '1' : '0'}>
+      <Shell
+        data-lock={lockViewport ? '1' : '0'}
+        data-feed={isFeed || isPlay ? '1' : '0'}
+        data-hide-search={hideSearch ? '1' : '0'}
+      >
         {showHeader ? <Header active={active} hideSearch={hideSearch} overlay={isFeed} /> : null}
         <main>
           <Outlet />
@@ -179,6 +171,10 @@ const Shell = styled.div`
   @media (max-width: 900px) {
     main {
       padding-top: 96px;
+    }
+
+    &[data-hide-search='1'] main {
+      padding-top: 52px;
     }
 
     &[data-lock='1'] main,
