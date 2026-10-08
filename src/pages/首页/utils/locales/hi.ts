@@ -86,6 +86,14 @@ export const hi = {
       glyph: "劇",
     },
     {
+      name: "Hongguo Drama",
+      desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",
+      href: "/hongguo",
+      tag: "लाइव",
+      tone: "amber",
+      glyph: "果",
+    },
+    {
       name: "गेम्स",
       desc: "Classic FC / arcade in browser: switch platforms, browse genres, play on detail pages. For learning and exchange only.",
       href: "/game",

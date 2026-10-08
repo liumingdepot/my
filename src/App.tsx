@@ -30,6 +30,7 @@ const GamePage = lazy(() => import('./pages/游戏'))
 const EducationPage = lazy(() => import('./pages/学习教育'))
 const MoreWorksPage = lazy(() => import('./pages/我的作品集'))
 const TestModulePage = lazy(() => import('./pages/测试模块'))
+const HongguoPage = lazy(() => import('./pages/红果短剧'))
 const FishPage = lazy(() => import('./pages/摸鱼助手'))
 const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
@@ -99,6 +100,14 @@ export default function App() {
           }
         />
         <Route
+          path="/hongguo/*"
+          element={
+            <WithWorkDisclaimer moduleId="hongguo">
+              <HongguoPage />
+            </WithWorkDisclaimer>
+          }
+        />
+        <Route
           path="/fish/*"
           element={
             <WithWorkDisclaimer moduleId="fish">
@@ -136,6 +145,8 @@ export default function App() {
         <Route path="/更多作品" element={<Navigate to="/works" replace />} />
         <Route path="/我的作品集" element={<Navigate to="/works" replace />} />
         <Route path="/测试模块" element={<Navigate to="/test" replace />} />
+        <Route path="/红果短剧" element={<Navigate to="/hongguo" replace />} />
+        <Route path="/红果短剧/*" element={<Navigate to="/hongguo" replace />} />
         <Route path="/摸鱼助手" element={<Navigate to="/fish" replace />} />
         <Route path="/摸鱼助手/*" element={<Navigate to="/fish" replace />} />
         <Route path="/铭摸鱼" element={<Navigate to="/fish" replace />} />

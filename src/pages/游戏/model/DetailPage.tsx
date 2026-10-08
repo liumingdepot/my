@@ -4,6 +4,8 @@ import styled from 'styled-components'
 import { fetchGameDetail, type PublicGame } from '../utils/server'
 import ArcadePlayer from './ArcadePlayer'
 import FcPlayer, { type FcPlayerControls } from './FcPlayer'
+import JavaPlayer from './JavaPlayer'
+import WebPlayer from './WebPlayer'
 import { GameCover, GameFrame, GameThemeToggle } from './Layout'
 
 type GameOutlet = {
@@ -49,6 +51,14 @@ const ARCADE_P2_KEYS = [
   { key: '9', label: '按键 6' },
   { key: '4', label: '投币' },
   { key: '5', label: 'Start' },
+]
+
+const JAVA_KEYS = [
+  { key: '方向键', label: '方向' },
+  { key: 'Enter', label: 'OK / 确认' },
+  { key: 'Q', label: '左软键' },
+  { key: 'E', label: '右软键' },
+  { key: '0-9 * #', label: '数字键' },
 ]
 
 export default function DetailPage() {
@@ -103,9 +113,18 @@ export default function DetailPage() {
 
   const isFc = game?.category === 'FC'
   const isArcade = game?.category === '街机'
-  const playable = Boolean(isFc || isArcade)
+  const isWeb = game?.category === '网页游戏'
+  const isJava = game?.category === '怀旧java'
+  const playable = Boolean(isFc || isArcade || isWeb || isJava)
   const p1Keys = isArcade ? ARCADE_P1_KEYS : FC_P1_KEYS
   const p2Keys = isArcade ? ARCADE_P2_KEYS : FC_P2_KEYS
+
+  function listHref() {
+    if (isArcade) return '/game?platform=街机'
+    if (isWeb) return '/game?platform=网页游戏'
+    if (isJava) return '/game?platform=怀旧java'
+    return '/game'
+  }
 
   return (
     <GameFrame>
@@ -119,7 +138,7 @@ export default function DetailPage() {
             <div className="top__actions">
               <GameThemeToggle onToggle={toggleTheme} />
               <Link
-                to={isArcade ? '/game?platform=街机' : '/game'}
+                to={listHref()}
                 className="back"
               >
                 返回列表
@@ -149,7 +168,7 @@ export default function DetailPage() {
                   </div>
                 </div>
 
-                {playable ? (
+                {playable && !isWeb && !isJava ? (
                   <div className="guide">
                     <h2>操作说明</h2>
                     <p className="guide__lead">
@@ -180,9 +199,27 @@ export default function DetailPage() {
                       </ul>
                     </div>
                   </div>
+                ) : isWeb ? (
+                  <p className="side__note">Flash 网页游戏由 Ruffle 模拟运行，点击画面后开始操作。</p>
+                ) : isJava ? (
+                  <div className="guide">
+                    <h2>操作说明</h2>
+                    <p className="guide__lead">J2ME 模拟器运行，点击画面后用键盘操作。</p>
+                    <div className="guide__group">
+                      <span className="guide__role">按键</span>
+                      <ul>
+                        {JAVA_KEYS.map((item) => (
+                          <li key={item.key}>
+                            <kbd>{item.key}</kbd>
+                            <span>{item.label}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 ) : (
                   <p className="side__note">
-                    当前分类为 {game.category}，网页端仅支持 FC / 街机在线游玩。
+                    当前分类为 {game.category}，网页端仅支持 FC / 街机 / 网页游戏 / 怀旧java 在线游玩。
                   </p>
                 )}
               </aside>
@@ -223,10 +260,19 @@ export default function DetailPage() {
                     gameName={game.name}
                     downloadUrl={game.downloadUrl}
                   />
+                ) : isWeb ? (
+                  <WebPlayer
+                    gameId={game.id}
+                    gameName={game.name}
+                    downloadUrl={game.downloadUrl}
+                    flashBase={game.flashBase}
+                  />
+                ) : isJava ? (
+                  <JavaPlayer gameId={game.id} gameName={game.name} />
                 ) : (
                   <div className="unavailable">
                     <h2>暂不支持在线运行</h2>
-                    <p>网页端模拟器仅支持 FC / 街机游戏。</p>
+                    <p>网页端模拟器仅支持 FC / 街机 / 网页游戏 / 怀旧java。</p>
                   </div>
                 )}
               </section>

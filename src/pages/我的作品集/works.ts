@@ -74,6 +74,16 @@ export const ALL_WORKS: WorkItem[] = [
     categories: ['av'],
   },
   {
+    name: '红果短剧',
+    desc: '红果站源短剧：首页热播、真人/漫剧/AI/动漫分类、搜索与分集播放。',
+    href: '/hongguo',
+    tag: '已上线',
+    tone: 'amber',
+    glyph: '果',
+    platform: 'PC + 移动',
+    categories: ['av'],
+  },
+  {
     name: '游戏',
     desc: '经典 FC / 街机在线玩：按平台与类型浏览、详情页网页端游玩。仅供学习交流。',
     href: '/game',
@@ -105,7 +115,7 @@ export const ALL_WORKS: WorkItem[] = [
   },
   {
     name: '测试模块',
-    desc: '七猫短剧 API 测试页：常用分类采集与搜索试播。',
+    desc: '红果 / 剧果站源对接：目录搜索 → 详情 → 取流播放。',
     href: '/test',
     tag: '测试',
     tone: 'amber',

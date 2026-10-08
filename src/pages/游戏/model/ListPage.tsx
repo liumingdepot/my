@@ -18,7 +18,8 @@ type GameOutlet = {
 const PAGE_SIZE = 20
 
 function parsePlatform(value: string | null): GamePlatform {
-  return value === '街机' ? '街机' : 'FC'
+  if (value === '街机' || value === '网页游戏' || value === '怀旧java') return value
+  return 'FC'
 }
 
 function GameCard({
@@ -177,7 +178,7 @@ export default function ListPage() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="搜索 FC / 街机游戏…"
+                placeholder="搜索 FC / 街机 / 网页游戏 / 怀旧java…"
                 aria-label="搜索游戏"
               />
               <button type="submit" className="search__btn">

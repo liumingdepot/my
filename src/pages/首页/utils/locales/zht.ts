@@ -86,6 +86,14 @@ export const zht = {
       glyph: "劇",
     },
     {
+      name: "紅果短劇",
+      desc: "紅果站源短劇：首頁熱播、真人/漫劇/AI/動漫分類、搜尋與分集播放。",
+      href: "/hongguo",
+      tag: "已上線",
+      tone: "amber",
+      glyph: "果",
+    },
+    {
       name: "遊戲",
       desc: "經典 FC / 街機線上玩：依平台與類型瀏覽、詳情頁網頁端遊玩。僅供學習交流。",
       href: "/game",

@@ -1,7 +1,7 @@
-export const GAME_PLATFORMS = ['FC', '街机'] as const
+export const GAME_PLATFORMS = ['FC', '街机', '网页游戏', '怀旧java'] as const
 export type GamePlatform = (typeof GAME_PLATFORMS)[number]
 
-export const GAME_CATEGORIES = ['FC', 'SFC', '街机'] as const
+export const GAME_CATEGORIES = ['FC', 'SFC', '街机', '网页游戏', '怀旧java'] as const
 export type GameCategory = (typeof GAME_CATEGORIES)[number]
 
 /** FC 二级类型（与 yikm `/nes?tag=&e=0` 对齐；全部对应 tag=0） */
@@ -30,6 +30,39 @@ export const ARCADE_GENRES = [
 ] as const
 export type ArcadeGenre = (typeof ARCADE_GENRES)[number]
 
+/** 网页游戏二级类型（与 yikm `/nes?tag=&e=9` 对齐；全部对应空 tag） */
+export const WEB_GENRES = [
+  'RPG冒险',
+  '动作',
+  '射击',
+  '放置点击类',
+  '益智解谜',
+  '策略防御',
+  '经营模拟',
+  '运动竞速',
+  '音乐绘画',
+] as const
+export type WebGenre = (typeof WEB_GENRES)[number]
+
+/** 怀旧 Java 二级类型（与 yikm `/nes?tag=&e=8` 对齐；全部对应空 tag） */
+export const JAVA_GENRES = [
+  '角色扮演',
+  '益智休闲',
+  '飞行游戏',
+  '动作游戏',
+  '冒险游戏',
+  '策略战棋',
+  '模拟经营',
+  '体育运动',
+  '赛车游戏',
+  '格斗游戏',
+  '射击游戏',
+  '棋牌游戏',
+  '养成游戏',
+  '音乐舞蹈',
+] as const
+export type JavaGenre = (typeof JAVA_GENRES)[number]
+
 export type PublicGame = {
   id: string
   name: string
@@ -37,6 +70,8 @@ export type PublicGame = {
   imageUrl: string
   category: GameCategory
   genre: string
+  /** 网页游戏 Ruffle 相对资源根（同域 /api/game/flashrom/.../） */
+  flashBase?: string
   sortOrder?: number
   recommended: boolean
   createdAt: string
@@ -56,14 +91,17 @@ export type GameDetailResult = {
 }
 
 export function genresForPlatform(platform: GamePlatform) {
-  return platform === '街机' ? ARCADE_GENRES : FC_GENRES
+  if (platform === '街机') return ARCADE_GENRES
+  if (platform === '网页游戏') return WEB_GENRES
+  if (platform === '怀旧java') return JAVA_GENRES
+  return FC_GENRES
 }
 
 export async function fetchGameList(options: {
   page?: number
   pageSize?: number
   q?: string
-  /** 列表：FC / 街机；搜索合并：all 或不传 */
+  /** 列表：FC / 街机 / 网页游戏 / 怀旧java；搜索合并：all 或不传 */
   category?: GamePlatform | 'all'
   genre?: string
   signal?: AbortSignal
@@ -120,10 +158,22 @@ export function arcadeNeedsBios(downloadUrl: string) {
 
 export function gameRomUrl(id: string, downloadUrl?: string) {
   if (downloadUrl) {
+    try {
+      const name = decodeURIComponent(new URL(downloadUrl).pathname.split('/').pop() || '')
+      if (/\.(zip|swf|jar)$/i.test(name)) {
+        return `/api/game/rom/${encodeURIComponent(name)}?id=${encodeURIComponent(id)}`
+      }
+    } catch {
+      /* ignore */
+    }
     const file = arcadeRomsetFile(downloadUrl)
     return `/api/game/rom/${encodeURIComponent(file)}?id=${encodeURIComponent(id)}`
   }
   return `/api/game/rom?id=${encodeURIComponent(id)}`
+}
+
+export function gameJavaEmbedUrl(id: string) {
+  return `/api/game/java-embed?id=${encodeURIComponent(id)}`
 }
 
 export function gameBiosUrl(id: string, downloadUrl: string) {

@@ -86,6 +86,14 @@ export const pt = {
       glyph: "劇",
     },
     {
+      name: "Hongguo Drama",
+      desc: "Curtas Hongguo: inicio, categorias live/comic/AI/anime, busca e reproducao por episodio.",
+      href: "/hongguo",
+      tag: "No ar",
+      tone: "amber",
+      glyph: "果",
+    },
+    {
       name: "Jogos",
       desc: "Jogue FC / arcade classicos no navegador: troque de plataforma, navegue por genero e jogue nas paginas. Apenas aprendizado e troca.",
       href: "/game",

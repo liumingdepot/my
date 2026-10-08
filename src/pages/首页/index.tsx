@@ -224,7 +224,6 @@ export default function Home() {
               {ui.nav[item.key]}
             </a>
           ))}
-          <Link to={WORKS_PATH}>{ui.nav.works}</Link>
         </div>
         <div className="nav__actions">
           <LangSelect value={lang} label={ui.selectLang} onChange={setLang} />
@@ -266,9 +265,6 @@ export default function Home() {
             {ui.nav[item.key]}
           </a>
         ))}
-        <Link to={WORKS_PATH} onClick={closeMenu}>
-          {ui.nav.works}
-        </Link>
         <a href={t.profile.resume} target="_blank" rel="noreferrer" onClick={closeMenu}>
           {ui.resume}
         </a>
@@ -305,11 +301,6 @@ export default function Home() {
               <a href={t.profile.resume} target="_blank" rel="noreferrer">
                 {ui.resumeLink}
               </a>
-            </div>
-          </div>
-          <div className="hero__right hero-enter hero-enter--photo" style={{ '--d': '180ms' } as CSSProperties}>
-            <div className="hero__photo-wrap">
-              <img className="hero__photo" src={t.profile.photo} alt={t.profile.name} />
             </div>
           </div>
         </section>
@@ -664,30 +655,9 @@ const Style = styled.div`
   }
 }
 
-@keyframes heroInPhoto {
-  from {
-    opacity: 0;
-    transform: translateY(28px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes photoFloat {
-  from { transform: translateY(0); }
-  to { transform: translateY(-10px); }
-}
-
 @keyframes gradShimmer {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
-}
-
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.06); }
 }
 
 @keyframes menuIn {
@@ -778,15 +748,21 @@ html[data-theme="dark"] & .blob-c { background: #155e75; opacity: 0.3; }
   justify-content: space-between;
   gap: 1rem;
   height: var(--nav-h);
-  padding: 0 1.5rem;
-  backdrop-filter: blur(16px);
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  padding: 0 max(1.5rem, calc((100% - var(--max)) / 2 + 1.25rem));
+  backdrop-filter: blur(18px) saturate(1.15);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
   border-bottom: 1px solid transparent;
-  transition: border-color 0.3s, background 0.3s;
+  transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
 }
 
 .nav.is-scrolled {
   border-bottom-color: var(--line);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="dark"] & .nav.is-scrolled {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
 }
 
 .nav__brand {
@@ -1177,18 +1153,14 @@ html:not([data-theme="dark"]) & .icon-moon { display: none; }
   animation-delay: var(--d, 0ms);
 }
 
-.hero-enter--photo {
-  animation-name: heroInPhoto;
-  animation-duration: 1s;
+.hero {
+  display: block;
+  padding: 4.25rem 0 2.75rem;
+  min-height: auto;
 }
 
-.hero {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 3.25rem;
-  align-items: center;
-  padding: 3.75rem 0 2.5rem;
-  min-height: auto;
+.hero__copy {
+  max-width: 42rem;
 }
 
 .badge {
@@ -1232,7 +1204,7 @@ html[data-theme="dark"] & .badge {
   letter-spacing: -0.03em;
   line-height: 1.35;
   margin: 0 0 1.15rem;
-  max-width: 22ch;
+  max-width: 28ch;
 }
 
 .hero__headline .grad {
@@ -1270,39 +1242,6 @@ html[data-theme="dark"] & .badge {
 
 .hero__social a:hover {
   color: var(--purple);
-}
-
-.hero__photo-wrap {
-  position: relative;
-  margin-inline: auto;
-  width: min(100%, 360px);
-  animation: photoFloat 5.5s ease-in-out infinite alternate;
-}
-
-.hero__photo-wrap::before {
-  content: "";
-  position: absolute;
-  inset: -12%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.35), transparent 65%);
-  filter: blur(20px);
-  z-index: -1;
-  animation: glowPulse 4.5s ease-in-out infinite;
-}
-
-.hero__photo {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  object-position: center top;
-  border-radius: 22px;
-  box-shadow: var(--shadow);
-  border: 4px solid color-mix(in srgb, var(--bg-elevated) 80%, transparent);
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s;
-}
-
-.hero__photo:hover {
-  transform: scale(1.03);
-  box-shadow: 0 18px 40px rgba(99, 102, 241, 0.22);
 }
 
 .stats {
@@ -2082,17 +2021,8 @@ html[data-theme="dark"] & .badge {
   }
 
 .hero {
-    grid-template-columns: 1fr;
     min-height: auto;
-    padding-top: 2rem;
-  }
-
-.hero__right {
-    order: -1;
-  }
-
-.hero__photo-wrap {
-    width: min(100%, 260px);
+    padding-top: 2.75rem;
   }
 
 .hero__headline {
@@ -2116,6 +2046,10 @@ html[data-theme="dark"] & .badge {
     width: min(100% - 1.5rem, var(--max));
   }
 
+.nav {
+    padding: 0 0.85rem;
+  }
+
 .about__grid,
 .skills-grid,
 .projects-grid,
@@ -2134,12 +2068,7 @@ html[data-theme="dark"] & .badge {
 
 @media (min-width: 1440px) {
 .hero {
-    gap: 3rem;
-    padding: 3.25rem 0 2.25rem;
-  }
-
-.hero__photo-wrap {
-    width: min(100%, 340px);
+    padding: 4rem 0 2.5rem;
   }
 
 .stat {
@@ -2157,8 +2086,7 @@ html[data-theme="dark"] & .badge {
   }
 
 .hero {
-    gap: 3.25rem;
-    padding: 3rem 0 2rem;
+    padding: 3.75rem 0 2.25rem;
   }
 
 .hero__name {
@@ -2173,10 +2101,6 @@ html[data-theme="dark"] & .badge {
 .hero__bio {
     font-size: 1rem;
     margin-bottom: 1.6rem;
-  }
-
-.hero__photo-wrap {
-    width: min(100%, 320px);
   }
 
 .badge {
@@ -2203,12 +2127,7 @@ html[data-theme="dark"] & .badge {
 
 @media (min-width: 2560px) {
 .hero {
-    padding: 3.25rem 0 2.25rem;
-    gap: 3.5rem;
-  }
-
-.hero__photo-wrap {
-    width: min(100%, 340px);
+    padding: 4rem 0 2.5rem;
   }
 
 .hero__name {
@@ -2229,8 +2148,6 @@ html[data-theme="dark"] & .badge {
     animation: none !important;
   }
 
-.hero__photo-wrap,
-.hero__photo-wrap::before,
 .nav__dot,
 .badge__dot,
 .hero__headline .grad {

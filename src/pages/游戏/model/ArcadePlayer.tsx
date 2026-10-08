@@ -1,9 +1,7 @@
 import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import {
-  arcadeNeedsBios,
   arcadeRomsetFile,
-  gameBiosUrl,
   gameRomUrl,
 } from '../utils/server'
 
@@ -131,14 +129,9 @@ function absoluteUrl(path: string) {
 
 function buildPlayerHtml(options: {
   romUrl: string
-  biosUrl?: string
   romsetName: string
   gameId: string
 }) {
-  const biosLine = options.biosUrl
-    ? `EJS_biosUrl = ${JSON.stringify(options.biosUrl)};`
-    : ''
-
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -191,7 +184,7 @@ function buildPlayerHtml(options: {
   EJS_disableLocalStorage = true;
   EJS_defaultControls = ${JSON.stringify(ARCADE_6BTN_CONTROLS)};
   EJS_Buttons = ${JSON.stringify(HIDDEN_BUTTONS)};
-  ${biosLine}
+  /* BIOS 已由 /api/game/rom 合并进 romset；勿再设 EJS_biosUrl（stable 会解压导致 FBNeo 找不到 pgm/neogeo.zip） */
   EJS_ready = function () {
     hideChrome();
     parent.postMessage({ type: 'arcade:status', status: 'ready' }, '*');
@@ -220,10 +213,7 @@ export default function ArcadePlayer({
     const romsetFile = arcadeRomsetFile(downloadUrl)
     const romsetName = romsetFile.replace(/\.zip$/i, '')
     const romUrl = absoluteUrl(gameRomUrl(gameId, downloadUrl))
-    const biosUrl = arcadeNeedsBios(downloadUrl)
-      ? absoluteUrl(gameBiosUrl(gameId, downloadUrl))
-      : undefined
-    return buildPlayerHtml({ romUrl, biosUrl, romsetName, gameId })
+    return buildPlayerHtml({ romUrl, romsetName, gameId })
   }, [gameId, downloadUrl, bootKey])
 
   function hardReset() {

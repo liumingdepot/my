@@ -1,6 +1,6 @@
 import type { AppDb } from '../utils/db.js'
 
-export const GAME_CATEGORIES = ['FC', 'SFC', '街机'] as const
+export const GAME_CATEGORIES = ['FC', 'SFC', '街机', '网页游戏', '怀旧java'] as const
 
 export type GameCategory = (typeof GAME_CATEGORIES)[number]
 

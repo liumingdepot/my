@@ -1,19 +1,9 @@
 /**
- * 测试模块接口层 — 红果 / 剧果
- * 流程对齐 guoapp：站源 → 搜索/目录 → 详情 → 取流播放
+ * 红果短剧接口层 — 仅红果站源（source=hongguo）
+ * 对接 /api/test，不包含剧果 / 七猫
  */
 
-export type SourceSite = {
-  id: string
-  name: string
-  description: string
-  onlineSearch: boolean
-}
-
-export const SOURCE_SITES: SourceSite[] = [
-  { id: 'hongguo', name: '红果', description: '真人剧 · 漫剧 · AI 剧', onlineSearch: true },
-  { id: 'huangju', name: '剧果', description: '热门 · 最新 · 分类短剧', onlineSearch: true },
-]
+export const SOURCE = 'hongguo' as const
 
 export type Category = {
   id: string
@@ -83,31 +73,21 @@ async function parseJson<T>(res: Response): Promise<T> {
   return data.data
 }
 
-export function getSources() {
-  return SOURCE_SITES
-}
-
-export async function fetchSources(signal?: AbortSignal) {
-  const res = await fetch('/api/test/sources', signal ? { signal } : undefined)
-  return parseJson<SourceSite[]>(res)
-}
-
-export async function fetchCategories(source: string, signal?: AbortSignal) {
-  const q = new URLSearchParams({ source })
+export async function fetchCategories(signal?: AbortSignal) {
+  const q = new URLSearchParams({ source: SOURCE })
   const res = await fetch(`/api/test/categories?${q}`, signal ? { signal } : undefined)
   return parseJson<Category[]>(res)
 }
 
-/** 搜索；无关键词时红果/剧果返回目录 */
+/** 搜索；无关键词时返回目录 */
 export async function searchDramas(
-  source: string,
   name: string,
   page = 1,
   category = '',
   signal?: AbortSignal,
 ) {
   const q = new URLSearchParams({
-    source,
+    source: SOURCE,
     page: String(Math.max(1, page || 1)),
   })
   if (name.trim()) q.set('name', name.trim())
@@ -116,21 +96,15 @@ export async function searchDramas(
   return parseJson<DramaSearchResult>(res)
 }
 
-export async function fetchDramaDetail(source: string, id: string | number, signal?: AbortSignal) {
-  const q = new URLSearchParams({ source, id: String(id) })
+export async function fetchDramaDetail(id: string | number, signal?: AbortSignal) {
+  const q = new URLSearchParams({ source: SOURCE, id: String(id) })
   const res = await fetch(`/api/test/detail?${q}`, signal ? { signal } : undefined)
   return parseJson<DramaDetail>(res)
 }
 
-/** 取流：红果返回直链；剧果返回本机代理地址 */
-export async function resolvePlay(
-  source: string,
-  dramaId: string,
-  episodeId: string,
-  signal?: AbortSignal,
-) {
+export async function resolvePlay(dramaId: string, episodeId: string, signal?: AbortSignal) {
   const q = new URLSearchParams({
-    source,
+    source: SOURCE,
     drama_id: dramaId,
     episode_id: episodeId,
   })
@@ -147,12 +121,11 @@ export async function resolvePlay(
 }
 
 export async function resolvePlayback(
-  source: string,
   detail: DramaDetail,
   episode: DramaEpisode,
   signal?: AbortSignal,
 ): Promise<PlaybackPlan> {
-  const play = await resolvePlay(source, detail.playlet_id, episode.video_id, signal)
+  const play = await resolvePlay(detail.playlet_id, episode.video_id, signal)
   if (!play.url) throw new Error('该集暂无播放地址')
   const mediaType =
     play.mediaType ||
@@ -168,10 +141,6 @@ export async function resolvePlayback(
     dramaId: detail.playlet_id,
     dramaTitle: detail.title,
   }
-}
-
-export function pickEpisodeUrl(ep: DramaEpisode) {
-  return ep.video_url || ep.video_h265_url || ''
 }
 
 export function sortEpisodes(list: DramaEpisode[]) {

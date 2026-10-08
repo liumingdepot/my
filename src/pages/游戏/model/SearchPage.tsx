@@ -17,7 +17,13 @@ const PAGE_SIZE = 20
 
 function GameCard({ game }: { game: PublicGame }) {
   const genreLabel = game.genre?.split(/[、,/|]/)[0] || ''
-  const platformLabel = game.category === '街机' ? '街机' : game.category === 'FC' ? 'FC' : ''
+  const platformLabel =
+    game.category === '街机' ||
+    game.category === '网页游戏' ||
+    game.category === '怀旧java' ||
+    game.category === 'FC'
+      ? game.category
+      : ''
   return (
     <Link className="card" to={`/game/${game.id}`} title={game.name}>
       <div className="card__cover">
@@ -114,9 +120,9 @@ export default function SearchPage() {
     setParams(next)
   }
 
-  /** 搜索页点 FC / 街机：退出搜索，回到对应列表 */
+  /** 搜索页点平台：退出搜索，回到对应列表 */
   function goPlatformList(next: GamePlatform) {
-    navigate(next === 'FC' ? '/game' : '/game?platform=街机')
+    navigate(next === 'FC' ? '/game' : `/game?platform=${encodeURIComponent(next)}`)
   }
 
   const safePage = Math.min(page, pageCount)
@@ -175,7 +181,7 @@ export default function SearchPage() {
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="搜索 FC / 街机游戏…"
+                  placeholder="搜索 FC / 街机 / 网页游戏 / 怀旧java…"
                   aria-label="搜索关键词"
                   autoFocus
                 />
@@ -188,7 +194,7 @@ export default function SearchPage() {
             {!q && <p className="progress">输入关键词后点击搜索</p>}
             {q && (
               <p className="progress">
-                {loading ? `正在搜索「${q}」…` : `「${q}」共 ${total} 款 · FC / 街机`}
+                {loading ? `正在搜索「${q}」…` : `「${q}」共 ${total} 款 · FC / 街机 / 网页游戏 / 怀旧java`}
               </p>
             )}
           </div>
