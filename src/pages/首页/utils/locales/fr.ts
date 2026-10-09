@@ -108,14 +108,6 @@ export const fr = {
       tag: "En ligne",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "Module test",
-      desc: "Pour déboguer le frontend ↔ Worker API. Pas destiné à la vitrine publique.",
-      href: "/test",
-      tag: "Test",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

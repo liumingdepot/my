@@ -78,14 +78,6 @@ export const hi = {
       glyph: "影",
     },
     {
-      name: "लघु नाटक",
-      desc: "Qimao शॉर्ट ड्रामा: होम, श्रेणियाँ, खोज और प्लेबैक। सार्वजनिक API; केवल सीखने के लिए।",
-      href: "/short",
-      tag: "लाइव",
-      tone: "amber",
-      glyph: "劇",
-    },
-    {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const hi = {
       tag: "लाइव",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "टेस्ट मॉड्यूल",
-      desc: "फ्रंटएंड ↔ Worker API डिबग के लिए। सार्वजनिक प्रदर्शन नहीं।",
-      href: "/test",
-      tag: "टेस्ट",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

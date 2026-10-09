@@ -1,4 +1,4 @@
-/** 红果站源分类（与 server/test/hongguoCategories 对齐） */
+/** 红果站源分类（与 server/hongguo/hongguoCategories 对齐） */
 export const NAV_CATEGORIES = [
   { key: 'real', label: '真人剧', category: '', path: '/hongguo/real' },
   { key: 'comic', label: '漫剧', category: 'comic', path: '/hongguo/comic' },

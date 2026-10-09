@@ -39,9 +39,9 @@ Search, playlists, charts and tags — play with lyrics. Powered by public APIs;
 
 Video site: home feed, movie / TV categories, search and playback. Public APIs; for learning & exchange only.
 
-### [Short Drama](http://www.liuming1234.xyz/short) · Live
+### [Hongguo Drama](http://www.liuming1234.xyz/hongguo) · Live
 
-Qimao short dramas: hot home, category browse, search and episode playback. Public APIs; for learning only.
+Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.
 
 ### [Games](http://www.liuming1234.xyz/game) · Live
 
@@ -50,10 +50,6 @@ Play classic FC / arcade games in the browser: switch platforms, browse by genre
 ### [Education](http://www.liuming1234.xyz/education) · Live
 
 Course video learning: filter by grade/textbook, search, and play online. For learning & exchange only.
-
-### [Test Module](http://www.liuming1234.xyz/test) · Test
-
-Qimao short-drama API sandbox: category collect and trial playback.
 
 [My Portfolio →](http://www.liuming1234.xyz/works)
 

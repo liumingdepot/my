@@ -1,6 +1,6 @@
 /**
  * 红果短剧接口层 — 仅红果站源（source=hongguo）
- * 对接 /api/test，不包含剧果 / 七猫
+ * 对接 /api/hongguo，不包含剧果 / 七猫
  */
 
 export const SOURCE = 'hongguo' as const
@@ -75,7 +75,7 @@ async function parseJson<T>(res: Response): Promise<T> {
 
 export async function fetchCategories(signal?: AbortSignal) {
   const q = new URLSearchParams({ source: SOURCE })
-  const res = await fetch(`/api/test/categories?${q}`, signal ? { signal } : undefined)
+  const res = await fetch(`/api/hongguo/categories?${q}`, signal ? { signal } : undefined)
   return parseJson<Category[]>(res)
 }
 
@@ -92,13 +92,13 @@ export async function searchDramas(
   })
   if (name.trim()) q.set('name', name.trim())
   if (category) q.set('category', category)
-  const res = await fetch(`/api/test/search?${q}`, signal ? { signal } : undefined)
+  const res = await fetch(`/api/hongguo/search?${q}`, signal ? { signal } : undefined)
   return parseJson<DramaSearchResult>(res)
 }
 
 export async function fetchDramaDetail(id: string | number, signal?: AbortSignal) {
   const q = new URLSearchParams({ source: SOURCE, id: String(id) })
-  const res = await fetch(`/api/test/detail?${q}`, signal ? { signal } : undefined)
+  const res = await fetch(`/api/hongguo/detail?${q}`, signal ? { signal } : undefined)
   return parseJson<DramaDetail>(res)
 }
 
@@ -108,7 +108,7 @@ export async function resolvePlay(dramaId: string, episodeId: string, signal?: A
     drama_id: dramaId,
     episode_id: episodeId,
   })
-  const res = await fetch(`/api/test/play?${q}`, signal ? { signal } : undefined)
+  const res = await fetch(`/api/hongguo/play?${q}`, signal ? { signal } : undefined)
   return parseJson<{
     url: string
     referer?: string

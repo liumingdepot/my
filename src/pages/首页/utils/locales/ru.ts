@@ -78,14 +78,6 @@ export const ru = {
       glyph: "影",
     },
     {
-      name: "Короткие драмы",
-      desc: "Короткие драмы Qimao: главная, категории, поиск и воспроизведение. Публичные API; только для обучения.",
-      href: "/short",
-      tag: "Онлайн",
-      tone: "amber",
-      glyph: "劇",
-    },
-    {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const ru = {
       tag: "Онлайн",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "Тестовый модуль",
-      desc: "Для отладки frontend ↔ Worker API. Не для публичной витрины.",
-      href: "/test",
-      tag: "Тест",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

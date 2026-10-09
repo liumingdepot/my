@@ -78,14 +78,6 @@ export const en = {
       glyph: "影",
     },
     {
-      name: "Short Drama",
-      desc: "Qimao short dramas: hot home, category browse, search and episode playback. Public APIs; for learning only.",
-      href: "/short",
-      tag: "Live",
-      tone: "amber",
-      glyph: "剧",
-    },
-    {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const en = {
       tag: "Live",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "Test Module",
-      desc: "Qimao short-drama API sandbox: category collect and trial playback.",
-      href: "/test",
-      tag: "Test",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

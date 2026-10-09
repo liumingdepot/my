@@ -25,12 +25,11 @@ const ZhouyiPage = lazy(() => import('./pages/周易'))
 const ReportPage = lazy(() => import('./pages/周易/model/ReportPage'))
 const MusicPage = lazy(() => import('./pages/音乐'))
 const VideoPage = lazy(() => import('./pages/视频'))
-const ShortDramaPage = lazy(() => import('./pages/短剧'))
 const GamePage = lazy(() => import('./pages/游戏'))
 const EducationPage = lazy(() => import('./pages/学习教育'))
 const MoreWorksPage = lazy(() => import('./pages/我的作品集'))
-const TestModulePage = lazy(() => import('./pages/测试模块'))
 const HongguoPage = lazy(() => import('./pages/红果短剧'))
+const TestPage = lazy(() => import('./pages/测试'))
 const FishPage = lazy(() => import('./pages/摸鱼助手'))
 const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
@@ -67,14 +66,6 @@ export default function App() {
           }
         />
         <Route
-          path="/short/*"
-          element={
-            <WithWorkDisclaimer moduleId="short">
-              <ShortDramaPage />
-            </WithWorkDisclaimer>
-          }
-        />
-        <Route
           path="/game/*"
           element={
             <WithWorkDisclaimer moduleId="game">
@@ -92,18 +83,18 @@ export default function App() {
         />
         <Route path="/works" element={<MoreWorksPage />} />
         <Route
-          path="/test/*"
-          element={
-            <WithWorkDisclaimer moduleId="test">
-              <TestModulePage />
-            </WithWorkDisclaimer>
-          }
-        />
-        <Route
           path="/hongguo/*"
           element={
             <WithWorkDisclaimer moduleId="hongguo">
               <HongguoPage />
+            </WithWorkDisclaimer>
+          }
+        />
+        <Route
+          path="/test/*"
+          element={
+            <WithWorkDisclaimer moduleId="test">
+              <TestPage />
             </WithWorkDisclaimer>
           }
         />
@@ -133,7 +124,7 @@ export default function App() {
         <Route path="/算命/report" element={<Navigate to="/fortune/report" replace />} />
         <Route path="/音乐" element={<Navigate to="/music" replace />} />
         <Route path="/视频" element={<Navigate to="/video" replace />} />
-        <Route path="/短剧" element={<Navigate to="/short" replace />} />
+        <Route path="/短剧" element={<Navigate to="/hongguo" replace />} />
         <Route path="/游戏" element={<Navigate to="/game" replace />} />
         <Route path="/FC游戏" element={<Navigate to="/game" replace />} />
         <Route path="/街机" element={<Navigate to="/game?platform=街机" replace />} />
@@ -144,7 +135,9 @@ export default function App() {
         <Route path="/学习教育/*" element={<Navigate to="/education" replace />} />
         <Route path="/更多作品" element={<Navigate to="/works" replace />} />
         <Route path="/我的作品集" element={<Navigate to="/works" replace />} />
+        <Route path="/测试" element={<Navigate to="/test" replace />} />
         <Route path="/测试模块" element={<Navigate to="/test" replace />} />
+        <Route path="/short/*" element={<Navigate to="/hongguo" replace />} />
         <Route path="/红果短剧" element={<Navigate to="/hongguo" replace />} />
         <Route path="/红果短剧/*" element={<Navigate to="/hongguo" replace />} />
         <Route path="/摸鱼助手" element={<Navigate to="/fish" replace />} />

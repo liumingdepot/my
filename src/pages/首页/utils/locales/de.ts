@@ -78,14 +78,6 @@ export const de = {
       glyph: "影",
     },
     {
-      name: "Kurzdrama",
-      desc: "Qimao-Kurzdramen: Home, Kategorien, Suche und Wiedergabe. Öffentliche APIs; nur zum Lernen.",
-      href: "/short",
-      tag: "Live",
-      tone: "amber",
-      glyph: "劇",
-    },
-    {
       name: "Hongguo Drama",
       desc: "Hongguo Kurzdrama: Home, Live/Comic/AI/Anime-Kategorien, Suche und Folgenwiedergabe.",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const de = {
       tag: "Live",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "Testmodul",
-      desc: "Zur Frontend ↔ Worker API-Prüfung. Nicht für die öffentliche Präsentation.",
-      href: "/test",
-      tag: "Test",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

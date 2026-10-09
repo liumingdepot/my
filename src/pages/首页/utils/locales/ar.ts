@@ -78,14 +78,6 @@ export const ar = {
       glyph: "影",
     },
     {
-      name: "دراما قصيرة",
-      desc: "دراما قصيرة Qimao: الصفحة الرئيسية والفئات والبحث والتشغيل. واجهات عامة؛ للتعلم فقط.",
-      href: "/short",
-      tag: "مباشر",
-      tone: "amber",
-      glyph: "劇",
-    },
-    {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const ar = {
       tag: "مباشر",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "وحدة الاختبار",
-      desc: "لاختبار ربط الواجهة مع Worker API. ليست للعرض العام.",
-      href: "/test",
-      tag: "اختبار",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

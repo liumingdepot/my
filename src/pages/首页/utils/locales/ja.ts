@@ -78,14 +78,6 @@ export const ja = {
       glyph: "影",
     },
     {
-      name: "短編ドラマ",
-      desc: "七猫ショートドラマ：人気ホーム、カテゴリ閲覧、検索と再生。公開API、学習用。",
-      href: "/short",
-      tag: "公開中",
-      tone: "amber",
-      glyph: "劇",
-    },
-    {
       name: "紅果短劇",
       desc: "紅果ソース短劇：ホーム熱播・実写/マンガ/AI/アニメ分類・検索と分集再生。",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const ja = {
       tag: "公開中",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "テスト",
-      desc: "フロントと Worker API の接続確認用。公開展示ではありません。",
-      href: "/test",
-      tag: "テスト",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

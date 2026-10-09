@@ -78,14 +78,6 @@ export const es = {
       glyph: "影",
     },
     {
-      name: "Dramas cortos",
-      desc: "Dramas cortos Qimao: portada popular, categorías, búsqueda y reproducción. APIs públicas; solo aprendizaje.",
-      href: "/short",
-      tag: "En línea",
-      tone: "amber",
-      glyph: "劇",
-    },
-    {
       name: "Hongguo Drama",
       desc: "Cortos Hongguo: inicio, categorias live/comic/AI/anime, busqueda y reproduccion por episodio.",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const es = {
       tag: "En línea",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "Módulo de prueba",
-      desc: "Para depurar frontend ↔ Worker API. No es para exhibición pública.",
-      href: "/test",
-      tag: "Test",
-      tone: "amber",
-      glyph: "测",
     }
 
   ],

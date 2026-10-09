@@ -78,14 +78,6 @@ export const zht = {
       glyph: "影",
     },
     {
-      name: "短劇",
-      desc: "七貓短劇：熱門首頁、都市/古裝等分類瀏覽、搜索與分集播放。數據來自公開接口，僅供學習交流。",
-      href: "/short",
-      tag: "已上線",
-      tone: "amber",
-      glyph: "劇",
-    },
-    {
       name: "紅果短劇",
       desc: "紅果站源短劇：首頁熱播、真人/漫劇/AI/動漫分類、搜尋與分集播放。",
       href: "/hongguo",
@@ -108,14 +100,6 @@ export const zht = {
       tag: "已上線",
       tone: "sky",
       glyph: "教",
-    },
-    {
-      name: "測試模組",
-      desc: "專門用於聯調前端與 Worker 介面，不對外展示。",
-      href: "/test",
-      tag: "測試",
-      tone: "amber",
-      glyph: "測",
     }
 
   ],

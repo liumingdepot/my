@@ -33,6 +33,11 @@ export async function dispatchApi(request: Request, env: AppEnv): Promise<Respon
     return handleEducationApi(request, url, env)
   }
 
+  if (url.pathname.startsWith('/api/hongguo')) {
+    const { handleHongguoApi } = await import('../hongguo/api.js')
+    return handleHongguoApi(request, url)
+  }
+
   if (url.pathname.startsWith('/api/test')) {
     const { handleTestApi } = await import('../test/api.js')
     return handleTestApi(request, url)
