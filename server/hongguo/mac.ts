@@ -122,6 +122,10 @@ export function toMacEpisodes(detail: HongguoDetail): { meta: MacMeta; episodes:
   }
 }
 
+/**
+ * 旧版筛选面板（硬编码主题）。已被 landpage.ts 的官方实时面板取代，
+ * 仅保留给 /browse-legacy 兜底。
+ */
 export function macFilters(genre: string) {
   const g: GenreId = isGenre(genre) ? genre : 'short_play'
   const themes = THEME_BY_GENRE[g]

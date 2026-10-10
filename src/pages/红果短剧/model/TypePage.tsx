@@ -1,66 +1,109 @@
-import { useEffect, useState } from 'react'
-import { Navigate, useLocation, useSearchParams } from 'react-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Navigate, useLocation } from 'react-router'
 import styled from 'styled-components'
 import DramaCard from './DramaCard'
-import Pager from './Pager'
 import { categoryByPath } from '../utils/categories'
 import { searchDramas, type DramaListItem } from '../utils/server'
 
-function parsePage(raw: string | null) {
-  const n = Number(raw || '1')
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1
-}
+/** 与首页同接口；首屏多拉几页凑数量，再按需加载更多 */
+const PREFETCH_PAGES = 3
 
 export default function TypePage() {
   const { pathname } = useLocation()
-  const [params, setParams] = useSearchParams()
   const cat = categoryByPath(pathname)
-  const page = parsePage(params.get('page'))
 
   const [list, setList] = useState<DramaListItem[]>([])
+  const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
+  const reqId = useRef(0)
+
+  const mergeUnique = useCallback((prev: DramaListItem[], next: DramaListItem[]) => {
+    const seen = new Set(prev.map((i) => String(i.id)))
+    const out = [...prev]
+    for (const item of next) {
+      if (!item.image_link) continue
+      const id = String(item.id)
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push(item)
+    }
+    return out
+  }, [])
 
   useEffect(() => {
     if (!cat) return
-    let cancelled = false
+    const id = ++reqId.current
     const ac = new AbortController()
+    setList([])
+    setPage(0)
+    setTotalPages(1)
+    setLoading(true)
+    setError('')
     ;(async () => {
-      setLoading(true)
-      setError('')
       try {
-        const data = await searchDramas('', page, cat.category, ac.signal)
-        if (cancelled) return
-        const items = data.list || []
-        setList(items)
-        setTotalPages(data.total_pages || 1)
-        if (!items.length) setError('该分类暂无内容')
+        // 与首页相同：searchDramas('', page, category)；首屏并行多页
+        const first = await searchDramas('', 1, cat.category, ac.signal)
+        if (id !== reqId.current) return
+        const pages = Math.max(1, first.total_pages || 1)
+        setTotalPages(pages)
+
+        let merged = mergeUnique([], first.list || [])
+        const end = Math.min(PREFETCH_PAGES, pages)
+        if (end > 1) {
+          const rest = await Promise.all(
+            Array.from({ length: end - 1 }, (_, i) =>
+              searchDramas('', i + 2, cat.category, ac.signal).catch(() => null),
+            ),
+          )
+          if (id !== reqId.current) return
+          for (const data of rest) {
+            if (data?.list) merged = mergeUnique(merged, data.list)
+          }
+        }
+
+        setList(merged)
+        setPage(end)
+        if (!merged.length) setError('该分类暂无内容')
       } catch (err) {
-        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return
+        if (id !== reqId.current) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
         setList([])
         setError(err instanceof Error ? err.message : '加载失败')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (id === reqId.current) setLoading(false)
       }
     })()
     return () => {
-      cancelled = true
       ac.abort()
+      reqId.current += 1
     }
-  }, [cat, page])
+  }, [cat, mergeUnique])
+
+  async function loadMore() {
+    if (!cat || loadingMore || page >= totalPages) return
+    setLoadingMore(true)
+    setError('')
+    try {
+      const next = page + 1
+      const data = await searchDramas('', next, cat.category)
+      setList((prev) => mergeUnique(prev, data.list || []))
+      setPage(next)
+      if (data.total_pages) setTotalPages(data.total_pages)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载失败')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   if (!cat) {
     return <Navigate to="/hongguo" replace />
   }
 
-  function goPage(next: number) {
-    const sp = new URLSearchParams(params)
-    if (next <= 1) sp.delete('page')
-    else sp.set('page', String(next))
-    setParams(sp, { replace: true })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  const hasMore = page < totalPages
 
   return (
     <Page key={pathname}>
@@ -79,7 +122,13 @@ export default function TypePage() {
           ))}
         </div>
 
-        <Pager page={page} pagecount={totalPages} onChange={goPage} />
+        {hasMore ? (
+          <div className="more">
+            <button type="button" disabled={loadingMore} onClick={() => void loadMore()}>
+              {loadingMore ? '加载中…' : '加载更多'}
+            </button>
+          </div>
+        ) : null}
       </div>
     </Page>
   )
@@ -121,6 +170,35 @@ const Page = styled.div`
     align-items: start;
   }
 
+  .more {
+    display: flex;
+    justify-content: center;
+    margin: 36px 0 8px;
+
+    button {
+      min-width: 160px;
+      height: 40px;
+      padding: 0 24px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: #f5f2ea;
+      font-size: 14px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+
+      &:hover:not(:disabled) {
+        border-color: rgba(232, 165, 75, 0.5);
+        color: #e8a54b;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+    }
+  }
+
   @media (max-width: 1200px) {
     .grid {
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -143,6 +221,11 @@ const Page = styled.div`
     .grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px 8px;
+    }
+
+    .more button {
+      width: 100%;
+      min-width: 0;
     }
   }
 `

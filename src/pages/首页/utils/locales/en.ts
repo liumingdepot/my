@@ -42,7 +42,11 @@ export const en = {
     featured: "Featured · Provincial Core System",
     footerCopy: "Liu Ming",
     menu: "Open menu",
-    selectLang: "Select language"
+    selectLang: "Select language",
+    migrateTitle: "Domain migrated",
+    migrateText: "The site has moved to",
+    migrateCta: "Enter",
+    migrateClose: "Close",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const en = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "Short Drama",
+      desc: "Qimao short dramas: hot home, category browse, search and episode playback. Public APIs; for learning only.",
+      href: "/short",
+      tag: "Live",
+      tone: "amber",
+      glyph: "剧",
+    },
+
     {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",

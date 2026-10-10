@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import styled, { createGlobalStyle } from 'styled-components'
+import DomainMigrateModal from '../../components/DomainMigrateModal'
 import { WORKS_HOME_LIMIT, WORKS_PATH } from '../我的作品集/works'
 import { getLangMeta, I18N, LANG_OPTIONS, resolveLang, type Lang } from './utils/i18n'
 
@@ -210,6 +211,15 @@ export default function Home() {
         <div className="blob blob-b" />
         <div className="blob blob-c" />
       </div>
+
+      <DomainMigrateModal
+        labels={{
+          title: ui.migrateTitle,
+          text: ui.migrateText,
+          cta: ui.migrateCta,
+          close: ui.migrateClose,
+        }}
+      />
 
       <nav className="nav">
         <a className="nav__brand" href="#top">

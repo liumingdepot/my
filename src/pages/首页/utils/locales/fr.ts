@@ -42,7 +42,11 @@ export const fr = {
     featured: "Sélection · Système cœur provincial",
     footerCopy: "Liu Ming",
     menu: "Ouvrir le menu",
-    selectLang: "Choisir la langue"
+    selectLang: "Choisir la langue",
+    migrateTitle: "Domaine migré",
+    migrateText: "Le site a déménagé vers",
+    migrateCta: "Entrer",
+    migrateClose: "Fermer",
   },
   works: [
     {

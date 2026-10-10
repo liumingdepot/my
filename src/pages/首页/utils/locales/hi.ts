@@ -42,7 +42,11 @@ export const hi = {
     featured: "विशेष · प्रांतीय कोर सिस्टम",
     footerCopy: "Liu Ming",
     menu: "मेनू खोलें",
-    selectLang: "भाषा चुनें"
+    selectLang: "भाषा चुनें",
+    migrateTitle: "डोमेन स्थानांतरित",
+    migrateText: "साइट अब यहाँ है",
+    migrateCta: "प्रवेश करें",
+    migrateClose: "बंद करें",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const hi = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "लघु नाटक",
+      desc: "Qimao शॉर्ट ड्रामा: होम, श्रेणियाँ, खोज और प्लेबैक। सार्वजनिक API; केवल सीखने के लिए।",
+      href: "/short",
+      tag: "लाइव",
+      tone: "amber",
+      glyph: "劇",
+    },
+
     {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",

@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import styled from 'styled-components'
 import Banner from './Banner'
 import DramaCard from './DramaCard'
-import { NAV_CATEGORIES } from '../utils/categories'
+import { HOME_SECTIONS } from '../utils/categories'
 import { searchDramas, type DramaListItem } from '../utils/server'
 
 type Section = {
@@ -13,8 +13,8 @@ type Section = {
   items: DramaListItem[]
 }
 
-const SECTION_COLS = 5
-const SECTION_ROWS = 3
+const SECTION_COLS = 6
+const SECTION_ROWS = 4
 const SECTION_SIZE = SECTION_COLS * SECTION_ROWS
 const BANNER_SIZE = 8
 
@@ -32,7 +32,7 @@ export default function HomePage() {
       setError('')
       try {
         const results = await Promise.all(
-          NAV_CATEGORIES.map(async (cat) => {
+          HOME_SECTIONS.map(async (cat) => {
             try {
               const data = await searchDramas('', 1, cat.category, ac.signal)
               return { cat, list: data.list || [] }

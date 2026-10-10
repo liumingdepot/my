@@ -18,8 +18,10 @@ function resolveActive(pathname: string): NavKey {
 export default function Layout() {
   const { pathname } = useLocation()
   const active = resolveActive(pathname)
-  const hideFooter = pathname.startsWith('/video/actor')
+  const isPlay = pathname.startsWith('/video/play')
+  const hideFooter = pathname.startsWith('/video/actor') || isPlay
   const hideSearch = pathname.startsWith('/video/search')
+  const compact = pathname.startsWith('/video/actor')
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
@@ -32,6 +34,13 @@ export default function Layout() {
   }, [])
 
   useLayoutEffect(() => {
+    if (isPlay) {
+      document.body.style.background = '#000'
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#000')
+      return () => {
+        document.body.style.background = ''
+      }
+    }
     const base =
       (
         {
@@ -51,14 +60,14 @@ export default function Layout() {
     return () => {
       document.body.style.background = ''
     }
-  }, [active])
+  }, [active, isPlay])
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
 
   useLayoutEffect(() => {
-    if (!hideFooter) return
+    if (!compact) return
     const prev = document.documentElement.style.overflow
     document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
@@ -66,13 +75,14 @@ export default function Layout() {
       document.documentElement.style.overflow = prev
       document.body.style.overflow = ''
     }
-  }, [hideFooter])
+  }, [compact])
 
   return (
     <>
       <Global />
       <Shell
-        data-compact={hideFooter ? '1' : '0'}
+        data-compact={compact ? '1' : '0'}
+        data-play={isPlay ? '1' : '0'}
         data-theme={active}
         data-hide-search={hideSearch ? '1' : '0'}
       >
@@ -201,6 +211,17 @@ const Shell = styled.div`
     padding-top: 64px;
   }
 
+  &[data-play='1'] {
+    background: #000;
+
+    main {
+      min-height: 0;
+      height: 100vh;
+      padding-top: 64px;
+      overflow: hidden;
+    }
+  }
+
   &[data-compact='1'] {
     height: 100dvh;
     max-height: 100dvh;
@@ -220,6 +241,17 @@ const Shell = styled.div`
     }
 
     &[data-hide-search='1'] main {
+      padding-top: 96px;
+    }
+
+    &[data-play='1'] main {
+      height: auto;
+      min-height: calc(100vh - 132px);
+      overflow: visible;
+      padding-top: 132px;
+    }
+
+    &[data-play='1'][data-hide-search='1'] main {
       padding-top: 96px;
     }
 

@@ -42,7 +42,11 @@ export const ar = {
     featured: "مميّز · نظام أساسي على مستوى المحافظة",
     footerCopy: "Liu Ming",
     menu: "فتح القائمة",
-    selectLang: "اختر اللغة"
+    selectLang: "اختر اللغة",
+    migrateTitle: "تم نقل النطاق",
+    migrateText: "انتقل الموقع إلى",
+    migrateCta: "ادخل",
+    migrateClose: "إغلاق",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const ar = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "دراما قصيرة",
+      desc: "دراما قصيرة Qimao: الصفحة الرئيسية والفئات والبحث والتشغيل. واجهات عامة؛ للتعلم فقط.",
+      href: "/short",
+      tag: "مباشر",
+      tone: "amber",
+      glyph: "劇",
+    },
+
     {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",

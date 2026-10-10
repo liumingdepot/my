@@ -42,7 +42,11 @@ export const ja = {
     featured: "注目 · 省級コアシステム",
     footerCopy: "劉銘 · Liu Ming",
     menu: "メニューを開く",
-    selectLang: "言語を選択"
+    selectLang: "言語を選択",
+    migrateTitle: "ドメイン移行のお知らせ",
+    migrateText: "新しいドメインへ移行しました",
+    migrateCta: "開く",
+    migrateClose: "閉じる",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const ja = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "短編ドラマ",
+      desc: "七猫ショートドラマ：人気ホーム、カテゴリ閲覧、検索と再生。公開API、学習用。",
+      href: "/short",
+      tag: "公開中",
+      tone: "amber",
+      glyph: "劇",
+    },
+
     {
       name: "紅果短劇",
       desc: "紅果ソース短劇：ホーム熱播・実写/マンガ/AI/アニメ分類・検索と分集再生。",

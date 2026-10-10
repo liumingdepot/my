@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState } from 'react'
 import { Link } from 'react-router'
 import styled from 'styled-components'
+import DomainMigrateModal from '../../components/DomainMigrateModal'
 import {
   filterWorksByCategory,
   WORK_CATEGORIES,
@@ -19,6 +20,7 @@ export default function MoreWorksPage() {
 
   return (
     <Style>
+      <DomainMigrateModal />
       <header className="top">
         <div className="inner">
           <Link to={WORKS_PATH} className="brand" aria-label="我的作品集">

@@ -42,7 +42,11 @@ export const de = {
     featured: "Highlight · Provinzielles Kernsystem",
     footerCopy: "Liu Ming",
     menu: "Menü öffnen",
-    selectLang: "Sprache wählen"
+    selectLang: "Sprache wählen",
+    migrateTitle: "Domain umgezogen",
+    migrateText: "Die Website ist umgezogen zu",
+    migrateCta: "Öffnen",
+    migrateClose: "Schließen",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const de = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "Kurzdrama",
+      desc: "Qimao-Kurzdramen: Home, Kategorien, Suche und Wiedergabe. Öffentliche APIs; nur zum Lernen.",
+      href: "/short",
+      tag: "Live",
+      tone: "amber",
+      glyph: "劇",
+    },
+
     {
       name: "Hongguo Drama",
       desc: "Hongguo Kurzdrama: Home, Live/Comic/AI/Anime-Kategorien, Suche und Folgenwiedergabe.",

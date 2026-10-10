@@ -42,7 +42,11 @@ export const zh = {
     featured: "精选 · 省级核心系统",
     footerCopy: "刘铭 · Liu Ming",
     menu: "打开菜单",
-    selectLang: "选择语言"
+    selectLang: "选择语言",
+    migrateTitle: "域名已迁移",
+    migrateText: "新域名已迁移到",
+    migrateCta: "点击进入",
+    migrateClose: "关闭",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const zh = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "短剧",
+      desc: "七猫短剧：热门首页、都市/古装等分类浏览、搜索与分集播放。数据来自公开接口，仅供学习交流。",
+      href: "/short",
+      tag: "已上线",
+      tone: "amber",
+      glyph: "剧",
+    },
+
     {
       name: "红果短剧",
       desc: "红果站源短剧：首页热播、真人/漫剧/AI/动漫分类、搜索与分集播放。",

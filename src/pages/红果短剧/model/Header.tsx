@@ -1,9 +1,9 @@
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
 import SearchHistory from './SearchHistory'
 import WatchHistoryMenu from './WatchHistoryMenu'
-import { NAV_LINKS, type NavKey } from '../utils/categories'
+import { NAV_LINKS, resolveNavKey } from '../utils/categories'
 import {
   clearSearchHistory,
   deleteSearchHistory,
@@ -13,17 +13,18 @@ import {
 } from '../utils/history'
 
 type Props = {
-  active: NavKey
   hideSearch?: boolean
 }
 
-export default function Header({ active, hideSearch }: Props) {
+export default function Header({ hideSearch }: Props) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const searchRef = useRef<HTMLFormElement>(null)
   const [scrolled, setScrolled] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [focused, setFocused] = useState(false)
   const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
+  const active = resolveNavKey(pathname)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)

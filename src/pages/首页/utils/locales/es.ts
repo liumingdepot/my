@@ -42,7 +42,11 @@ export const es = {
     featured: "Destacado · Sistema núcleo provincial",
     footerCopy: "Liu Ming",
     menu: "Abrir menú",
-    selectLang: "Elegir idioma"
+    selectLang: "Elegir idioma",
+    migrateTitle: "Dominio migrado",
+    migrateText: "El sitio se ha trasladado a",
+    migrateCta: "Entrar",
+    migrateClose: "Cerrar",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const es = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "Dramas cortos",
+      desc: "Dramas cortos Qimao: portada popular, categorías, búsqueda y reproducción. APIs públicas; solo aprendizaje.",
+      href: "/short",
+      tag: "En línea",
+      tone: "amber",
+      glyph: "劇",
+    },
+
     {
       name: "Hongguo Drama",
       desc: "Cortos Hongguo: inicio, categorias live/comic/AI/anime, busqueda y reproduccion por episodio.",

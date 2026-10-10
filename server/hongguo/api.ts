@@ -6,19 +6,36 @@
  *   /search /rank /latest /filters /browse /episodes /play /stream /img /stats /prefetch
  *
  * 兼容旧信封 {ok,data}:
- *   /categories /catalog /detail /play?source= 以及 /api/test 转发
+ *   /categories /catalog /detail /play?source=
+ *
+ * 全集取流（source=hongguo）：
+ *   网页源只开放每部前几集试看，完整播放地址走 App 接口 + unidbg 签名；
+ *   视频是 CENC 加密，需服务端解密后再串流。详见 README-stream.md。
+ *   /play?source=hongguo        → 返回解密后的 /stream（优先 HLS 分片）
+ *   /stream?source=hongguo&episode_id= → HLS seg 或 mp4 Range
+ *   /prefetch?episode_id=       → 后台解密+切片预热
  */
 
 import { fetchById, fetchRandomFeedItem, searchByName, type FeedItem } from './qimao.js'
 import * as hongguo from './hongguo.js'
 import * as huangju from './huangju.js'
 import {
+  prepareEpisode,
+  prefetchEpisode,
+  streamFile,
+  streamHlsSeg,
+  isPreparing,
+  resolveEpisode,
+} from './media.js'
+import * as landpage from './landpage.js'
+import { getVideoTracks, pickPlayable, deviceInfo } from './fqapi.js'
+import { signRuntimeStatus } from './signService.js'
+import {
   GENRES,
   RANK_BOARDS,
   RANK_NAMES,
   categoryOfGenre,
   isGenre,
-  macFilters,
   toMacEpisodes,
   toMacItem,
   type RankBoard,
@@ -245,8 +262,9 @@ async function handleMacRoutes(request: Request, url: URL, path: string): Promis
     return json({
       service: '红果短剧API',
       engine: 'nitro',
-      note: 'hongguo-mac 契约 · 站源取流（非 unidbg 解密）',
+      note: '网页源列目录 + App 签名取全集流 + 服务端 CENC 解密',
       ui: '/hongguo',
+      decrypt: true,
       endpoints: [
         '/api/hongguo/search?q=',
         '/api/hongguo/rank?board=recommend|hot|new',
@@ -266,18 +284,44 @@ async function handleMacRoutes(request: Request, url: URL, path: string): Promis
     return json({
       uptime_s: Math.floor((Date.now() - startedAt) / 1000),
       engine: 'nitro',
-      decrypt: false,
-      note: 'Nitro 站源代理版：可播串流走 Referer 代理，不进行官方密文离线解密',
+      decrypt: true,
+      note: '红果全集链路：App 接口签名(unidbg) → spade 密钥 → AES-128-CTR 解密 → Range 串流',
+      device: deviceInfo().model,
+      sign: signRuntimeStatus(),
     })
   }
 
   if (path === 'filters') {
-    const genre = (url.searchParams.get('genre') || 'short_play').trim()
-    if (!isGenre(genre)) return macBad(`genre必须是 ${Object.keys(GENRES).join('|')}`)
-    return json(macFilters(genre))
+    const genre = (url.searchParams.get('genre') || '').trim()
+    // 官方实时筛选面板（主题/设定/背景/受众/时间/排序），不再用硬编码选项
+    return json({ ok: true, data: await landpage.getFilters(genre) })
   }
 
   if (path === 'browse') {
+    const sp = url.searchParams
+    const data = await landpage.browse({
+      genre: sp.get('genre') || '',
+      theme: sp.get('theme') || '',
+      setting: sp.get('setting') || '',
+      background: sp.get('background') || '',
+      sort: sp.get('sort') || '',
+      gender: sp.get('gender') || '',
+      days: sp.get('days') || '',
+      status: sp.get('status') || '',
+      offset: Number(sp.get('offset') || 0),
+      limit: Number(sp.get('limit') || 24),
+    })
+    return json({
+      ok: true,
+      data: {
+        ...data,
+        name: landpage.GENRES[data.genre].name,
+        note: 'item.vid 为首集 vid，可直接走 /play?source=hongguo&episode_id= 播放',
+      },
+    })
+  }
+
+  if (path === 'browse-legacy') {
     const genre = (url.searchParams.get('genre') || 'short_play').trim()
     if (!isGenre(genre)) return macBad(`genre必须是 ${Object.keys(GENRES).join('|')}`)
     const theme = (url.searchParams.get('theme') || '').trim()
@@ -390,6 +434,22 @@ async function handleMacRoutes(request: Request, url: URL, path: string): Promis
     const target = (url.searchParams.get('url') || '').trim()
     const epRaw = (url.searchParams.get('ep') || '1').trim()
 
+    // 红果全集：优先 HLS 分片；无切片时回退 mp4 Range
+    if (sourceOf(url) === 'hongguo' && episodeId && !target) {
+      const seg = (url.searchParams.get('seg') || '').trim()
+      const media = await prepareEpisode(episodeId)
+      if (seg) {
+        const hit = streamHlsSeg(episodeId, seg, request.headers.get('range'))
+        if (hit) return hit
+        return macBad('分片不存在', 404)
+      }
+      if (media.mediaType === 'hls') {
+        const hit = streamHlsSeg(episodeId, 'index.m3u8', null)
+        if (hit) return hit
+      }
+      return streamFile(media.file, request.headers.get('range'))
+    }
+
     // mac: /stream?series_id=&ep=
     if (seriesId && !episodeId && !target) {
       const ep = Number.isFinite(Number(epRaw)) ? Math.max(1, Math.floor(Number(epRaw))) : 1
@@ -495,21 +555,25 @@ async function handleMacRoutes(request: Request, url: URL, path: string): Promis
   if (path === 'prefetch') {
     const seriesId = (url.searchParams.get('series_id') || '').trim()
     const epRaw = (url.searchParams.get('ep') || '1').trim()
-    const vid = (url.searchParams.get('vid') || '').trim()
-    if (!vid && !seriesId) return macBad('需 series_id+ep 或 vid')
-    const key = vid ? `v:${vid}` : `s:${seriesId}:${epRaw}`
-    if (prefetching.has(key)) return json({ ok: true, queued: 'running' })
+    const episodeId = (
+      url.searchParams.get('episode_id') ||
+      url.searchParams.get('vid') ||
+      ''
+    ).trim()
+    // 全集链路：后台解密 + HLS 切片（真正可播缓存）
+    if (episodeId) {
+      const result = prefetchEpisode(episodeId)
+      return json({ ok: true, ...result, episodeId })
+    }
+    if (!seriesId) return macBad('需 episode_id / vid 或 series_id+ep')
+    const key = `s:${seriesId}:${epRaw}`
+    if (prefetching.has(key)) return json({ ok: true, queued: false, reason: 'running' })
     prefetching.add(key)
-    // 后台预热：解析播放地址（站源版无法做离线解密缓存）
     void (async () => {
       try {
-        if (vid && seriesId) {
-          await hongguo.hongguoPlay(seriesId, vid)
-        } else if (seriesId) {
-          const ep = Number.isFinite(Number(epRaw)) ? Math.max(1, Math.floor(Number(epRaw))) : 1
-          const { episode } = await resolveEpisodeVid(seriesId, ep)
-          await hongguo.hongguoPlay(seriesId, episode.vid)
-        }
+        const ep = Number.isFinite(Number(epRaw)) ? Math.max(1, Math.floor(Number(epRaw))) : 1
+        const { episode } = await resolveEpisodeVid(seriesId, ep)
+        if (episode.vid) prefetchEpisode(episode.vid)
       } catch {
         /* ignore */
       } finally {
@@ -608,7 +672,19 @@ async function handleLegacyRoutes(request: Request, url: URL, path: string): Pro
     if (!id) return bad('缺少短剧 id')
 
     if (!source || source === 'qimao') return json({ ok: true, data: await fetchById(id) })
-    if (source === 'hongguo') return json({ ok: true, data: await hongguo.hongguoDetail(id) })
+    if (source === 'hongguo') {
+      const detail = await hongguo.hongguoDetail(id)
+      // 网页源只给前几集标记 playable=false，但全集都能经 App 接口取流，
+      // 这里统一置为可播，前端就不会再出现锁住的集数。
+      return json({
+        ok: true,
+        data: {
+          ...detail,
+          accessible_episode_cnt: undefined,
+          play_list: (detail.play_list || []).map((ep) => ({ ...ep, playable: true })),
+        },
+      })
+    }
     if (source === 'huangju') return json({ ok: true, data: await huangju.huangjuDetail(id) })
     return bad(`未知站源: ${source}`)
   }
@@ -622,23 +698,20 @@ async function handleLegacyRoutes(request: Request, url: URL, path: string): Pro
     if (!episodeId) return bad('缺少 episode_id')
 
     if (source === 'hongguo') {
-      if (!dramaId) return bad('红果取流需要 drama_id')
-      const play = await hongguo.hongguoPlay(dramaId, episodeId)
-      const proxyQs = new URLSearchParams({
-        series_id: dramaId,
-        episode_id: episodeId,
-        url: play.url,
-      })
+      // 全集取流：签名拿直链 → 解密 →（有 ffmpeg 则 HLS）→ 返回播放地址
+      const media = await prepareEpisode(episodeId)
+      const streamQs = new URLSearchParams({ source: 'hongguo', episode_id: episodeId })
+      if (media.mediaType === 'hls') streamQs.set('seg', 'index.m3u8')
+      const info = await resolveEpisode(episodeId).catch(() => null)
       return json({
         ok: true,
         data: {
-          url: `/api/hongguo/stream?${proxyQs}`,
-          originUrl: play.url,
-          referer: play.referer,
-          quality: play.quality,
-          variants: play.variants,
+          url: `/api/hongguo/stream?${streamQs}`,
           proxy: true,
-          mediaType: play.url.includes('.m3u8') ? 'hls' : 'mp4',
+          mediaType: media.mediaType,
+          quality: info?.track.definition,
+          cached: !media.fresh,
+          size: media.size,
         },
       })
     }
@@ -690,6 +763,35 @@ async function handleLegacyRoutes(request: Request, url: URL, path: string): Pro
     return json({ ok: true, data: { list: items } })
   }
 
+  // 全集取流相关：准备状态与自检
+  if (path === 'stream-status') {
+    const episodeId = (url.searchParams.get('episode_id') || url.searchParams.get('vid') || '').trim()
+    if (!episodeId) return bad('缺少 episode_id')
+    return json({ ok: true, data: { episodeId, preparing: isPreparing(episodeId) } })
+  }
+
+  if (path === 'stream-diag') {
+    const episodeId = (url.searchParams.get('episode_id') || url.searchParams.get('vid') || '').trim()
+    if (!episodeId) return bad('缺少 episode_id')
+    const tracks = await getVideoTracks([episodeId])
+    const list = tracks[episodeId] || []
+    const picked = pickPlayable(list)
+    const info = await resolveEpisode(episodeId)
+    return json({
+      ok: true,
+      data: {
+        sign: signRuntimeStatus(),
+        device: deviceInfo().model,
+        definition: info.track.definition,
+        codec: info.track.codec,
+        size: info.track.size,
+        hasKey: Boolean(info.key),
+        definitions: list.map((t) => ({ definition: t.definition, codec: t.codec })),
+        playable: Boolean(picked),
+      },
+    })
+  }
+
   if (method !== 'GET') return bad(`不支持的方法: ${method}`, 405)
   return bad(`未知接口: ${method} ${url.pathname}`, 404)
 }
@@ -702,14 +804,16 @@ export async function handleHongguoApi(request: Request, url: URL): Promise<Resp
     return await handleLegacyRoutes(request, url, path)
   } catch (e) {
     const msg = e instanceof Error ? e.message : '上游请求失败'
+    // 试看限制是预期业务结果，用 403；其余上游失败仍 502
+    const status = /试看/.test(msg) ? 403 : 502
     // mac 路由错误用 detail；旧信封用 error
     if (
       ['filters', 'browse', 'latest', 'rank', 'episodes', 'stream', 'img', 'prefetch'].includes(path) ||
       (path === 'search' && !sourceOf(url)) ||
       (path === 'play' && !sourceOf(url))
     ) {
-      return macBad(msg, 502)
+      return macBad(msg, status)
     }
-    return bad(msg, 502)
+    return bad(msg, status)
   }
 }

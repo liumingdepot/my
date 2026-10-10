@@ -1,4 +1,4 @@
-export type WorkCategory = 'all' | 'ai' | 'av' | 'tool' | 'fish' | 'test'
+export type WorkCategory = 'all' | 'ai' | 'av' | 'tool' | 'fish'
 
 export type WorkItem = {
   name: string
@@ -18,10 +18,9 @@ export const WORK_CATEGORIES: { id: WorkCategory; label: string }[] = [
   { id: 'av', label: '音视频' },
   { id: 'tool', label: '工具' },
   { id: 'fish', label: '摸鱼' },
-  { id: 'test', label: '开发中' },
 ]
 
-/** 全部作品（中文），首页最多展示前 6 项；测试模块固定最后 */
+/** 全部作品（中文），首页最多展示前 6 项 */
 export const ALL_WORKS: WorkItem[] = [
   {
     name: '无限画布',
@@ -31,7 +30,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'violet',
     glyph: '画',
     platform: 'PC',
-    categories: ['ai', 'test'],
+    categories: ['ai'],
   },
   {
     name: '周易',
@@ -64,8 +63,18 @@ export const ALL_WORKS: WorkItem[] = [
     categories: ['av'],
   },
   {
+    name: '短剧',
+    desc: '七猫短剧：热门首页、都市/古装等分类浏览、搜索与分集播放。数据来自公开接口，仅供学习交流。',
+    href: '/short',
+    tag: '已上线',
+    tone: 'amber',
+    glyph: '剧',
+    platform: 'PC + 移动',
+    categories: ['av'],
+  },
+  {
     name: '红果短剧',
-    desc: '红果站源短剧：首页热播、真人/漫剧/AI/动漫分类、搜索与分集播放。',
+    desc: '红果短剧网页版：分类浏览、搜索与全集选集播放，含接口签名与视频解密链路。',
     href: '/hongguo',
     tag: '已上线',
     tone: 'amber',
@@ -102,16 +111,6 @@ export const ALL_WORKS: WorkItem[] = [
     glyph: '鱼',
     platform: 'PC + 移动',
     categories: ['fish', 'tool'],
-  },
-  {
-    name: '测试',
-    desc: 'hongguo-mac 风格短剧测试：发现/榜单/搜索/选集播放，本机收藏与历史。',
-    href: '/test',
-    tag: '测试',
-    tone: 'amber',
-    glyph: '测',
-    platform: 'PC + 移动',
-    categories: ['test'],
   },
 ]
 

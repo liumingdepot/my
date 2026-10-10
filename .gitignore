@@ -19,6 +19,21 @@ dist-ssr
 .tmp
 tmp
 
+# 红果签名：运行时不入库（本地/打包用 setup 脚本生成）
+# jdk17 是完整 JDK（~310M），jre 是 jlink 裁剪出的自带运行时（~33M），两者都重建成本极低
+hongguo-work/jdk17/
+hongguo-work/jre/
+hongguo-work/**/*.tar.gz
+hongguo-work/**/*.zip
+hongguo-work/sign-smoke.log
+hongguo-work/src.zip
+# 官方 Unicorn 二进制（约 30MB，跑 scripts/setup-hongguo-unicorn.sh 重建）
+hongguo-work/emu/
+hongguo-work/trace/
+hongguo-work/trace-*.md
+hongguo-work/hg/
+hongguo-work/apache-maven-*/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

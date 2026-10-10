@@ -1,12 +1,22 @@
 /**
  * 红果站源（参考 guoapp provider_hongguo 网页链路）
  * 站点: https://hongguoduanju.com
+ *
+ * 注意：公开网页只下发 accessible_episode_cnt 内的试看集（常见前 3 集），
+ * 其后播放页返回 404；第三方备用接口目前也常返回空地址。
  */
+
+import { createDecipheriv } from 'node:crypto'
 
 const BASE = 'https://hongguoduanju.com'
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 const PLAYBACK_API = 'https://djapi.999888456.xyz/api/hongguo/play'
+
+/** 与公开红果中转 v2 响应派生表一致 */
+const V2_TABLE = [
+  104, 64, 70, 166, 190, 168, 143, 130, 225, 254, 251, 217, 196, 34, 45, 60, 29, 20, 103, 105,
+] as const
 
 export type HongguoListItem = {
   id: string
@@ -25,6 +35,8 @@ export type HongguoEpisode = {
   video_h265_url?: string
   duration: string
   first_img: string
+  /** false = 超出网页试看范围，公开链路无法取流 */
+  playable?: boolean
 }
 
 export type HongguoDetail = {
@@ -34,6 +46,8 @@ export type HongguoDetail = {
   tags: string
   title: string
   total_episode_num: string
+  /** 网页公开可播集数（试看） */
+  accessible_episode_cnt?: number
   is_over?: string
   play_list: HongguoEpisode[]
 }
@@ -143,6 +157,45 @@ async function fetchText(url: string, referer = `${BASE}/`) {
   const text = await res.text()
   if (text.length > 4 << 20) throw new Error('红果页面过大')
   return text
+}
+
+function deriveV2Material(keyId: string): Buffer {
+  const suffix = keyId.length > 4 ? keyId.slice(4) : ''
+  if (!suffix || suffix.length % 2 || suffix.length > 1024 || !/^[0-9a-fA-F]+$/.test(suffix)) {
+    throw new Error('红果响应密钥无效')
+  }
+  const raw = Buffer.from(suffix, 'hex')
+  const output = Buffer.alloc(raw.length)
+  for (let index = 0; index < raw.length; index++) {
+    const current = raw[index]!
+    const previous = index === 0 ? 109 : raw[index - 1]!
+    const slot = index % V2_TABLE.length
+    const salt = V2_TABLE[slot]! ^ ((90 + 13 * slot) & 0xff) ^ 85
+    const shifted = (current + 215 - 11 * index) & 0xff
+    const rotated = ((shifted << 3) | (shifted >> 5)) & 0xff
+    output[index] = previous ^ salt ^ rotated
+  }
+  return output
+}
+
+/** 解密 djapi 返回的 v2.<keyId>.<ciphertext> 包体 */
+function decryptV2Body(body: string): string {
+  const text = body.trim()
+  if (!text.startsWith('v2.')) return text
+  const first = text.indexOf('.')
+  const second = text.indexOf('.', first + 1)
+  if (first < 0 || second < 0) throw new Error('红果加密响应无效')
+  const material = deriveV2Material(text.slice(first + 1, second))
+  if (material.length < 32) throw new Error('红果响应密钥无效')
+  const ciphertext = Buffer.from(text.slice(second + 1), 'base64')
+  if (!ciphertext.length || ciphertext.length % 16) throw new Error('红果加密响应无效')
+  const decipher = createDecipheriv(
+    'aes-128-cbc',
+    material.subarray(0, 16),
+    material.subarray(16, 32),
+  )
+  const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+  return plain.toString('utf8')
 }
 
 function dramaFromAny(v: unknown, category = '短剧'): HongguoListItem | null {
@@ -307,6 +360,9 @@ export async function hongguoDetail(seriesId: string): Promise<HongguoDetail> {
   const intro = mapString(detail, 'series_intro', 'video_desc', 'intro')
   const tags = mapString(detail, 'tags', 'category_name')
   const count = mapString(detail, 'episode_cnt', 'total_episode')
+  const accessibleRaw = Number(mapString(detail, 'accessible_episode_cnt'))
+  const accessible =
+    Number.isFinite(accessibleRaw) && accessibleRaw > 0 ? Math.floor(accessibleRaw) : 0
   const vids = anyList(detail.vid_list)
 
   const play_list: HongguoEpisode[] = []
@@ -321,6 +377,8 @@ export async function hongguoDetail(seriesId: string): Promise<HongguoDetail> {
       video_url: '',
       duration: '',
       first_img: cover.startsWith('//') ? `https:${cover}` : cover,
+      // 有试看上限时，超出集数标记为不可播（前端置灰）
+      playable: accessible > 0 ? idx <= accessible : undefined,
     })
   })
 
@@ -333,6 +391,7 @@ export async function hongguoDetail(seriesId: string): Promise<HongguoDetail> {
     intro,
     tags,
     total_episode_num: count || String(play_list.length),
+    accessible_episode_cnt: accessible || undefined,
     is_over: mapString(detail, 'series_status') === '1' ? '1' : mapString(detail, 'series_status') === '0' ? '0' : undefined,
     play_list,
   }
@@ -340,7 +399,21 @@ export async function hongguoDetail(seriesId: string): Promise<HongguoDetail> {
 
 async function playFromPage(seriesId: string, videoId: string): Promise<HongguoPlayResult> {
   const pageURL = `${BASE}/player/${encodeURIComponent(seriesId)}/${encodeURIComponent(videoId)}`
-  const body = await fetchText(pageURL)
+  const res = await fetch(pageURL, {
+    headers: {
+      'User-Agent': UA,
+      Accept: 'text/html,application/xhtml+xml,application/json',
+      'Accept-Language': 'zh-CN,zh;q=0.9',
+      Referer: `${BASE}/`,
+    },
+  })
+  if (res.status === 404) {
+    throw new Error('该集超出网页试看范围（红果公开站通常仅前几集可播）')
+  }
+  if (!res.ok) throw new Error(`红果页面 HTTP ${res.status}`)
+  const body = await res.text()
+  if (body.length > 4 << 20) throw new Error('红果页面过大')
+
   const page = routerLoaderMap(parseRouterData(body), 'player_', 'player_page')
   if (!page) throw new Error('红果播放页数据不可用')
   if (mapString(page, 'vid') !== videoId || mapString(page, 'series_id') !== seriesId) {
@@ -369,10 +442,11 @@ async function playFromBackupApi(seriesId: string, videoId: string): Promise<Hon
   const id = Buffer.from(JSON.stringify(reference)).toString('base64')
   const url = `${PLAYBACK_API}?id=${encodeURIComponent(id)}`
   const text = await fetchText(url, `${BASE}/`)
-  let decoded = text.trim()
-  if (decoded.startsWith('v2.')) {
-    // 加密响应：本页先跳过复杂解密，提示换网页取流
-    throw new Error('红果备用接口返回加密数据，请优先使用网页播放链路')
+  let decoded: string
+  try {
+    decoded = decryptV2Body(text)
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : '红果备用接口解密失败')
   }
   let json: Record<string, unknown>
   try {
@@ -380,14 +454,20 @@ async function playFromBackupApi(seriesId: string, videoId: string): Promise<Hon
   } catch {
     throw new Error('红果备用播放接口返回无效数据')
   }
-  const keyUrls = Array.isArray(json.key_urls) ? json.key_urls : []
+
   const urls: string[] = []
+  const keyUrls = Array.isArray(json.key_urls) ? json.key_urls : []
   for (const option of keyUrls) {
     if (!option || typeof option !== 'object') continue
     const src = mapString(option as Record<string, unknown>, 'src')
     if (/^https?:\/\//i.test(src)) urls.push(src)
   }
-  if (!urls.length) throw new Error('红果备用接口未返回可用媒体地址')
+  const direct = mapString(json, 'url')
+  if (/^https?:\/\//i.test(direct)) urls.unshift(direct)
+
+  if (!urls.length) {
+    throw new Error('备用接口未返回播放地址（该集可能未对公开链路开放）')
+  }
   return { url: urls[0]!, referer: 'https://novel.snssdk.com/', variants: urls }
 }
 
@@ -398,12 +478,14 @@ export async function hongguoPlay(seriesId: string, videoId: string): Promise<Ho
   try {
     return await playFromPage(seriesId, videoId)
   } catch (pageErr) {
+    const pageMsg = pageErr instanceof Error ? pageErr.message : '网页取流失败'
+    // 明确的试看限制不再徒劳打备用接口
+    if (pageMsg.includes('试看')) throw pageErr instanceof Error ? pageErr : new Error(pageMsg)
     try {
       return await playFromBackupApi(seriesId, videoId)
     } catch (apiErr) {
-      const a = pageErr instanceof Error ? pageErr.message : '网页取流失败'
       const b = apiErr instanceof Error ? apiErr.message : '备用取流失败'
-      throw new Error(`红果取流失败：${a}；${b}`)
+      throw new Error(`红果取流失败：${pageMsg}；${b}`)
     }
   }
 }

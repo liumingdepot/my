@@ -37,6 +37,8 @@ export type DramaDetail = {
   tags: string
   title: string
   total_episode_num: string
+  /** 网页公开可播集数（试看），超出集 playable=false */
+  accessible_episode_cnt?: number
   is_over?: string
   release_status?: string
   play_list: DramaEpisode[]
@@ -129,7 +131,9 @@ export async function resolvePlayback(
   if (!play.url) throw new Error('该集暂无播放地址')
   const mediaType =
     play.mediaType ||
-    (play.originUrl?.includes('.m3u8') || play.url.includes('.m3u8') ? 'hls' : 'mp4')
+    (play.originUrl?.includes('.m3u8') || play.url.includes('.m3u8') || play.url.includes('seg=')
+      ? 'hls'
+      : 'mp4')
   return {
     url: play.url,
     referer: play.referer,
@@ -143,6 +147,28 @@ export async function resolvePlayback(
   }
 }
 
+/** 后台预热：解密 + HLS 切片，不阻塞播放 */
+export function prefetchPlayback(episodeId: string) {
+  const id = episodeId.trim()
+  if (!id) return
+  const q = new URLSearchParams({ source: SOURCE, episode_id: id })
+  void fetch(`/api/hongguo/prefetch?${q}`).catch(() => {})
+}
+
+/** 预热当前集的下一集（若有） */
+export function prefetchNextEpisodes(episodes: DramaEpisode[], activeIndex: number, ahead = 1) {
+  for (let i = 1; i <= ahead; i++) {
+    const ep = episodes[activeIndex + i]
+    if (ep?.video_id && ep.playable !== false) prefetchPlayback(ep.video_id)
+  }
+}
+
 export function sortEpisodes(list: DramaEpisode[]) {
   return [...list].sort((a, b) => Number(a.sort) - Number(b.sort))
+}
+
+/** 推荐列表（目录首屏），用于播放页侧栏 */
+export async function fetchRecommend(limit = 12, signal?: AbortSignal) {
+  const data = await searchDramas('', 1, '', signal)
+  return (data.list || []).slice(0, limit)
 }

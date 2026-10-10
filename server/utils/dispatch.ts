@@ -38,9 +38,9 @@ export async function dispatchApi(request: Request, env: AppEnv): Promise<Respon
     return handleHongguoApi(request, url)
   }
 
-  if (url.pathname.startsWith('/api/test')) {
-    const { handleTestApi } = await import('../test/api.js')
-    return handleTestApi(request, url)
+  if (url.pathname.startsWith('/api/duanju')) {
+    const { handleDuanjuApi } = await import('../duanju/api.js')
+    return handleDuanjuApi(request, url)
   }
 
   if (url.pathname.startsWith('/api/canvas')) {

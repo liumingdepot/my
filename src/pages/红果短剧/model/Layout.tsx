@@ -3,22 +3,11 @@ import { useLayoutEffect } from 'react'
 import styled, { createGlobalStyle } from 'styled-components'
 import Header from './Header'
 import Footer from './Footer'
-import type { NavKey } from '../utils/categories'
-import { categoryByPath } from '../utils/categories'
-
-function resolveActive(pathname: string): NavKey {
-  if (pathname.startsWith('/hongguo/search')) return 'home'
-  if (pathname.startsWith('/hongguo/play')) return 'home'
-  const cat = categoryByPath(pathname)
-  if (cat) return cat.key
-  return 'home'
-}
 
 export default function Layout() {
-  const { pathname } = useLocation()
-  const active = resolveActive(pathname)
+  const { pathname, search } = useLocation()
   const hideSearch = pathname.startsWith('/hongguo/search')
-  const hideFooter = pathname.startsWith('/hongguo/play')
+  const isPlay = pathname.startsWith('/hongguo/play')
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
@@ -31,26 +20,26 @@ export default function Layout() {
   }, [])
 
   useLayoutEffect(() => {
-    document.body.style.background = '#0a0a0c'
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a0a0c')
+    document.body.style.background = isPlay ? '#000' : '#0a0a0c'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isPlay ? '#000' : '#0a0a0c')
     return () => {
       document.body.style.background = ''
     }
-  }, [])
+  }, [isPlay])
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0)
-  }, [pathname])
+  }, [pathname, search])
 
   return (
     <>
       <Global />
-      <Shell data-hide-search={hideSearch ? '1' : '0'}>
-        <Header active={active} hideSearch={hideSearch} />
+      <Shell data-hide-search={hideSearch ? '1' : '0'} data-play={isPlay ? '1' : '0'}>
+        <Header hideSearch={hideSearch} />
         <main>
           <Outlet />
         </main>
-        {hideFooter ? null : <Footer />}
+        {isPlay ? null : <Footer />}
       </Shell>
     </>
   )
@@ -111,12 +100,34 @@ const Shell = styled.div`
     padding-top: 64px;
   }
 
+  &[data-play='1'] {
+    background: #000;
+
+    main {
+      min-height: 0;
+      height: 100vh;
+      padding-top: 64px;
+      overflow: hidden;
+    }
+  }
+
   @media (max-width: 900px) {
     main {
       padding-top: 132px;
     }
 
     &[data-hide-search='1'] main {
+      padding-top: 96px;
+    }
+
+    &[data-play='1'] main {
+      height: auto;
+      min-height: calc(100vh - 132px);
+      overflow: visible;
+      padding-top: 132px;
+    }
+
+    &[data-play='1'][data-hide-search='1'] main {
       padding-top: 96px;
     }
   }

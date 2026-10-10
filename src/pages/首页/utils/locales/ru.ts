@@ -42,7 +42,11 @@ export const ru = {
     featured: "Избранное · Провинциальная core-система",
     footerCopy: "Liu Ming",
     menu: "Открыть меню",
-    selectLang: "Выбрать язык"
+    selectLang: "Выбрать язык",
+    migrateTitle: "Домен перенесён",
+    migrateText: "Сайт переехал на",
+    migrateCta: "Перейти",
+    migrateClose: "Закрыть",
   },
   works: [
     {
@@ -77,6 +81,15 @@ export const ru = {
       tone: "ink",
       glyph: "影",
     },
+    {
+      name: "Короткие драмы",
+      desc: "Короткие драмы Qimao: главная, категории, поиск и воспроизведение. Публичные API; только для обучения.",
+      href: "/short",
+      tag: "Онлайн",
+      tone: "amber",
+      glyph: "劇",
+    },
+
     {
       name: "Hongguo Drama",
       desc: "Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.",
