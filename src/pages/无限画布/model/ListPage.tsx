@@ -29,11 +29,13 @@ import {
   createCanvasVideo,
   generateCanvasImage,
   generateCanvasText,
+  waitCanvasVideo,
+} from '../utils/server'
+import {
   getProject,
   updateProject,
-  waitCanvasVideo,
   type CanvasProject,
-} from '../utils/server'
+} from '../utils/projects'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 type StepStatus = 'pending' | 'partial' | 'done'

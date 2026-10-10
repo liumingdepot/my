@@ -1,12 +1,7 @@
-export type CanvasProject = {
-  id: string
-  title: string
-  prompt: string
-  content: string
-  createdAt: string
-  updatedAt: string
-}
-
+/**
+ * 只保留 AI 生成接口（文本 / 图片 / 视频）走服务器。
+ * 历史项目已改为纯前端本地存储，见 ./projects.ts。
+ */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -20,37 +15,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(data.error || `请求失败 (${res.status})`)
   }
   return data
-}
-
-export function listProjects() {
-  return request<{ items: CanvasProject[] }>('/api/canvas/projects')
-}
-
-export function getProject(id: string) {
-  return request<{ item: CanvasProject }>(`/api/canvas/projects/${encodeURIComponent(id)}`)
-}
-
-export function createProject(input?: { title?: string; prompt?: string; content?: string }) {
-  return request<{ item: CanvasProject }>('/api/canvas/projects', {
-    method: 'POST',
-    body: JSON.stringify(input || {}),
-  })
-}
-
-export function updateProject(
-  id: string,
-  input: { title?: string; prompt?: string; content?: string },
-) {
-  return request<{ item: CanvasProject }>(`/api/canvas/projects/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(input),
-  })
-}
-
-export function deleteProject(id: string) {
-  return request<{ ok: boolean }>(`/api/canvas/projects/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
 }
 
 export type CanvasTextAiResult = {
@@ -194,19 +158,4 @@ export async function waitCanvasVideo(
     }
     await wait(intervalMs)
   }
-}
-
-export function formatRelativeTime(iso: string): string {
-  const ts = Date.parse(iso)
-  if (!Number.isFinite(ts)) return ''
-  const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天前`
-  return new Date(ts).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }

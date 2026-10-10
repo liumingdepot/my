@@ -6,9 +6,10 @@ import {
   deleteProject,
   formatRelativeTime,
   listProjects,
+  subscribeProjects,
   updateProject,
   type CanvasProject,
-} from '../utils/server'
+} from '../utils/projects'
 import ProjectDialog, { type ProjectFormValues } from './ProjectDialog'
 
 type DialogState =
@@ -19,29 +20,21 @@ type DialogState =
 export default function HistoryPage() {
   const navigate = useNavigate()
   const [list, setList] = useState<CanvasProject[]>([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>({ type: 'closed' })
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
-  const load = async () => {
-    setLoading(true)
+  const load = () => {
     setError('')
-    try {
-      const data = await listProjects()
-      setList(data.items)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败')
-      setList([])
-    } finally {
-      setLoading(false)
-    }
+    void listProjects().then(({ items }) => setList(items))
   }
 
   useEffect(() => {
-    void load()
+    load()
+    // 同一浏览器多个标签页 / 页面间改动都能同步
+    return subscribeProjects(load)
   }, [])
 
   const closeDialog = () => {
@@ -104,9 +97,10 @@ export default function HistoryPage() {
     <Style>
       <div className="toolbar">
         <div className="toolbar-left">
-          <h1 className="page-title">历史项目</h1>
+          <h1 className="page-title">历史项目（本地存储，不跨电脑）</h1>
           <p className="page-sub">
-            {loading ? '加载中…' : list.length ? `${list.length} 个项目` : '还没有项目'}
+            {list.length ? `${list.length} 个项目` : '还没有项目'}
+            <span className="page-tip">数据仅保存在当前浏览器，换电脑或清理浏览器数据后会丢失。</span>
           </p>
         </div>
         <button type="button" className="add" onClick={openCreate}>
@@ -119,13 +113,7 @@ export default function HistoryPage() {
 
       {error ? <p className="error">{error}</p> : null}
 
-      {loading ? (
-        <div className="skeleton-grid" aria-hidden="true">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="skeleton-card" />
-          ))}
-        </div>
-      ) : list.length === 0 ? (
+      {list.length === 0 ? (
         <div className="empty">
           <div className="empty-visual" aria-hidden="true">
             <div className="empty-grid" />
@@ -228,6 +216,13 @@ const Style = styled.div`
   .page-sub {
     margin: 0.35rem 0 0;
     font-size: 0.875rem;
+    color: var(--soft);
+  }
+
+  .page-tip {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.8rem;
     color: var(--soft);
   }
 
@@ -356,20 +351,6 @@ const Style = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr));
     gap: 1rem;
-  }
-
-  .skeleton-card {
-    aspect-ratio: 4 / 3.4;
-    border-radius: 16px;
-    border: 1px solid var(--line);
-    background: linear-gradient(
-      110deg,
-      rgba(255, 255, 255, 0.03) 20%,
-      rgba(255, 255, 255, 0.07) 40%,
-      rgba(255, 255, 255, 0.03) 60%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.4s ease-in-out infinite;
   }
 
   .card {
@@ -537,15 +518,6 @@ const Style = styled.div`
     &:disabled {
       cursor: wait;
       opacity: 0.7;
-    }
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 100% 0;
-    }
-    100% {
-      background-position: -100% 0;
     }
   }
 `

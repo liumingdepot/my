@@ -18,7 +18,7 @@ import {
   getProject,
   updateProject,
   type CanvasProject,
-} from '../utils/server'
+} from '../utils/projects'
 import CanvasBoard from './CanvasBoard'
 import NodeInspector from './NodeInspector'
 import ProjectDialog, { type ProjectFormValues } from './ProjectDialog'

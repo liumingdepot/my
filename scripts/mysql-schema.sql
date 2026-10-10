@@ -77,17 +77,6 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   KEY `idx_sessions_expires` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE IF NOT EXISTS `canvas_projects` (
-  `id` VARCHAR(64) NOT NULL,
-  `title` VARCHAR(255) NOT NULL,
-  `prompt` MEDIUMTEXT NOT NULL,
-  `content` MEDIUMTEXT NOT NULL,
-  `created_at` VARCHAR(64) NOT NULL,
-  `updated_at` VARCHAR(64) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_canvas_projects_updated` (`updated_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
 CREATE TABLE IF NOT EXISTS `agnes_api_keys` (
   `id` VARCHAR(36) NOT NULL,
   `api_key` VARCHAR(255) NOT NULL,
