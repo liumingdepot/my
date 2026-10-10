@@ -1,6 +1,7 @@
 # Pre-approve native build scripts for packages pnpm 11+ would otherwise skip.
 allowBuilds:
   esbuild: true
+  koffi: true
   # sharp used by nitropack
   sharp: true
 # temporarily disabled — pnpm 12 rejects this patch format; restore after install

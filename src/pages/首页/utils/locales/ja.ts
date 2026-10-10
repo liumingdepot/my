@@ -121,7 +121,7 @@ export const ja = {
     available: "新たな機会を受付中 · 西安 / フロントエンド",
     headlineHtml: "<span class=\"grad\">スケーラブル</span>な<span class=\"grad\">フロントエンド</span>体験を、エンジニアリングで丁寧に。",
     bio: "フロントエンド開発 10 年。マイクロフロントエンド、マルチエンド配信、データ可視化に注力。Vue / React / TypeScript が得意で、0 から基盤構築・複雑システムのチームリードが可能。志望：フロントエンド開発エンジニア · 希望年収 20–25K · 西安。",
-    photo: "/images/my.jpg",
+    photo: "/images/my.webp",
     resume: "/resumes/liuming.pdf",
     phone: "15332335062"
   },

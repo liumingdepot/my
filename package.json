@@ -34,6 +34,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "nitro": "3.0.260522-beta",
     "oxlint": "^1.81.0",
+    "sharp": "^0.35.5",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   }

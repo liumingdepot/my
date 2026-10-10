@@ -121,7 +121,7 @@ export const ar = {
     available: "مفتوح لفرص جديدة · شيآن / واجهة أمامية",
     headlineHtml: "تجارب <span class=\"grad\">واجهة أمامية</span> <span class=\"grad\">قابلة للتوسع</span>، مصمَّمة بعناية هندسية.",
     bio: "مهندس واجهة أمامية كبير بخبرة 10 سنوات في بنية الواجهات المصغّرة والتسليم متعدد المنصات وتصور البيانات. قوي في Vue / React / TypeScript؛ يبني بنية تحتية للواجهة من الصفر ويقود فرقًا على أنظمة معقّدة. الهدف: مهندس واجهة أمامية · 20–25K · شيآن.",
-    photo: "/images/my.jpg",
+    photo: "/images/my.webp",
     resume: "/resumes/liuming.pdf",
     phone: "15332335062"
   },

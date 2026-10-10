@@ -121,7 +121,7 @@ export const es = {
     available: "Abierto a oportunidades · Xi'an / Frontend",
     headlineHtml: "Experiencias <span class=\"grad\">frontend</span> <span class=\"grad\">escalables</span>, elaboradas con ingeniería cuidadosa.",
     bio: "Ingeniero frontend senior con 10 años de experiencia en arquitectura micro-frontend, entrega multiplataforma y visualización de datos. Fuerte en Vue / React / TypeScript; construye infra frontend desde cero y lidera equipos en sistemas complejos. Objetivo: ingeniero frontend · 20–25K · Xi'an.",
-    photo: "/images/my.jpg",
+    photo: "/images/my.webp",
     resume: "/resumes/liuming.pdf",
     phone: "15332335062"
   },

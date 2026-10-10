@@ -121,7 +121,7 @@ export const de = {
     available: "Offen für neue Chancen · Xi'an / Frontend",
     headlineHtml: "<span class=\"grad\">Skalierbare</span> <span class=\"grad\">Frontend</span>-Erlebnisse, mit Engineering-Sorgfalt gebaut.",
     bio: "Senior-Frontend-Entwickler mit 10 Jahren Erfahrung in Micro-Frontend-Architektur, Multi-End-Delivery und Datenvisualisierung. Stark in Vue / React / TypeScript; baut Frontend-Infrastruktur von Grund auf und führt Teams bei komplexen Systemen. Zielrolle: Frontend Development Engineer · 20–25K · Xi'an.",
-    photo: "/images/my.jpg",
+    photo: "/images/my.webp",
     resume: "/resumes/liuming.pdf",
     phone: "15332335062"
   },

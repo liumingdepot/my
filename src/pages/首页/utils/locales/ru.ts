@@ -121,7 +121,7 @@ export const ru = {
     available: "Открыт к новым возможностям · Сиань / Frontend",
     headlineHtml: "<span class=\"grad\">Масштабируемые</span> <span class=\"grad\">frontend</span>-решения, созданные с инженерной тщательностью.",
     bio: "Senior frontend-инженер с 10-летним опытом: микрофронтенды, мультиплатформенная доставка, визуализация данных. Силён в Vue / React / TypeScript; строит frontend-инфраструктуру с нуля и ведёт команды по сложным системам. Цель: frontend engineer · 20–25K · Сиань.",
-    photo: "/images/my.jpg",
+    photo: "/images/my.webp",
     resume: "/resumes/liuming.pdf",
     phone: "15332335062"
   },

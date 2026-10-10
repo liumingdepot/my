@@ -121,7 +121,7 @@ export const zht = {
     available: "開放新機會 · 西安 / 前端開發",
     headlineHtml: "<span class=\"grad\">可擴展</span>的<span class=\"grad\">前端</span>體驗，用工程化精心打造。",
     bio: "擁有 10 年前端開發經驗，專注微前端架構、多端交付與資料視覺化。擅長 Vue / React / TypeScript，具備從 0 到 1 搭建前端基建、帶領團隊交付複雜業務系統的能力。求職意向：前端開發工程師 · 期望薪資 20–25K · 西安。",
-    photo: "/images/my.jpg",
+    photo: "/images/my.webp",
     resume: "/resumes/liuming-zh.pdf",
     phone: "15332335062"
   },
