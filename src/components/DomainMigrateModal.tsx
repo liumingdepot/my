@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 
-export const NEW_DOMAIN = 'https://www.liuming1994.qzz.io/'
 const NEW_HOST = 'liuming1994.qzz.io'
+export const NEW_DOMAIN = `https://${NEW_HOST}`
 
 export function isNewDomain() {
   if (typeof window === 'undefined') return false
