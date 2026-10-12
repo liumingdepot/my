@@ -5,6 +5,7 @@ import styled from 'styled-components'
 import {
   clearWatchHistory,
   deleteWatchHistory,
+  formatWatchResume,
   readWatchHistory,
   subscribeWatchHistory,
   type WatchHistoryItem,
@@ -130,7 +131,7 @@ export default function WatchHistoryMenu({ accent = '#e8a54b' }: Props) {
                     <span className="meta">
                       <span className="title">{item.vod_name}</span>
                       <span className="sub">
-                        {[item.episode, item.vod_remarks, item.vod_year, item.type_name]
+                        {[formatWatchResume(item), item.vod_remarks, item.type_name]
                           .filter(Boolean)
                           .slice(0, 2)
                           .join(' · ')}

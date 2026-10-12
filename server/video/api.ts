@@ -11,6 +11,14 @@ import {
   loadEnabledSourceEntries,
   type SourceEntry,
 } from './sources.js'
+import {
+  fetchDanmakuComments,
+  fetchDanmakuParts,
+  matchDanmakuSources,
+  parseEpisodeNumber,
+  searchDanmakuSources,
+  type DanmakuPlatform,
+} from './danmaku/index.js'
 
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
@@ -22,7 +30,7 @@ const noStoreHeaders = {
   'cache-control': 'no-store',
 }
 
-type VideoEnv = { DB: AppDb }
+type VideoEnv = { DB: AppDb; BILI_COOKIE?: string }
 
 const TTL = {
   sources: 300,
@@ -622,6 +630,49 @@ export async function handleVideoApi(
           },
         )
         return json(payload)
+      }
+
+      case 'danmaku/search': {
+        const q = url.searchParams.get('q')?.trim()
+        if (!q) return bad('请输入关键词')
+        const page = Number(url.searchParams.get('page') || '1') || 1
+        const payload = await searchDanmakuSources({ keyword: q, page })
+        return json(payload, 200, false)
+      }
+
+      case 'danmaku/match': {
+        const q = url.searchParams.get('q')?.trim()
+        if (!q) return bad('请输入关键词')
+        const epRaw = url.searchParams.get('episode')?.trim() || ''
+        const episode = epRaw ? Number(epRaw) || parseEpisodeNumber(epRaw) : null
+        const matched = await matchDanmakuSources({ keyword: q, episode })
+        return json(
+          {
+            item: matched.item,
+            part: matched.part,
+            list: matched.comments,
+            count: matched.comments.length,
+          },
+          200,
+          false,
+        )
+      }
+
+      case 'danmaku/parts': {
+        const platform = (url.searchParams.get('platform')?.trim() || '') as DanmakuPlatform
+        const id = url.searchParams.get('id')?.trim() || ''
+        if (!platform || !id) return bad('缺少 platform 或 id')
+        const mediaType = url.searchParams.get('type')?.trim() || ''
+        const payload = await fetchDanmakuParts({ platform, id, type: mediaType })
+        return json(payload, 200, false)
+      }
+
+      case 'danmaku/comments': {
+        const platform = (url.searchParams.get('platform')?.trim() || '') as DanmakuPlatform
+        const id = url.searchParams.get('id')?.trim() || ''
+        if (!platform || !id) return bad('缺少 platform 或 id')
+        const comments = await fetchDanmakuComments({ platform, id })
+        return json({ list: comments, count: comments.length }, 200, false)
       }
 
       default:

@@ -2,11 +2,14 @@ import Hls from 'hls.js'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import styled from 'styled-components'
-import { saveWatchHistory } from '../utils/history'
+import { getWatchResume, saveWatchHistory } from '../utils/history'
 import { loadMergedEntries, saveMergedEntries } from '../utils/merge'
 import { scoreOf, stripHtml } from '../utils/parse'
 import { fetchDetailItem, listVideos } from '../utils/server'
 import type { MergedEntry, VodItem } from '../utils/types'
+import type { DanmakuComment } from '../utils/danmaku'
+import DanmakuLayer from './DanmakuLayer'
+import DanmakuSearchModal from './DanmakuSearchModal'
 
 const ACCENT = '#e8a54b'
 const EP_PAGE_SIZE = 21
@@ -55,6 +58,18 @@ function formatTime(sec: number) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function resolveSeekTime(target: number, duration: number) {
+  if (!Number.isFinite(target) || target <= 0) return 0
+  if (!Number.isFinite(duration) || duration <= 0) return target
+  if (target >= duration - 2) return 0
+  return Math.min(target, Math.max(0, duration - 0.25))
+}
+
+function clampIndex(index: number, length: number) {
+  if (length <= 0) return 0
+  return Math.max(0, Math.min(length - 1, index))
+}
+
 type LocationState = {
   mirrors?: MergedEntry[]
 }
@@ -88,6 +103,10 @@ export default function PlayPage() {
   const [ctrlVisible, setCtrlVisible] = useState(true)
   const [muted, setMuted] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [danmakuOpen, setDanmakuOpen] = useState(false)
+  const [danmakuEnabled, setDanmakuEnabled] = useState(true)
+  const [danmakuList, setDanmakuList] = useState<DanmakuComment[]>([])
+  const [danmakuLabel, setDanmakuLabel] = useState('')
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerInnerRef = useRef<HTMLDivElement>(null)
@@ -96,9 +115,22 @@ export default function PlayPage() {
   const hideTimerRef = useRef(0)
   const seekingRef = useRef(false)
   const rateOpenRef = useRef(false)
+  const danmakuOpenRef = useRef(false)
   const rateRef = useRef(1)
   const episodeIndexRef = useRef(0)
+  const lineIndexRef = useRef(0)
   const episodesRef = useRef<{ title: string; url: string }[]>([])
+  const progressRef = useRef(0)
+  const lastProgressSaveRef = useRef(0)
+  const pendingSeekRef = useRef<{
+    key: string
+    episodeIndex: number
+    lineIndex: number
+    time: number
+  } | null>(null)
+  const itemRef = useRef<VodItem | null>(null)
+  const mirrorsRef = useRef<MergedEntry[]>(mirrors)
+  const currentEpTitleRef = useRef('')
 
   const activeKey = entryKey({ source, vod_id: id })
   const item = cache[activeKey] ?? null
@@ -118,15 +150,73 @@ export default function PlayPage() {
   const epLabel = currentEp?.title || ''
 
   episodeIndexRef.current = episodeIndex
+  lineIndexRef.current = lineIndex
   episodesRef.current = episodes
   rateOpenRef.current = rateOpen
+  danmakuOpenRef.current = danmakuOpen
   rateRef.current = rate
+  itemRef.current = item
+  mirrorsRef.current = mirrors
+  currentEpTitleRef.current = currentEp?.title || ''
+
+  function applyResume(vod: VodItem) {
+    const resume = getWatchResume(vod.source, vod.vod_id)
+    const lines = vod.playSources || []
+    const li = clampIndex(resume.lineIndex, lines.length)
+    const eps = lines[li]?.episodes || lines[0]?.episodes || []
+    const ei = clampIndex(resume.episodeIndex, eps.length)
+    setLineIndex(li)
+    setEpisodeIndex(ei)
+    progressRef.current = resume.progress
+    pendingSeekRef.current =
+      resume.progress > 0
+        ? {
+            key: entryKey({ source: vod.source, vod_id: String(vod.vod_id) }),
+            episodeIndex: ei,
+            lineIndex: li,
+            time: resume.progress,
+          }
+        : null
+  }
+
+  function persistWatchProgress(
+    time: number,
+    force = false,
+    override?: { episodeIndex?: number; lineIndex?: number; episode?: string },
+  ) {
+    const vod = itemRef.current
+    if (!vod) return
+    const now = Date.now()
+    if (!force && now - lastProgressSaveRef.current < 5000) return
+    const progress = Math.max(0, Number.isFinite(time) ? time : 0)
+    progressRef.current = progress
+    lastProgressSaveRef.current = now
+    const ei = override?.episodeIndex ?? episodeIndexRef.current
+    const li = override?.lineIndex ?? lineIndexRef.current
+    const lines = vod.playSources || []
+    const eps = lines[li]?.episodes || lines[0]?.episodes || []
+    const episode = override?.episode || eps[ei]?.title || currentEpTitleRef.current || undefined
+    saveWatchHistory({
+      source: vod.source,
+      vod_id: String(vod.vod_id),
+      vod_name: vod.vod_name,
+      vod_pic: vod.vod_pic,
+      vod_remarks: vod.vod_remarks,
+      vod_year: vod.vod_year,
+      type_name: vod.type_name,
+      episode,
+      episodeIndex: ei,
+      lineIndex: li,
+      progress,
+      mirrors: mirrorsRef.current,
+    })
+  }
 
   function bumpControls() {
     setCtrlVisible(true)
     if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
     hideTimerRef.current = window.setTimeout(() => {
-      if (seekingRef.current || rateOpenRef.current) return
+      if (seekingRef.current || rateOpenRef.current || danmakuOpenRef.current) return
       const v = videoRef.current
       if (v && !v.paused) setCtrlVisible(false)
     }, HIDE_CTRL_MS)
@@ -142,15 +232,17 @@ export default function PlayPage() {
   useEffect(() => {
     let cancelled = false
     const key = entryKey({ source, vod_id: id })
+    progressRef.current = 0
+    pendingSeekRef.current = null
+    lastProgressSaveRef.current = 0
 
     if (cache[key]) {
       setLoading(false)
       setError('')
-      setLineIndex(0)
-      setEpisodeIndex(0)
       setEpRangeIdx(0)
       setSwitching(false)
       setIntroOpen(false)
+      applyResume(cache[key])
       return
     }
 
@@ -169,6 +261,7 @@ export default function PlayPage() {
           return
         }
         setCache((prev) => ({ ...prev, [key]: data }))
+        applyResume(data)
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : '加载失败')
@@ -236,6 +329,18 @@ export default function PlayPage() {
 
   useEffect(() => {
     if (!item) return
+    const pending = pendingSeekRef.current
+    const resumeProgress =
+      pending &&
+      pending.key === activeKey &&
+      pending.episodeIndex === episodeIndex &&
+      pending.lineIndex === lineIndex
+        ? pending.time
+        : 0
+    const live = videoRef.current?.currentTime
+    const progress =
+      typeof live === 'number' && live > 0 ? live : resumeProgress || progressRef.current || 0
+    progressRef.current = progress
     saveWatchHistory({
       source: item.source,
       vod_id: String(item.vod_id),
@@ -245,9 +350,12 @@ export default function PlayPage() {
       vod_year: item.vod_year,
       type_name: item.type_name,
       episode: currentEp?.title,
+      episodeIndex,
+      lineIndex,
+      progress,
       mirrors,
     })
-  }, [item, currentEp?.title, mirrors])
+  }, [item, currentEp?.title, mirrors, episodeIndex, lineIndex, activeKey])
 
   useEffect(() => {
     if (!ranges.length) return
@@ -260,6 +368,10 @@ export default function PlayPage() {
     const video = videoRef.current
     if (!video || !currentEp?.url) return
 
+    const boundEpisodeIndex = episodeIndex
+    const boundLineIndex = lineIndex
+    const boundEpisodeTitle = currentEp.title
+
     setPlayError('')
     setMediaReady(false)
     setPlaying(false)
@@ -268,17 +380,66 @@ export default function PlayPage() {
     setBuffered(0)
     setRateOpen(false)
     setCtrlVisible(true)
+    setDanmakuList([])
+    setDanmakuLabel('')
     hlsRef.current?.destroy()
     hlsRef.current = null
+
+    const pending = pendingSeekRef.current
+    const shouldSeek = Boolean(
+      pending &&
+        pending.key === activeKey &&
+        pending.episodeIndex === boundEpisodeIndex &&
+        pending.lineIndex === boundLineIndex &&
+        pending.time > 0,
+    )
+    if (!shouldSeek) {
+      progressRef.current = 0
+    }
+
+    const applySeek = () => {
+      const cur = pendingSeekRef.current
+      if (
+        !cur ||
+        cur.key !== activeKey ||
+        cur.episodeIndex !== boundEpisodeIndex ||
+        cur.lineIndex !== boundLineIndex ||
+        cur.time <= 0
+      ) {
+        return
+      }
+      pendingSeekRef.current = null
+      const t = resolveSeekTime(cur.time, video.duration)
+      if (t > 0) {
+        try {
+          video.currentTime = t
+          progressRef.current = t
+          setCurrentTime(t)
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    const flushBound = (time: number, force = false) => {
+      persistWatchProgress(time, force, {
+        episodeIndex: boundEpisodeIndex,
+        lineIndex: boundLineIndex,
+        episode: boundEpisodeTitle,
+      })
+    }
 
     const onReady = () => {
       setMediaReady(true)
       video.playbackRate = rateRef.current
+      applySeek()
     }
     const syncTime = () => {
       if (!seekingRef.current) setCurrentTime(video.currentTime || 0)
       const d = video.duration
       if (Number.isFinite(d) && d > 0) setDuration(d)
+      progressRef.current = video.currentTime || 0
+      flushBound(video.currentTime || 0)
     }
     const syncBuffered = () => {
       try {
@@ -297,25 +458,35 @@ export default function PlayPage() {
       setPlaying(false)
       setCtrlVisible(true)
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
+      flushBound(video.currentTime || 0, true)
     }
     const onEnded = () => {
       setPlaying(false)
       setCtrlVisible(true)
-      const idx = episodeIndexRef.current
+      flushBound(0, true)
       const list = episodesRef.current
-      const next = list[idx + 1]
+      const next = list[boundEpisodeIndex + 1]
       if (!next) return
-      setEpisodeIndex(idx + 1)
+      pendingSeekRef.current = null
+      progressRef.current = 0
+      setEpisodeIndex(boundEpisodeIndex + 1)
+    }
+    const flushProgress = () => flushBound(video.currentTime || 0, true)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushProgress()
     }
 
     video.addEventListener('playing', onReady)
     video.addEventListener('loadeddata', onReady)
+    video.addEventListener('loadedmetadata', applySeek)
     video.addEventListener('timeupdate', syncTime)
     video.addEventListener('durationchange', syncTime)
     video.addEventListener('progress', syncBuffered)
     video.addEventListener('play', onPlay)
     video.addEventListener('pause', onPause)
     video.addEventListener('ended', onEnded)
+    window.addEventListener('pagehide', flushProgress)
+    document.addEventListener('visibilitychange', onVisibility)
     video.playbackRate = rateRef.current
     video.muted = muted
 
@@ -344,14 +515,18 @@ export default function PlayPage() {
     bumpControls()
 
     return () => {
+      flushBound(video.currentTime || progressRef.current || 0, true)
       video.removeEventListener('playing', onReady)
       video.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('loadedmetadata', applySeek)
       video.removeEventListener('timeupdate', syncTime)
       video.removeEventListener('durationchange', syncTime)
       video.removeEventListener('progress', syncBuffered)
       video.removeEventListener('play', onPlay)
       video.removeEventListener('pause', onPause)
       video.removeEventListener('ended', onEnded)
+      window.removeEventListener('pagehide', flushProgress)
+      document.removeEventListener('visibilitychange', onVisibility)
       hlsRef.current?.destroy()
       hlsRef.current = null
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
@@ -370,14 +545,14 @@ export default function PlayPage() {
   }, [muted])
 
   useEffect(() => {
-    if (rateOpen) {
+    if (rateOpen || danmakuOpen) {
       setCtrlVisible(true)
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
     } else {
       bumpControls()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rateOpen])
+  }, [rateOpen, danmakuOpen])
 
   useEffect(() => {
     const video = videoRef.current
@@ -508,6 +683,8 @@ export default function PlayPage() {
 
   function switchMirror(entry: MergedEntry) {
     if (entryKey(entry) === activeKey) return
+    persistWatchProgress(videoRef.current?.currentTime || progressRef.current || 0, true)
+    pendingSeekRef.current = null
     saveMergedEntries(mirrors)
     setSwitching(true)
     setLineIndex(0)
@@ -601,7 +778,8 @@ export default function PlayPage() {
   const displayLines = display.playSources || []
   const range = ranges[epRangeIdx] || ranges[0]
   const visibleEps = range ? episodes.slice(range.start - 1, range.end) : episodes
-  const showCtrl = ctrlVisible || !playing || rateOpen
+  const showCtrl = ctrlVisible || !playing || rateOpen || danmakuOpen
+  const danmakuQuery = (display.vod_name || '').trim()
 
   return (
     <Page>
@@ -635,6 +813,13 @@ export default function PlayPage() {
                 playsInline
                 poster={glassCover || undefined}
                 onClick={() => void togglePlay()}
+              />
+
+              <DanmakuLayer
+                comments={danmakuList}
+                currentTime={currentTime}
+                playing={playing}
+                enabled={danmakuEnabled && danmakuList.length > 0}
               />
 
               {mediaReady && !playing ? (
@@ -759,6 +944,34 @@ export default function PlayPage() {
                         </button>
                       </div>
 
+                      <button
+                        type="button"
+                        className={`ctrl-btn dm-btn${danmakuList.length && danmakuEnabled ? ' on' : ''}`}
+                        aria-label={
+                          danmakuList.length && danmakuEnabled
+                            ? '关闭弹幕'
+                            : danmakuLabel || '搜索弹幕'
+                        }
+                        title={
+                          danmakuList.length && danmakuEnabled
+                            ? '关闭弹幕'
+                            : danmakuLabel || '搜索弹幕'
+                        }
+                        onClick={() => {
+                          setRateOpen(false)
+                          if (danmakuOpen) {
+                            setDanmakuOpen(false)
+                          } else if (danmakuList.length > 0 && danmakuEnabled) {
+                            setDanmakuEnabled(false)
+                          } else {
+                            setDanmakuOpen(true)
+                          }
+                          bumpControls()
+                        }}
+                      >
+                        {danmakuList.length && danmakuEnabled ? '关弹幕' : '弹幕'}
+                      </button>
+
                       {pipSupported ? (
                         <button
                           type="button"
@@ -868,7 +1081,13 @@ export default function PlayPage() {
                       type="button"
                       className={item && i === lineIndex ? 'is-active' : !item && i === 0 ? 'is-active' : ''}
                       onClick={() => {
-                        if (!item) return
+                        if (!item || i === lineIndex) return
+                        persistWatchProgress(
+                          videoRef.current?.currentTime || progressRef.current || 0,
+                          true,
+                        )
+                        pendingSeekRef.current = null
+                        progressRef.current = 0
                         setLineIndex(i)
                         setEpisodeIndex(0)
                         setEpRangeIdx(0)
@@ -947,7 +1166,13 @@ export default function PlayPage() {
                         title={ep.title}
                         disabled={!item}
                         onClick={() => {
-                          if (!item) return
+                          if (!item || i === episodeIndex) return
+                          persistWatchProgress(
+                            videoRef.current?.currentTime || progressRef.current || 0,
+                            true,
+                          )
+                          pendingSeekRef.current = null
+                          progressRef.current = 0
                           setEpisodeIndex(i)
                         }}
                       >
@@ -996,6 +1221,29 @@ export default function PlayPage() {
           </div>
         </aside>
       </div>
+
+      <DanmakuSearchModal
+        open={danmakuOpen}
+        defaultQuery={danmakuQuery}
+        episodeLabel={epLabel}
+        hasDanmaku={danmakuList.length > 0}
+        danmakuEnabled={danmakuEnabled}
+        onClose={() => {
+          setDanmakuOpen(false)
+          bumpControls()
+        }}
+        onToggleEnabled={() => setDanmakuEnabled((v) => !v)}
+        onClear={() => {
+          setDanmakuList([])
+          setDanmakuLabel('')
+          setDanmakuEnabled(true)
+        }}
+        onLoaded={({ comments, label }) => {
+          setDanmakuList(comments)
+          setDanmakuLabel(label)
+          setDanmakuEnabled(true)
+        }}
+      />
     </Page>
   )
 }
@@ -1352,7 +1600,8 @@ const Page = styled.div`
       }
     }
 
-    .rate-btn {
+    .rate-btn,
+    .dm-btn {
       min-width: 48px;
       font-variant-numeric: tabular-nums;
     }

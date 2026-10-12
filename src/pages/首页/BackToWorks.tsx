@@ -3,6 +3,7 @@ import styled from 'styled-components'
 import { ALL_WORKS, WORKS_PATH } from './works'
 
 function isWorkRoute(pathname: string) {
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) return true
   return ALL_WORKS.some(
     (work) => pathname === work.href || pathname.startsWith(`${work.href}/`),
   )
@@ -33,8 +34,8 @@ export default function BackToWorks() {
 }
 
 const Tab = styled(Link)`
-  --bg: rgba(76, 29, 149, 0.88);
-  --bg-strong: #5b21b6;
+  --bg: #5b21b6;
+  --bg-hover: #6d28d9;
   --line: rgba(216, 180, 254, 0.28);
   --tip-bg: #4c1d95;
 
@@ -53,7 +54,10 @@ const Tab = styled(Link)`
   border: 1px solid var(--line);
   border-right: 0;
   border-radius: 12px 0 0 12px;
-  background: var(--bg);
+  /* && 提高优先级，避免后台 body:has(.admin) a { background: transparent } 盖掉 */
+  && {
+    background: var(--bg);
+  }
   backdrop-filter: blur(16px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
   box-shadow: -8px 10px 28px rgba(91, 33, 182, 0.32);
@@ -125,8 +129,8 @@ const Tab = styled(Link)`
     background: var(--tip-bg);
   }
 
-  &:hover {
-    background: var(--bg-strong);
+  &&:hover {
+    background: var(--bg-hover);
     box-shadow: -10px 12px 32px rgba(91, 33, 182, 0.4);
 
     .arrow {

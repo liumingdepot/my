@@ -15,7 +15,6 @@ export default defineConfig({
     mysqlUser: process.env.MYSQL_USER || 'root',
     mysqlPassword: process.env.MYSQL_PASSWORD || '123456',
     mysqlDatabase: process.env.MYSQL_DATABASE || 'liuming',
-    agnesApiKey: process.env.AGNES_API_KEY || '',
     biliCookie: process.env.BILI_COOKIE || '',
   },
   hooks: {

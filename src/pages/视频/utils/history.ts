@@ -16,8 +16,62 @@ export type WatchHistoryItem = {
   vod_year: string
   type_name: string
   episode?: string
+  /** 0-based 集数；旧缓存无此字段时按第 1 集处理 */
+  episodeIndex?: number
+  /** 线路索引；旧缓存默认 0 */
+  lineIndex?: number
+  /** 当前集播放进度（秒）；旧缓存默认开头 */
+  progress?: number
   mirrors?: MergedEntry[]
   watchedAt: number
+}
+
+export type WatchResume = {
+  episodeIndex: number
+  lineIndex: number
+  progress: number
+}
+
+export function formatProgressTime(sec: number) {
+  if (!Number.isFinite(sec) || sec < 0) return '0:00'
+  const total = Math.floor(sec)
+  const s = total % 60
+  const m = Math.floor(total / 60) % 60
+  const h = Math.floor(total / 3600)
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/** 历史列表展示；旧记录无进度字段时显示「第 1 集 · 刚开始」 */
+export function formatWatchResume(
+  item: Pick<WatchHistoryItem, 'episode' | 'episodeIndex' | 'progress'>,
+) {
+  const hasNew =
+    typeof item.episodeIndex === 'number' || typeof item.progress === 'number'
+  if (!hasNew) return '第 1 集 · 刚开始'
+  const ep =
+    item.episode?.trim() ||
+    (typeof item.episodeIndex === 'number' ? `第 ${item.episodeIndex + 1} 集` : '第 1 集')
+  const p = typeof item.progress === 'number' ? item.progress : 0
+  return `${ep} · ${p < 3 ? '刚开始' : formatProgressTime(p)}`
+}
+
+export function findWatchHistory(
+  source: string,
+  vodId: string | number,
+): WatchHistoryItem | undefined {
+  const key = `${source}::${vodId}`
+  return readWatchHistory().find((item) => watchKey(item) === key)
+}
+
+export function getWatchResume(source: string, vodId: string | number): WatchResume {
+  const item = findWatchHistory(source, vodId)
+  return {
+    episodeIndex:
+      typeof item?.episodeIndex === 'number' && item.episodeIndex >= 0 ? item.episodeIndex : 0,
+    lineIndex: typeof item?.lineIndex === 'number' && item.lineIndex >= 0 ? item.lineIndex : 0,
+    progress: typeof item?.progress === 'number' && item.progress > 0 ? item.progress : 0,
+  }
 }
 
 function watchKey(item: Pick<WatchHistoryItem, 'source' | 'vod_id'>) {

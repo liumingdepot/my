@@ -2,12 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { useRuntimeConfig } from 'nitro/runtime-config'
-import { parseAgnesKeys } from '../fortune/agnesKeyParse.js'
 import { DB } from './db.js'
 
 const MODULE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-let cachedAgnesKey: string | null = null
 let cachedBiliCookie: string | null = null
 
 function stripQuotes(value: string) {
@@ -21,7 +19,7 @@ function stripQuotes(value: string) {
   return text
 }
 
-/** 从项目根 .env 读取（长逗号分隔 key 最稳妥） */
+/** 从项目根 .env 读取 */
 function readEnvFileValue(name: string): string {
   const candidates = [path.join(process.cwd(), '.env'), path.join(MODULE_ROOT, '.env')]
   for (const envPath of candidates) {
@@ -43,13 +41,6 @@ function readEnvFileValue(name: string): string {
   return ''
 }
 
-function pickRichestKeySource(...candidates: string[]) {
-  const usable = candidates.map(stripQuotes).filter(Boolean)
-  if (!usable.length) return ''
-  usable.sort((a, b) => parseAgnesKeys(b).length - parseAgnesKeys(a).length)
-  return usable[0] || ''
-}
-
 /** 读 nitro runtimeConfig；不在请求上下文（如 CLI 脚本）时返回空串 */
 function readRuntimeConfigValue(key: string): string {
   try {
@@ -58,21 +49,6 @@ function readRuntimeConfigValue(key: string): string {
   } catch {
     return ''
   }
-}
-
-function readAgnesApiKey() {
-  if (cachedAgnesKey != null) return cachedAgnesKey
-
-  const fromFile = readEnvFileValue('AGNES_API_KEY')
-  const fromProcess = stripQuotes(process.env.AGNES_API_KEY || '')
-  const fromRuntime = readRuntimeConfigValue('agnesApiKey')
-
-  // 优先选 key 数量最多的来源，避免 process.env 只注入了第一个 key
-  const chosen = pickRichestKeySource(fromFile, fromProcess, fromRuntime)
-  cachedAgnesKey = chosen
-  const count = parseAgnesKeys(chosen).length
-  console.info(`[env] AGNES_API_KEY loaded: ${count} key(s)`)
-  return chosen
 }
 
 /** B 站登录 Cookie：可选，仅增强 Web WBI 线路；缺省时只用 anti-crawl 自动 cookie */
@@ -89,7 +65,6 @@ function readBiliCookie() {
 export function getAppEnv() {
   return {
     DB,
-    AGNES_API_KEY: readAgnesApiKey(),
     BILI_COOKIE: readBiliCookie(),
   }
 }

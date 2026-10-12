@@ -36,7 +36,7 @@ const Placeholder1Page = lazy(() => import('./pages/占位1'))
 const Placeholder2Page = lazy(() => import('./pages/占位2'))
 const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
-const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/采集源'))
+const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/视频采集'))
 const AdminAgnesKeysPage = lazy(() => import('./pages/后台管理/密钥管理'))
 const AdminWorksPage = lazy(() => import('./pages/后台管理/作品管理'))
 
@@ -157,6 +157,7 @@ export default function App() {
         <Route path="/后台管理/作品管理" element={<Navigate to="/admin/works" replace />} />
         <Route path="/后台管理/采集源" element={<Navigate to="/admin/video-sources" replace />} />
         <Route path="/后台管理/视频管理" element={<Navigate to="/admin/video-sources" replace />} />
+        <Route path="/后台管理/视频采集" element={<Navigate to="/admin/video-sources" replace />} />
         <Route path="/后台管理/游戏管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/FC游戏管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/FC管理" element={<Navigate to="/admin" replace />} />

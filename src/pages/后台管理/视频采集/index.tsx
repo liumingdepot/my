@@ -52,7 +52,7 @@ export default function VideoSourcesPage() {
   const [page, setPage] = useState(1)
 
   useLayoutEffect(() => {
-    document.title = '视频管理 · 后台管理'
+    document.title = '视频采集 · 后台管理'
   }, [])
 
   useEffect(() => {
@@ -229,7 +229,7 @@ export default function VideoSourcesPage() {
 
       <div className="head">
         <div>
-          <h1 className="title">视频管理</h1>
+          <h1 className="title">视频采集</h1>
           <p className="desc">
             管理视频站可用的采集接口；停用后前台不再使用。排序最靠前的启用源为主源（当前：
             {primaryName}）

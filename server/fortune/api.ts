@@ -6,8 +6,6 @@ import { handleCasual } from './随便算算.js'
 
 export interface FortuneEnv {
   DB: import('../utils/db.js').AppDb
-  /** 兜底：表为空时从环境变量导入；日常以数据库为准 */
-  AGNES_API_KEY?: string
 }
 
 export async function handleFortuneApi(request: Request, env: FortuneEnv) {

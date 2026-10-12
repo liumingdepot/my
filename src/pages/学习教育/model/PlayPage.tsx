@@ -6,6 +6,7 @@ import WatchHistoryMenu from './WatchHistoryMenu'
 import {
   clearSearchHistory,
   deleteSearchHistory,
+  getWatchResume,
   readSearchHistory,
   saveSearchHistory,
   saveWatchHistory,
@@ -37,6 +38,55 @@ export default function PlayPage() {
   const [focused, setFocused] = useState(false)
   const [searchHistory, setSearchHistory] = useState(() => readSearchHistory())
   const videoRef = useRef<HTMLVideoElement>(null)
+  const progressRef = useRef(0)
+  const lastProgressSaveRef = useRef(0)
+  const pendingSeekRef = useRef<{ bvid: string; episodeIndex: number; time: number } | null>(null)
+  const detailRef = useRef<EducationDetail | null>(null)
+  const episodeIndexRef = useRef(0)
+  const episodeLabelRef = useRef('')
+
+  function resolveSeekTime(target: number, duration: number) {
+    if (!Number.isFinite(target) || target <= 0) return 0
+    if (!Number.isFinite(duration) || duration <= 0) return target
+    if (target >= duration - 2) return 0
+    return Math.min(target, Math.max(0, duration - 0.25))
+  }
+
+  function clampIndex(index: number, length: number) {
+    if (length <= 0) return 0
+    return Math.max(0, Math.min(length - 1, index))
+  }
+
+  function persistWatchProgress(
+    time: number,
+    force = false,
+    override?: { episodeIndex?: number; episode?: string },
+  ) {
+    const d = detailRef.current
+    if (!d) return
+    const now = Date.now()
+    if (!force && now - lastProgressSaveRef.current < 5000) return
+    const progress = Math.max(0, Number.isFinite(time) ? time : 0)
+    progressRef.current = progress
+    lastProgressSaveRef.current = now
+    const ei = override?.episodeIndex ?? episodeIndexRef.current
+    const page = d.pages[ei]
+    const episode =
+      override?.episode ||
+      page?.part ||
+      (d.pages.length > 1 ? `P${ei + 1}` : '') ||
+      episodeLabelRef.current ||
+      undefined
+    saveWatchHistory({
+      bvid: d.bvid,
+      title: d.title,
+      pic: d.pic,
+      author: d.author,
+      episode,
+      episodeIndex: ei,
+      progress,
+    })
+  }
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
@@ -51,6 +101,9 @@ export default function PlayPage() {
     }
 
     const ac = new AbortController()
+    progressRef.current = 0
+    pendingSeekRef.current = null
+    lastProgressSaveRef.current = 0
     ;(async () => {
       setDetailLoading(true)
       setError('')
@@ -60,7 +113,15 @@ export default function PlayPage() {
       try {
         const data = await fetchEducationDetail(bvid, ac.signal)
         if (ac.signal.aborted) return
+        const resume = getWatchResume(bvid)
+        const idx = clampIndex(resume.episodeIndex, data.pages.length)
         setDetail(data)
+        setEpisodeIndex(idx)
+        progressRef.current = resume.progress
+        pendingSeekRef.current =
+          resume.progress > 0
+            ? { bvid, episodeIndex: idx, time: resume.progress }
+            : null
         document.title = `${data.title} · 铭教育`
       } catch (err) {
         if (!ac.signal.aborted) {
@@ -75,17 +136,34 @@ export default function PlayPage() {
   }, [bvid])
 
   const currentPage = detail?.pages[episodeIndex] ?? detail?.pages[0] ?? null
+  const episodeLabel =
+    currentPage?.part || (detail && detail.pages.length > 1 ? `P${episodeIndex + 1}` : undefined)
+
+  detailRef.current = detail
+  episodeIndexRef.current = episodeIndex
+  episodeLabelRef.current = episodeLabel || ''
 
   useEffect(() => {
     if (!detail) return
+    const pending = pendingSeekRef.current
+    const resumeProgress =
+      pending && pending.bvid === bvid && pending.episodeIndex === episodeIndex
+        ? pending.time
+        : 0
+    const live = videoRef.current?.currentTime
+    const progress =
+      typeof live === 'number' && live > 0 ? live : resumeProgress || progressRef.current || 0
+    progressRef.current = progress
     saveWatchHistory({
       bvid: detail.bvid,
       title: detail.title,
       pic: detail.pic,
       author: detail.author,
-      episode: currentPage?.part || (detail.pages.length > 1 ? `P${episodeIndex + 1}` : undefined),
+      episode: episodeLabel,
+      episodeIndex,
+      progress,
     })
-  }, [detail, currentPage?.part, episodeIndex])
+  }, [detail, episodeLabel, episodeIndex, bvid])
 
   useEffect(() => subscribeSearchHistory(() => setSearchHistory(readSearchHistory())), [])
 
@@ -140,18 +218,86 @@ export default function PlayPage() {
     const video = videoRef.current
     if (!video || !playUrl) return
 
+    const boundEpisodeIndex = episodeIndex
+    const boundEpisodeLabel = episodeLabelRef.current
+
     setMediaReady(false)
-    const onReady = () => setMediaReady(true)
+    const pending = pendingSeekRef.current
+    const shouldSeek = Boolean(
+      pending &&
+        pending.bvid === bvid &&
+        pending.episodeIndex === boundEpisodeIndex &&
+        pending.time > 0,
+    )
+    if (!shouldSeek) progressRef.current = 0
+
+    const applySeek = () => {
+      const cur = pendingSeekRef.current
+      if (
+        !cur ||
+        cur.bvid !== bvid ||
+        cur.episodeIndex !== boundEpisodeIndex ||
+        cur.time <= 0
+      ) {
+        return
+      }
+      pendingSeekRef.current = null
+      const t = resolveSeekTime(cur.time, video.duration)
+      if (t > 0) {
+        try {
+          video.currentTime = t
+          progressRef.current = t
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    const flushBound = (time: number, force = false) => {
+      persistWatchProgress(time, force, {
+        episodeIndex: boundEpisodeIndex,
+        episode: boundEpisodeLabel || undefined,
+      })
+    }
+
+    const onReady = () => {
+      setMediaReady(true)
+      applySeek()
+    }
+    const onTimeUpdate = () => {
+      progressRef.current = video.currentTime || 0
+      flushBound(video.currentTime || 0)
+    }
+    const onPause = () => flushBound(video.currentTime || 0, true)
+    const onEnded = () => flushBound(0, true)
+    const flushProgress = () => flushBound(video.currentTime || 0, true)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushProgress()
+    }
+
     video.addEventListener('playing', onReady)
     video.addEventListener('loadeddata', onReady)
+    video.addEventListener('loadedmetadata', applySeek)
+    video.addEventListener('timeupdate', onTimeUpdate)
+    video.addEventListener('pause', onPause)
+    video.addEventListener('ended', onEnded)
+    window.addEventListener('pagehide', flushProgress)
+    document.addEventListener('visibilitychange', onVisibility)
     video.src = playUrl
     void video.play().catch(() => {})
 
     return () => {
+      flushBound(video.currentTime || progressRef.current || 0, true)
       video.removeEventListener('playing', onReady)
       video.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('loadedmetadata', applySeek)
+      video.removeEventListener('timeupdate', onTimeUpdate)
+      video.removeEventListener('pause', onPause)
+      video.removeEventListener('ended', onEnded)
+      window.removeEventListener('pagehide', flushProgress)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [playUrl])
+  }, [playUrl, bvid, episodeIndex])
 
   function goBack() {
     const idx = (window.history.state as { idx?: number } | null)?.idx
@@ -332,7 +478,16 @@ export default function PlayPage() {
                       type="button"
                       className={i === episodeIndex ? 'is-active' : ''}
                       title={formatDuration(ep.duration) || undefined}
-                      onClick={() => setEpisodeIndex(i)}
+                      onClick={() => {
+                        if (i === episodeIndex) return
+                        persistWatchProgress(
+                          videoRef.current?.currentTime || progressRef.current || 0,
+                          true,
+                        )
+                        pendingSeekRef.current = null
+                        progressRef.current = 0
+                        setEpisodeIndex(i)
+                      }}
                     >
                       <span className="eps__title">{ep.part}</span>
                       {ep.duration > 0 ? (

@@ -1,9 +1,8 @@
 import type { AgnesCredential } from '../admin/agnesKeys.js'
 import { listEnabledAgnesCredentials } from '../admin/agnesKeys.js'
 import type { FortuneEnv } from './api.js'
-import { parseAgnesKeys } from './agnesKeyParse.js'
 
-export { parseAgnesKeys, isAgnesTokenError } from './agnesKeyParse.js'
+export { isAgnesTokenError } from './agnesKeyParse.js'
 
 let keyIndex = 0
 let loggedKeyCount = false
@@ -27,36 +26,14 @@ export function rotateAgnesCredentials(credentials: AgnesCredential[]): AgnesCre
   )
 }
 
-/** @deprecated 兼容旧调用：仅返回 key 字符串列表 */
-export function rotateAgnesKeys(raw?: string): string[] {
-  const keys = parseAgnesKeys(raw)
-  if (!keys.length) return []
-  if (keys.length === 1) return keys
-  keyIndex = (keyIndex + 1) % keys.length
-  const start = keyIndex
-  return Array.from({ length: keys.length }, (_, i) => keys[(start + i) % keys.length]!)
-}
-
 export async function nextAgnesApiKey(env: FortuneEnv): Promise<string | null> {
   const credentials = await loadAgnesCredentials(env)
   return credentials[0]?.apiKey ?? null
 }
 
+/** 仅从后台「密钥管理」已启用记录读取 */
 export async function loadAgnesCredentials(env: FortuneEnv): Promise<AgnesCredential[]> {
-  try {
-    const fromDb = await listEnabledAgnesCredentials(env.DB)
-    if (fromDb.length) return fromDb
-  } catch (err) {
-    console.warn('[agnes] load DB credentials failed:', err)
-  }
-
-  // 表为空时兜底环境变量（中国区）
-  const keys = parseAgnesKeys(env.AGNES_API_KEY)
-  return keys.map((apiKey, index) => ({
-    id: `env-${index}`,
-    apiKey,
-    baseUrl: 'https://api.agnes-ai.cn/v1',
-  }))
+  return listEnabledAgnesCredentials(env.DB)
 }
 
 export async function hasAgnesCredentials(env: FortuneEnv) {
@@ -72,7 +49,7 @@ export async function withAgnesKeyFailover<T>(
   run: (credential: AgnesCredential) => Promise<T>,
 ): Promise<T> {
   const credentials = rotateAgnesCredentials(await loadAgnesCredentials(env))
-  if (!credentials.length) throw new Error('未配置 AGNES_API_KEY')
+  if (!credentials.length) throw new Error('未配置 Agnes 密钥，请在后台「密钥管理」中添加并启用')
 
   let lastError: unknown
   for (let i = 0; i < credentials.length; i++) {

@@ -5,6 +5,7 @@ import styled from 'styled-components'
 import {
   clearWatchHistory,
   deleteWatchHistory,
+  formatWatchResume,
   readWatchHistory,
   subscribeWatchHistory,
   type WatchHistoryItem,
@@ -115,7 +116,9 @@ export default function WatchHistoryMenu({ accent = '#3eba7a' }: Props) {
                   </span>
                   <span className="meta">
                     <span className="title">{item.title}</span>
-                    <span className="sub">{[item.episode, item.sub].filter(Boolean).join(' · ')}</span>
+                    <span className="sub">
+                      {[formatWatchResume(item), item.sub].filter(Boolean).join(' · ')}
+                    </span>
                   </span>
                 </Link>
                 <button

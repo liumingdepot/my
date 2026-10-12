@@ -226,27 +226,6 @@ export async function patchAgnesApiKeysEnabledByBase(
   }
 }
 
-/** 表为空时，把 .env 里的 AGNES_API_KEY 导入为中国区密钥 */
-export async function importEnvAgnesKeysIfEmpty(db: AppDb, rawEnvKeys?: string) {
-  const count = await db.prepare(`SELECT COUNT(*) AS c FROM agnes_api_keys`).first<{ c: number }>()
-  if (Number(count?.c ?? 0) > 0) return 0
-
-  const { parseAgnesKeys } = await import('../fortune/agnesKeyParse.js')
-  const keys = parseAgnesKeys(rawEnvKeys)
-  if (!keys.length) return 0
-
-  let imported = 0
-  for (const apiKey of keys) {
-    try {
-      await createAgnesApiKey(db, { apiKey, baseUrl: AGNES_BASE_CN, enabled: true })
-      imported += 1
-    } catch {
-      /* skip duplicates / invalid */
-    }
-  }
-  return imported
-}
-
 export function resolveAgnesEndpoints(baseUrl: string) {
   const normalized = (baseUrl || AGNES_BASE_CN).replace(/\/$/, '')
   const isIntl = /agnes-ai\.com/i.test(normalized)

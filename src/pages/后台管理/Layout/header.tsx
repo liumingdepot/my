@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import styled from 'styled-components'
 import type { AdminSession } from '../auth'
 
@@ -50,9 +49,6 @@ export default function AdminHeader({
             <span className="handle">@{session.username}</span>
           </span>
         </div>
-        <Link className="link" to="/">
-          返回门户
-        </Link>
         <button type="button" className="btn" onClick={onLogout}>
           退出
         </button>
@@ -172,18 +168,6 @@ const Style = styled.div`
     font-size: 12px;
   }
 
-  .link {
-    color: #4b5563;
-    font-size: 13px;
-    line-height: 1.2;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .link:hover {
-    color: #0f766e;
-  }
-
   .btn {
     height: 30px;
     padding: 0 10px;
@@ -211,8 +195,7 @@ const Style = styled.div`
       justify-content: center;
     }
 
-    .user,
-    .link {
+    .user {
       display: none;
     }
   }

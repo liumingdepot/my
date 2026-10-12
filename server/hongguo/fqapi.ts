@@ -76,17 +76,39 @@ function buildUrl(path: string, extra?: Record<string, string>): string {
   return `https://${HOST}${path}?${qs}`
 }
 
-async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+type RequestOptions = {
+  body?: unknown
+  extraHeaders?: Record<string, string>
+  /** 弹幕接口要求 stub 为空串，不走 body md5 */
+  emptyStub?: boolean
+}
+
+async function request<T>(
+  method: 'GET' | 'POST',
+  path: string,
+  bodyOrOpts?: unknown | RequestOptions,
+): Promise<T> {
+  const opts: RequestOptions =
+    bodyOrOpts != null &&
+    typeof bodyOrOpts === 'object' &&
+    ('body' in (bodyOrOpts as object) ||
+      'extraHeaders' in (bodyOrOpts as object) ||
+      'emptyStub' in (bodyOrOpts as object))
+      ? (bodyOrOpts as RequestOptions)
+      : { body: bodyOrOpts }
+
   const url = buildUrl(path)
   const headers: Record<string, string> = {
     'user-agent': DEVICE.userAgent,
     cookie: DEVICE.cookie,
     'content-type': 'application/json; charset=utf-8',
+    ...(opts.extraHeaders || {}),
   }
   let payload: string | undefined
-  if (body !== undefined) {
-    payload = JSON.stringify(body)
-    headers['x-ss-stub'] = createHash('md5').update(payload).digest('hex').toUpperCase()
+  if (opts.body !== undefined) {
+    payload = JSON.stringify(opts.body)
+    if (opts.emptyStub) headers['x-ss-stub'] = ''
+    else headers['x-ss-stub'] = createHash('md5').update(payload).digest('hex').toUpperCase()
   }
 
   Object.assign(headers, await sign(url, headers))
@@ -111,6 +133,19 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown):
     throw new Error(`番茄接口错误 code=${json.code} ${json.message || ''}`.trim())
   }
   return json.data as T
+}
+
+/** 供弹幕等扩展接口复用（含签名） */
+export async function fqPost<T>(
+  path: string,
+  body: unknown,
+  opts?: { extraHeaders?: Record<string, string>; emptyStub?: boolean },
+): Promise<T> {
+  return request<T>('POST', path, {
+    body,
+    extraHeaders: opts?.extraHeaders,
+    emptyStub: opts?.emptyStub,
+  })
 }
 
 /**

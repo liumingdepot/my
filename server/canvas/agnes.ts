@@ -48,7 +48,7 @@ export async function agnesFetchWithFailoverTracked(
 ): Promise<{ response: Response; credential: AgnesCredential }> {
   const all = await loadAgnesCredentials(env)
   if (!all.length) {
-    throw new Error('未配置 AGNES_API_KEY')
+    throw new Error('未配置 Agnes 密钥，请在后台「密钥管理」中添加并启用')
   }
 
   let credentials: AgnesCredential[]

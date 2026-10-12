@@ -11,7 +11,54 @@ export type WatchHistoryItem = {
   pic: string
   author: string
   episode?: string
+  /** 0-based 分 P 索引；旧缓存无此字段时按第 1 个处理 */
+  episodeIndex?: number
+  /** 当前分 P 播放进度（秒）；旧缓存默认开头 */
+  progress?: number
   watchedAt: number
+}
+
+export type WatchResume = {
+  episodeIndex: number
+  progress: number
+}
+
+export function formatProgressTime(sec: number) {
+  if (!Number.isFinite(sec) || sec < 0) return '0:00'
+  const total = Math.floor(sec)
+  const s = total % 60
+  const m = Math.floor(total / 60) % 60
+  const h = Math.floor(total / 3600)
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/** 历史列表展示；旧记录无进度字段时显示「第 1 集 · 刚开始」 */
+export function formatWatchResume(
+  item: Pick<WatchHistoryItem, 'episode' | 'episodeIndex' | 'progress'>,
+) {
+  const hasNew =
+    typeof item.episodeIndex === 'number' || typeof item.progress === 'number'
+  if (!hasNew) return '第 1 集 · 刚开始'
+  const ep =
+    item.episode?.trim() ||
+    (typeof item.episodeIndex === 'number' ? `P${item.episodeIndex + 1}` : '第 1 集')
+  const p = typeof item.progress === 'number' ? item.progress : 0
+  return `${ep} · ${p < 3 ? '刚开始' : formatProgressTime(p)}`
+}
+
+export function findWatchHistory(bvid: string): WatchHistoryItem | undefined {
+  const key = String(bvid)
+  return readWatchHistory().find((item) => item.bvid === key)
+}
+
+export function getWatchResume(bvid: string): WatchResume {
+  const item = findWatchHistory(bvid)
+  return {
+    episodeIndex:
+      typeof item?.episodeIndex === 'number' && item.episodeIndex >= 0 ? item.episodeIndex : 0,
+    progress: typeof item?.progress === 'number' && item.progress > 0 ? item.progress : 0,
+  }
 }
 
 function isWatchItem(value: unknown): value is WatchHistoryItem {

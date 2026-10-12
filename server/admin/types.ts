@@ -33,7 +33,6 @@ export type SessionPayload = {
 
 export type AdminEnv = {
   DB: AppDb
-  AGNES_API_KEY?: string
   BILI_COOKIE?: string
 }
 

@@ -2,8 +2,20 @@ import Hls from 'hls.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import styled from 'styled-components'
-import { saveWatchHistory } from '../utils/history'
+import { getWatchResume, saveWatchHistory } from '../utils/history'
 import { fetchDramaDetail, type DramaDetail, type DramaEpisode } from '../utils/server'
+
+function resolveSeekTime(target: number, duration: number) {
+  if (!Number.isFinite(target) || target <= 0) return 0
+  if (!Number.isFinite(duration) || duration <= 0) return target
+  if (target >= duration - 2) return 0
+  return Math.min(target, Math.max(0, duration - 0.25))
+}
+
+function clampIndex(index: number, length: number) {
+  if (length <= 0) return 0
+  return Math.max(0, Math.min(length - 1, index))
+}
 
 const PLAY_FROM_KEY = 'short-play-from'
 
@@ -39,21 +51,38 @@ type SlideProps = {
   active: boolean
   clean: boolean
   rate: number
+  resumeAt?: number
   onEnded: () => void
   onTap: () => void
+  onProgress?: (time: number, force?: boolean) => void
 }
 
-function EpisodeSlide({ ep, title, total, active, clean, rate, onEnded, onTap }: SlideProps) {
+function EpisodeSlide({
+  ep,
+  title,
+  total,
+  active,
+  clean,
+  rate,
+  resumeAt = 0,
+  onEnded,
+  onTap,
+  onProgress,
+}: SlideProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
+  const resumeAppliedRef = useRef(false)
+  const onProgressRef = useRef(onProgress)
   const [playError, setPlayError] = useState('')
   const playUrl = pickUrl(ep)
+  onProgressRef.current = onProgress
 
   useEffect(() => {
     const video = videoRef.current
     if (!video || !playUrl) return
 
     setPlayError('')
+    resumeAppliedRef.current = false
     hlsRef.current?.destroy()
     hlsRef.current = null
 
@@ -88,18 +117,63 @@ function EpisodeSlide({ ep, title, total, active, clean, rate, onEnded, onTap }:
     const video = videoRef.current
     if (!video) return
     if (active) {
+      const applyResume = () => {
+        if (resumeAppliedRef.current || resumeAt <= 0) return
+        resumeAppliedRef.current = true
+        const t = resolveSeekTime(resumeAt, video.duration)
+        if (t > 0) {
+          try {
+            video.currentTime = t
+          } catch {
+            /* ignore */
+          }
+        }
+      }
       video.muted = false
       video.playbackRate = rate
+      video.addEventListener('loadedmetadata', applyResume)
+      applyResume()
       void video.play().catch(() => {})
-    } else {
-      video.pause()
-      try {
-        video.currentTime = 0
-      } catch {
-        /* ignore */
+      return () => {
+        video.removeEventListener('loadedmetadata', applyResume)
       }
     }
-  }, [active, rate])
+    video.pause()
+    resumeAppliedRef.current = false
+    try {
+      video.currentTime = 0
+    } catch {
+      /* ignore */
+    }
+  }, [active, rate, resumeAt])
+
+  useEffect(() => {
+    if (!active) return
+    const video = videoRef.current
+    if (!video) return
+    // 激活时固定回调，避免切集后 prop 清空导致 cleanup 丢进度
+    const report = onProgressRef.current
+    const onTime = () => report?.(video.currentTime || 0)
+    const onPause = () => report?.(video.currentTime || 0, true)
+    const onEndedSave = () => report?.(0, true)
+    const flush = () => report?.(video.currentTime || 0, true)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    video.addEventListener('timeupdate', onTime)
+    video.addEventListener('pause', onPause)
+    video.addEventListener('ended', onEndedSave)
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      flush()
+      video.removeEventListener('timeupdate', onTime)
+      video.removeEventListener('pause', onPause)
+      video.removeEventListener('ended', onEndedSave)
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [active, playUrl])
 
   function handleTap() {
     if (clean) {
@@ -155,8 +229,44 @@ export default function PlayPage() {
   const [clean, setClean] = useState(false)
   const [rate, setRate] = useState(1)
   const [rateOpen, setRateOpen] = useState(false)
+  const [resumeAt, setResumeAt] = useState(0)
+
+  const progressRef = useRef(0)
+  const lastProgressSaveRef = useRef(0)
+  const detailRef = useRef<DramaDetail | null>(null)
+  const episodesRef = useRef<DramaEpisode[]>([])
+  const restoredIdRef = useRef('')
+  /** 恢复滚动完成前忽略 IO 切集，避免被重置到第 1 集 */
+  const resumeLockRef = useRef(false)
 
   epIndexRef.current = epIndex
+  detailRef.current = detail
+  episodesRef.current = episodes
+
+  function persistWatchProgress(
+    time: number,
+    force = false,
+    override?: { episodeIndex?: number },
+  ) {
+    const d = detailRef.current
+    if (!d) return
+    const now = Date.now()
+    if (!force && now - lastProgressSaveRef.current < 5000) return
+    const progress = Math.max(0, Number.isFinite(time) ? time : 0)
+    progressRef.current = progress
+    lastProgressSaveRef.current = now
+    const ei = override?.episodeIndex ?? epIndexRef.current
+    const current = episodesRef.current[ei]
+    saveWatchHistory({
+      id: String(d.playlet_id || id),
+      title: d.title,
+      pic: d.image_link || current?.first_img || '',
+      sub: d.total_episode_num ? `共 ${d.total_episode_num} 集` : '短剧',
+      episode: current?.sort ? `第 ${current.sort} 集` : undefined,
+      episodeIndex: ei,
+      progress,
+    })
+  }
 
   const back = useMemo(() => {
     const stateFrom = (location.state as PlayLocationState | null)?.from
@@ -181,6 +291,11 @@ export default function PlayPage() {
     if (!id) return
     let cancelled = false
     const ac = new AbortController()
+    restoredIdRef.current = ''
+    resumeLockRef.current = false
+    progressRef.current = 0
+    lastProgressSaveRef.current = 0
+    setResumeAt(0)
     ;(async () => {
       setLoading(true)
       setError('')
@@ -194,8 +309,15 @@ export default function PlayPage() {
         const data = await fetchDramaDetail(id, ac.signal)
         if (cancelled) return
         const list = sortEpisodes(data.play_list || [])
+        const resume = getWatchResume(id)
+        const idx = clampIndex(resume.episodeIndex, list.length)
         setDetail(data)
         setEpisodes(list)
+        setEpIndex(idx)
+        progressRef.current = resume.progress
+        setResumeAt(resume.progress > 0 ? resume.progress : 0)
+        restoredIdRef.current = id
+        resumeLockRef.current = idx > 0 || resume.progress > 0
       } catch (e) {
         if (cancelled || (e instanceof DOMException && e.name === 'AbortError')) return
         setError(e instanceof Error ? e.message : '加载失败')
@@ -210,16 +332,30 @@ export default function PlayPage() {
   }, [id])
 
   useEffect(() => {
+    if (!detail || !episodes.length || restoredIdRef.current !== id) return
+    const root = scrollerRef.current
+    const el = root?.querySelector<HTMLElement>(`[data-slide="${epIndex}"]`)
+    el?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    const unlock = window.setTimeout(() => {
+      resumeLockRef.current = false
+    }, 400)
+    return () => window.clearTimeout(unlock)
+  }, [detail, episodes.length, id])
+
+  useEffect(() => {
     if (!detail) return
     const current = episodes[epIndex]
+    const progress = progressRef.current || resumeAt || 0
     saveWatchHistory({
       id: String(detail.playlet_id || id),
       title: detail.title,
       pic: detail.image_link || current?.first_img || '',
       sub: detail.total_episode_num ? `共 ${detail.total_episode_num} 集` : '短剧',
       episode: current?.sort ? `第 ${current.sort} 集` : undefined,
+      episodeIndex: epIndex,
+      progress,
     })
-  }, [detail, epIndex, episodes, id])
+  }, [detail, epIndex, episodes, id, resumeAt])
 
   useEffect(() => {
     const root = scrollerRef.current
@@ -230,6 +366,7 @@ export default function PlayPage() {
 
     const io = new IntersectionObserver(
       (entries) => {
+        if (resumeLockRef.current) return
         let best: { idx: number; ratio: number } | null = null
         for (const entry of entries) {
           if (!entry.isIntersecting) continue
@@ -239,7 +376,13 @@ export default function PlayPage() {
             best = { idx, ratio: entry.intersectionRatio }
           }
         }
-        if (best && best.ratio >= 0.55) setEpIndex(best.idx)
+        if (best && best.ratio >= 0.55) {
+          if (best.idx !== epIndexRef.current) {
+            setResumeAt(0)
+            progressRef.current = 0
+          }
+          setEpIndex(best.idx)
+        }
       },
       { root, threshold: [0.55, 0.75, 0.9] },
     )
@@ -252,6 +395,11 @@ export default function PlayPage() {
     const root = scrollerRef.current
     const max = episodes.length - 1
     const next = Math.max(0, Math.min(max, idx))
+    resumeLockRef.current = false
+    if (next !== epIndexRef.current) {
+      setResumeAt(0)
+      progressRef.current = 0
+    }
     const el = root?.querySelector<HTMLElement>(`[data-slide="${next}"]`)
     el?.scrollIntoView({ behavior, block: 'start' })
     setEpIndex(next)
@@ -413,6 +561,10 @@ export default function PlayPage() {
               active={i === epIndex}
               clean={clean}
               rate={rate}
+              resumeAt={i === epIndex ? resumeAt : 0}
+              onProgress={(time, force) =>
+                persistWatchProgress(time, force, { episodeIndex: i })
+              }
               onTap={() => setClean(false)}
               onEnded={() => {
                 if (i < episodes.length - 1) scrollToIndex(i + 1)

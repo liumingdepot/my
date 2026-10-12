@@ -2,7 +2,8 @@ import Hls from 'hls.js'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import styled from 'styled-components'
-import { saveWatchHistory } from '../utils/history'
+import { fetchHongguoDanmaku, type DanmakuComment } from '../utils/danmaku'
+import { getWatchResume, saveWatchHistory } from '../utils/history'
 import {
   fetchDramaDetail,
   fetchRecommend,
@@ -15,6 +16,7 @@ import {
   type DramaListItem,
   type PlaybackPlan,
 } from '../utils/server'
+import DanmakuLayer from './DanmakuLayer'
 
 const PLAY_FROM_KEY = 'hongguo-play-from'
 const EP_PAGE_SIZE = 21
@@ -79,6 +81,18 @@ function formatTime(sec: number) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function resolveSeekTime(target: number, duration: number) {
+  if (!Number.isFinite(target) || target <= 0) return 0
+  if (!Number.isFinite(duration) || duration <= 0) return target
+  if (target >= duration - 2) return 0
+  return Math.min(target, Math.max(0, duration - 0.25))
+}
+
+function clampIndex(index: number, length: number) {
+  if (length <= 0) return 0
+  return Math.max(0, Math.min(length - 1, index))
+}
+
 export default function PlayPage() {
   const { id = '' } = useParams()
   const dramaId = decodeURIComponent(id)
@@ -108,6 +122,10 @@ export default function PlayPage() {
   const [ctrlVisible, setCtrlVisible] = useState(true)
   const [muted, setMuted] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [danmakuEnabled, setDanmakuEnabled] = useState(true)
+  const [danmakuList, setDanmakuList] = useState<DanmakuComment[]>([])
+  const [danmakuLoading, setDanmakuLoading] = useState(false)
+  const [danmakuCount, setDanmakuCount] = useState(0)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerInnerRef = useRef<HTMLDivElement>(null)
@@ -119,6 +137,11 @@ export default function PlayPage() {
   const activeIdxRef = useRef(0)
   const episodesRef = useRef<DramaEpisode[]>([])
   const playEpisodeRef = useRef<(ep: DramaEpisode, index: number) => Promise<void>>(async () => {})
+  const progressRef = useRef(0)
+  const lastProgressSaveRef = useRef(0)
+  const pendingSeekRef = useRef<{ id: string; episodeIndex: number; time: number } | null>(null)
+  const detailRef = useRef<DramaDetail | null>(null)
+  const epLabelRef = useRef('')
 
   const episodes = useMemo(
     () => (detail ? sortEpisodes(detail.play_list || []) : []),
@@ -158,6 +181,40 @@ export default function PlayPage() {
   episodesRef.current = episodes
   rateOpenRef.current = rateOpen
   rateRef.current = rate
+  detailRef.current = detail
+  epLabelRef.current = activeEp
+    ? `第 ${activeEp.sort || activeIdx + 1} 集`
+    : ''
+
+  function persistWatchProgress(
+    time: number,
+    force = false,
+    override?: { episodeIndex?: number; episode?: string },
+  ) {
+    const d = detailRef.current
+    if (!d) return
+    const now = Date.now()
+    if (!force && now - lastProgressSaveRef.current < 5000) return
+    const progress = Math.max(0, Number.isFinite(time) ? time : 0)
+    progressRef.current = progress
+    lastProgressSaveRef.current = now
+    const ei = override?.episodeIndex ?? activeIdxRef.current
+    const ep = episodesRef.current[ei]
+    const episode =
+      override?.episode ||
+      (ep?.sort ? `第 ${ep.sort} 集` : '') ||
+      epLabelRef.current ||
+      undefined
+    saveWatchHistory({
+      id: d.playlet_id || dramaId,
+      title: d.title,
+      pic: d.image_link || '',
+      sub: d.tags || (d.total_episode_num ? `共 ${d.total_episode_num} 集` : ''),
+      episode,
+      episodeIndex: ei,
+      progress,
+    })
+  }
 
   function bumpControls() {
     setCtrlVisible(true)
@@ -178,6 +235,9 @@ export default function PlayPage() {
 
     let cancelled = false
     const ac = new AbortController()
+    progressRef.current = 0
+    pendingSeekRef.current = null
+    lastProgressSaveRef.current = 0
     ;(async () => {
       setLoading(true)
       setError('')
@@ -192,14 +252,22 @@ export default function PlayPage() {
         if (cancelled) return
         setDetail(data)
         const sorted = sortEpisodes(data.play_list || [])
-        if (sorted[0]) {
-          setActiveIdx(0)
-          // 详情就绪即预热第 1、2 集解密/切片，减轻穿透首播等待
-          prefetchPlayback(sorted[0].video_id)
-          prefetchNextEpisodes(sorted, 0, 1)
+        const resume = getWatchResume(dramaId)
+        const idx = clampIndex(resume.episodeIndex, sorted.length)
+        const start = sorted[idx]
+        if (start) {
+          setActiveIdx(idx)
+          progressRef.current = resume.progress
+          pendingSeekRef.current =
+            resume.progress > 0
+              ? { id: dramaId, episodeIndex: idx, time: resume.progress }
+              : null
+          // 详情就绪即预热当前集与下一集解密/切片
+          prefetchPlayback(start.video_id)
+          prefetchNextEpisodes(sorted, idx, 1)
           setResolving(true)
           try {
-            const next = await resolvePlayback(data, sorted[0], ac.signal)
+            const next = await resolvePlayback(data, start, ac.signal)
             if (!cancelled) setPlan(next)
           } catch (e) {
             if (!cancelled) setResolveError(e instanceof Error ? e.message : '取流失败')
@@ -239,12 +307,23 @@ export default function PlayPage() {
 
   useEffect(() => {
     if (!detail || !plan) return
+    const pending = pendingSeekRef.current
+    const resumeProgress =
+      pending && pending.id === dramaId && pending.episodeIndex === activeIdx
+        ? pending.time
+        : 0
+    const live = videoRef.current?.currentTime
+    const progress =
+      typeof live === 'number' && live > 0 ? live : resumeProgress || progressRef.current || 0
+    progressRef.current = progress
     saveWatchHistory({
       id: detail.playlet_id || dramaId,
       title: detail.title,
       pic: detail.image_link || '',
       sub: detail.tags || (detail.total_episode_num ? `共 ${detail.total_episode_num} 集` : ''),
       episode: `第 ${plan.episode.sort || activeIdx + 1} 集`,
+      episodeIndex: activeIdx,
+      progress,
     })
   }, [detail, plan, dramaId, activeIdx])
 
@@ -259,6 +338,11 @@ export default function PlayPage() {
     const video = videoRef.current
     if (!video || !plan?.url) return
 
+    const boundEpisodeIndex = activeIdx
+    const boundEpisodeLabel = plan.episode.sort
+      ? `第 ${plan.episode.sort} 集`
+      : `第 ${boundEpisodeIndex + 1} 集`
+
     setPlayError('')
     setMediaReady(false)
     setPlaying(false)
@@ -267,17 +351,61 @@ export default function PlayPage() {
     setBuffered(0)
     setRateOpen(false)
     setCtrlVisible(true)
+    setDanmakuList([])
+    setDanmakuCount(0)
     hlsRef.current?.destroy()
     hlsRef.current = null
+
+    const pending = pendingSeekRef.current
+    const shouldSeek = Boolean(
+      pending &&
+        pending.id === dramaId &&
+        pending.episodeIndex === boundEpisodeIndex &&
+        pending.time > 0,
+    )
+    if (!shouldSeek) progressRef.current = 0
+
+    const applySeek = () => {
+      const cur = pendingSeekRef.current
+      if (
+        !cur ||
+        cur.id !== dramaId ||
+        cur.episodeIndex !== boundEpisodeIndex ||
+        cur.time <= 0
+      ) {
+        return
+      }
+      pendingSeekRef.current = null
+      const t = resolveSeekTime(cur.time, video.duration)
+      if (t > 0) {
+        try {
+          video.currentTime = t
+          progressRef.current = t
+          setCurrentTime(t)
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    const flushBound = (time: number, force = false) => {
+      persistWatchProgress(time, force, {
+        episodeIndex: boundEpisodeIndex,
+        episode: boundEpisodeLabel,
+      })
+    }
 
     const onReady = () => {
       setMediaReady(true)
       video.playbackRate = rateRef.current
+      applySeek()
     }
     const syncTime = () => {
       if (!seekingRef.current) setCurrentTime(video.currentTime || 0)
       const d = video.duration
       if (Number.isFinite(d) && d > 0) setDuration(d)
+      progressRef.current = video.currentTime || 0
+      flushBound(video.currentTime || 0)
     }
     const syncBuffered = () => {
       try {
@@ -296,26 +424,36 @@ export default function PlayPage() {
       setPlaying(false)
       setCtrlVisible(true)
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
+      flushBound(video.currentTime || 0, true)
     }
     const onEnded = () => {
       setPlaying(false)
       setCtrlVisible(true)
-      const idx = activeIdxRef.current
+      flushBound(0, true)
       const list = episodesRef.current
-      const nextIdx = idx + 1
+      const nextIdx = boundEpisodeIndex + 1
       const next = list[nextIdx]
       if (!next || next.playable === false) return
+      pendingSeekRef.current = null
+      progressRef.current = 0
       void playEpisodeRef.current(next, nextIdx)
+    }
+    const flushProgress = () => flushBound(video.currentTime || 0, true)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushProgress()
     }
 
     video.addEventListener('playing', onReady)
     video.addEventListener('loadeddata', onReady)
+    video.addEventListener('loadedmetadata', applySeek)
     video.addEventListener('timeupdate', syncTime)
     video.addEventListener('durationchange', syncTime)
     video.addEventListener('progress', syncBuffered)
     video.addEventListener('play', onPlay)
     video.addEventListener('pause', onPause)
     video.addEventListener('ended', onEnded)
+    window.addEventListener('pagehide', flushProgress)
+    document.addEventListener('visibilitychange', onVisibility)
     video.playbackRate = rateRef.current
     video.muted = muted
 
@@ -362,20 +500,24 @@ export default function PlayPage() {
     bumpControls()
 
     return () => {
+      flushBound(video.currentTime || progressRef.current || 0, true)
       video.removeEventListener('playing', onReady)
       video.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('loadedmetadata', applySeek)
       video.removeEventListener('timeupdate', syncTime)
       video.removeEventListener('durationchange', syncTime)
       video.removeEventListener('progress', syncBuffered)
       video.removeEventListener('play', onPlay)
       video.removeEventListener('pause', onPause)
       video.removeEventListener('ended', onEnded)
+      window.removeEventListener('pagehide', flushProgress)
+      document.removeEventListener('visibilitychange', onVisibility)
       hlsRef.current?.destroy()
       hlsRef.current = null
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan?.url])
+  }, [plan?.url, activeIdx, dramaId])
 
   useEffect(() => {
     const video = videoRef.current
@@ -386,6 +528,52 @@ export default function PlayPage() {
     const video = videoRef.current
     if (video) video.muted = muted
   }, [muted])
+
+  // 原生弹幕：按集自动拉取（参考 danmu_api hongguo.js）
+  useEffect(() => {
+    const seriesId = (detail?.playlet_id || dramaId || '').trim()
+    const videoId = (plan?.episode.video_id || activeEp?.video_id || '').trim()
+    if (!seriesId || !videoId) {
+      setDanmakuList([])
+      setDanmakuCount(0)
+      setDanmakuLoading(false)
+      return
+    }
+
+    let cancelled = false
+    const ac = new AbortController()
+    setDanmakuLoading(true)
+    setDanmakuList([])
+    setDanmakuCount(0)
+    ;(async () => {
+      try {
+        const data = await fetchHongguoDanmaku(
+          {
+            seriesId,
+            videoId,
+            duration: plan?.episode.duration || activeEp?.duration || duration || undefined,
+          },
+          ac.signal,
+        )
+        if (cancelled) return
+        setDanmakuList(data.list)
+        setDanmakuCount(data.count)
+      } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return
+        setDanmakuList([])
+        setDanmakuCount(0)
+      } finally {
+        if (!cancelled) setDanmakuLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      ac.abort()
+    }
+    // duration 仅作兜底，不因播放进度变化反复请求
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.playlet_id, dramaId, plan?.episode.video_id, activeEp?.video_id])
 
   useEffect(() => {
     if (rateOpen) {
@@ -518,6 +706,15 @@ export default function PlayPage() {
 
   async function playEpisode(ep: DramaEpisode, index: number) {
     if (!detail) return
+    if (index !== activeIdxRef.current) {
+      const live = videoRef.current?.currentTime || 0
+      // 播完已写成 0 时跳过，避免用片尾时间覆盖
+      if (live > 1 && progressRef.current > 0) {
+        persistWatchProgress(live, true)
+      }
+      pendingSeekRef.current = null
+      progressRef.current = 0
+    }
     if (ep.playable === false) {
       setActiveIdx(index)
       setPlan(null)
@@ -624,6 +821,13 @@ export default function PlayPage() {
                 playsInline
                 poster={glassCover || undefined}
                 onClick={() => void togglePlay()}
+              />
+
+              <DanmakuLayer
+                comments={danmakuList}
+                currentTime={currentTime}
+                playing={playing}
+                enabled={danmakuEnabled && danmakuList.length > 0}
               />
 
               {mediaReady && !playing ? (
@@ -747,6 +951,36 @@ export default function PlayPage() {
                           {rate === 1 ? '倍速' : `${rate}x`}
                         </button>
                       </div>
+
+                      <button
+                        type="button"
+                        className={`ctrl-btn dm-btn${danmakuList.length && danmakuEnabled ? ' on' : ''}`}
+                        aria-label={
+                          danmakuLoading
+                            ? '弹幕加载中'
+                            : danmakuCount
+                              ? `弹幕 ${danmakuCount} 条`
+                              : '弹幕'
+                        }
+                        title={
+                          danmakuLoading
+                            ? '弹幕加载中…'
+                            : danmakuCount
+                              ? `弹幕 ${danmakuCount} 条（点击${danmakuEnabled ? '关闭' : '开启'}）`
+                              : '暂无弹幕'
+                        }
+                        disabled={danmakuLoading || !danmakuList.length}
+                        onClick={() => {
+                          setDanmakuEnabled((v) => !v)
+                          bumpControls()
+                        }}
+                      >
+                        {danmakuLoading
+                          ? '弹幕…'
+                          : danmakuList.length && !danmakuEnabled
+                            ? '弹幕关'
+                            : '弹幕'}
+                      </button>
 
                       {pipSupported ? (
                         <button
@@ -1268,9 +1502,15 @@ const Page = styled.div`
       }
     }
 
-    .rate-btn {
+    .rate-btn,
+    .dm-btn {
       min-width: 48px;
       font-variant-numeric: tabular-nums;
+
+      &:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
     }
 
     .time {

@@ -3,7 +3,7 @@ import styled from 'styled-components'
 
 const NAV_ITEMS = [
   { key: '/admin/works', label: '作品管理' },
-  { key: '/admin/video-sources', label: '视频管理' },
+  { key: '/admin/video-sources', label: '视频采集' },
   { key: '/admin/agnes-keys', label: '密钥管理' },
 ] as const
 

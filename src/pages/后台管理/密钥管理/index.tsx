@@ -235,7 +235,7 @@ export default function AgnesKeysPage() {
         <div>
           <h1 className="title">密钥管理</h1>
           <p className="desc">
-            管理 Agnes API 密钥；周易 / 画布等会优先使用已启用密钥，并按 Base URL 请求对应节点。
+            管理 Agnes API 密钥；周易 / 画布等仅使用此处已启用的密钥，并按 Base URL 请求对应节点。
           </p>
         </div>
         <div className="head-actions">
@@ -322,7 +322,7 @@ export default function AgnesKeysPage() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="empty">
-                    {listError || '暂无密钥，可新增或重启服务以从 .env 自动导入'}
+                    {listError || '暂无密钥，请点击「新增密钥」添加'}
                   </td>
                 </tr>
               ) : (

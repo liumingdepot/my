@@ -29,6 +29,7 @@ import {
 } from './media.js'
 import * as landpage from './landpage.js'
 import { getVideoTracks, pickPlayable, deviceInfo } from './fqapi.js'
+import { fetchHongguoDanmaku } from './danmaku.js'
 import { signRuntimeStatus } from './signService.js'
 import {
   GENRES,
@@ -592,6 +593,31 @@ async function handleLegacyRoutes(request: Request, url: URL, path: string): Pro
 
   if (path === 'sources') {
     return json({ ok: true, data: SOURCES })
+  }
+
+  if (path === 'danmaku') {
+    if (method !== 'GET') return bad(`不支持的方法: ${method}`, 405)
+    const seriesId = (
+      url.searchParams.get('series_id') ||
+      url.searchParams.get('playlet_id') ||
+      url.searchParams.get('book_id') ||
+      ''
+    ).trim()
+    const videoId = (
+      url.searchParams.get('video_id') ||
+      url.searchParams.get('episode_id') ||
+      url.searchParams.get('vid') ||
+      ''
+    ).trim()
+    const duration = (url.searchParams.get('duration') || '').trim()
+    if (!seriesId) return bad('缺少 series_id')
+    if (!videoId) return bad('缺少 video_id')
+    const data = await fetchHongguoDanmaku({
+      seriesId,
+      videoId,
+      duration: duration || undefined,
+    })
+    return json({ ok: true, data: { list: data.list, count: data.count } })
   }
 
   if (path === 'categories') {
