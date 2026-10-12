@@ -1,377 +1,962 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useLayoutEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router'
 import styled from 'styled-components'
 import DomainSelect from './DomainSelect'
-import SiteHeader from './SiteHeader'
 import {
-  ALL_WORKS,
   fetchProjectWorks,
   filterWorksByCategory,
-  PROJECT_TONES,
+  HOME_PATH,
+  PROJECTS_PATH,
+  splitHighlights,
+  splitStack,
   WORK_CATEGORIES,
+  WORKS_PATH,
   type ProjectWork,
   type WorkCategory,
+  type WorkItem,
 } from './works'
 
-type ContentTab = 'works' | 'projects'
+type ListMode = 'works' | 'projects'
 
-/** 作品页：独立路由，顶栏置顶显示 */
+const PROJECT_CARD_TONES: WorkItem['tone'][] = [
+  'violet',
+  'rose',
+  'ink',
+  'emerald',
+  'sky',
+  'cyan',
+  'amber',
+]
+
+const NAV_CACHE_KEY = 'works-nav'
+
+type NavCache = {
+  mode: ListMode
+  category: WorkCategory
+}
+
+function isProjectsPath(pathname: string) {
+  return pathname === PROJECTS_PATH || pathname.startsWith(`${PROJECTS_PATH}/`)
+}
+
+function isWorkCategory(value: unknown): value is WorkCategory {
+  return WORK_CATEGORIES.some((item) => item.id === value)
+}
+
+function readNavCache(): NavCache | null {
+  try {
+    const raw = localStorage.getItem(NAV_CACHE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw) as Partial<NavCache>
+    const mode = data.mode === 'projects' || data.mode === 'works' ? data.mode : null
+    const category = isWorkCategory(data.category) ? data.category : null
+    if (!mode || !category) return null
+    return { mode, category }
+  } catch {
+    return null
+  }
+}
+
+function writeNavCache(cache: NavCache) {
+  try {
+    localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function AdminIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  )
+}
+
+function ProjectsModeIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M4 7h16M4 12h10M4 17h14" strokeLinecap="round" />
+      <circle cx="18" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** 作品集 / 项目经历：同页切换底部列表，不跳转新菜单 */
 export default function WorksPage() {
-  const [category, setCategory] = useState<WorkCategory>('all')
-  const [contentTab, setContentTab] = useState<ContentTab>('works')
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const [mode, setMode] = useState<ListMode>(() => {
+    if (isProjectsPath(pathname)) return 'projects'
+    return readNavCache()?.mode ?? 'works'
+  })
+  const [category, setCategory] = useState<WorkCategory>(() => readNavCache()?.category ?? 'all')
   const [projects, setProjects] = useState<ProjectWork[]>([])
-  const [projectsLoading, setProjectsLoading] = useState(true)
-  const [scrolled, setScrolled] = useState(false)
+  const [projectsLoading, setProjectsLoading] = useState(false)
+  const [projectsLoaded, setProjectsLoaded] = useState(false)
+  const [detailProject, setDetailProject] = useState<ProjectWork | null>(null)
+  const isProjects = mode === 'projects'
   const works = filterWorksByCategory(category)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const overlayOpen = Boolean(detailProject)
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
-    document.title = '作品 · 刘铭'
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prevOverflow
-    }
-  }, [])
+    document.title = isProjects ? '项目经历 · 刘铭' : '我的作品集 · 刘铭'
+  }, [isProjects])
 
-  /** 项目经历来自后台「作品管理」，按排序返回 */
+  /** 兼容旧链接 /projects：进入时切到项目经历列表 */
   useEffect(() => {
+    if (isProjectsPath(pathname)) setMode('projects')
+  }, [pathname])
+
+  /** 记住顶栏分类 / 项目经历，刷新后保持 */
+  useEffect(() => {
+    writeNavCache({ mode, category })
+  }, [mode, category])
+
+  useEffect(() => {
+    if (!isProjects || projectsLoaded) return
     let cancelled = false
+    setProjectsLoading(true)
     fetchProjectWorks().then((list) => {
       if (!cancelled) {
         setProjects(list)
         setProjectsLoading(false)
+        setProjectsLoaded(true)
       }
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isProjects, projectsLoaded])
 
-  /** 顶栏毛玻璃随内容下滑加深 */
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const onScroll = () => setScrolled(el.scrollTop > 24)
-    onScroll()
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [])
+    if (!overlayOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDetailProject(null)
+    }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [overlayOpen])
 
-  const scrollTop = () => scrollRef.current?.scrollTo({ top: 0 })
+  const showWorks = (next?: WorkCategory) => {
+    if (next) setCategory(next)
+    setMode('works')
+    if (isProjectsPath(pathname)) navigate(WORKS_PATH, { replace: true })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const showProjects = () => {
+    setMode('projects')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <Style>
-      <div className="shell">
-        <div className="works-panel" aria-label="个人作品">
-          <div className="works-scroll" ref={scrollRef}>
-            <SiteHeader scrolled={scrolled} />
-            <div className="main">
-              <div className="main-toolbar">
-                <div
-                  className={`view-switch${contentTab === 'projects' ? ' is-projects' : ''}`}
-                  role="tablist"
-                  aria-label="内容切换"
+      <header className="top">
+        <div className="inner">
+          <Link
+            to={WORKS_PATH}
+            className="brand"
+            aria-label="我的作品集"
+            onClick={(e) => {
+              e.preventDefault()
+              showWorks('all')
+            }}
+          >
+            <span className="brand-mark">铭</span>
+            <span className="brand-text">我的作品集</span>
+          </Link>
+
+          <div className="nav-filter">
+            <div className={`cats${isProjects ? ' is-dimmed' : ''}`} role="tablist" aria-label="作品分类">
+              {WORK_CATEGORIES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={!isProjects && category === item.id}
+                  className={`cat${!isProjects && category === item.id ? ' is-active' : ''}`}
+                  onClick={() => showWorks(item.id)}
                 >
-                  <span className="view-switch__thumb" aria-hidden="true" />
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={contentTab === 'works'}
-                    className={`view-switch__btn${contentTab === 'works' ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setContentTab('works')
-                      scrollTop()
-                    }}
-                  >
-                    个人作品
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={contentTab === 'projects'}
-                    className={`view-switch__btn${contentTab === 'projects' ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setContentTab('projects')
-                      scrollTop()
-                    }}
-                  >
-                    项目经历
-                  </button>
-                </div>
-              </div>
+                  {item.label}
+                </button>
+              ))}
+            </div>
 
-              {contentTab === 'works' ? (
-                <div className="works-stage" key={`works-${category}`}>
-                  <div className="works-stage__head">
-                    <div>
-                      <p className="works-kicker">Works</p>
-                      <h1 className="works-title">个人作品</h1>
-                      <p className="lead">挑选一个入口，开始探索</p>
-                    </div>
-                    <div className="cats" role="tablist" aria-label="作品分类">
-                      {WORK_CATEGORIES.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          role="tab"
-                          aria-selected={category === item.id}
-                          className={`cat${category === item.id ? ' is-active' : ''}`}
-                          onClick={() => setCategory(item.id)}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
+            <button
+              type="button"
+              className={`mode-switch${isProjects ? ' is-active' : ''}`}
+              aria-pressed={isProjects}
+              aria-label="项目经历"
+              onClick={showProjects}
+            >
+              <ProjectsModeIcon />
+              <span>项目经历</span>
+            </button>
+          </div>
+
+          <nav className="nav-actions" aria-label="页面操作">
+            <Link to={HOME_PATH} className="nav-link">
+              返回首页
+            </Link>
+            <Link to="/home" className="nav-link">
+              个人简历
+            </Link>
+            <DomainSelect inline tone="light" />
+            <Link to="/admin" className="admin-entry" title="后台管理" aria-label="后台管理">
+              <AdminIcon />
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main className="main">
+        <div className="list-meta">
+          <p className="list-total" aria-live="polite">
+            <span className="list-total__label">{isProjects ? '项目' : '作品'}</span>
+            <span className="list-total__count">
+              {isProjects ? (projectsLoading ? '—' : projects.length) : works.length}
+            </span>
+          </p>
+        </div>
+        {isProjects ? (
+          projectsLoading ? (
+            <p className="project-empty">加载中…</p>
+          ) : projects.length === 0 ? (
+            <p className="project-empty">暂无项目，可在后台「作品管理」中添加</p>
+          ) : (
+            <ul className="works-grid">
+              {projects.map((project, index) => {
+                const tone = PROJECT_CARD_TONES[index % PROJECT_CARD_TONES.length]
+                const glyph = Array.from(project.title.trim())[0] || '项'
+                const tag = project.badge || project.role || project.period || '项目'
+                const platform = project.platform || 'PC'
+                const desc =
+                  project.description ||
+                  [project.role, project.company].filter(Boolean).join(' · ') ||
+                  '项目经历'
+                const cardClass = `work-card work-card--${tone}${project.featured ? ' is-featured' : ''}`
+                return (
+                  <li key={project.id}>
+                    <button
+                      type="button"
+                      className={cardClass}
+                      onClick={() => setDetailProject(project)}
+                    >
+                      <div className="work-card__top">
+                        <span className="work-card__index">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <div className="work-card__meta">
+                          <span className="work-card__platform">{platform}</span>
+                          <span className="work-card__tag">{tag}</span>
+                        </div>
+                      </div>
+                      <h3 className="work-card__name">{project.title}</h3>
+                      <p className="work-card__desc">{desc}</p>
+                      <span className="work-card__go">
+                        详情
+                        <span className="work-card__arrow" aria-hidden="true">
+                          →
+                        </span>
+                      </span>
+                      <span className="work-card__mark" aria-hidden="true">
+                        {glyph}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )
+        ) : (
+          <ul className="works-grid">
+            {works.map((work, index) => (
+              <li key={work.href}>
+                <Link className={`work-card work-card--${work.tone}`} to={work.href}>
+                  <div className="work-card__top">
+                    <span className="work-card__index">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <div className="work-card__meta">
+                      <span className="work-card__platform">{work.platform}</span>
+                      <span className="work-card__tag">{work.tag}</span>
                     </div>
                   </div>
+                  <h3 className="work-card__name">{work.name}</h3>
+                  <p className="work-card__desc">{work.desc}</p>
+                  <span className="work-card__go">
+                    打开
+                    <span className="work-card__arrow" aria-hidden="true">
+                      →
+                    </span>
+                  </span>
+                  <span className="work-card__mark" aria-hidden="true">
+                    {work.glyph}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
 
-                  <ul className="work-rail">
-                    {works.map((work, index) => (
-                      <li key={work.href} style={{ '--i': index } as CSSProperties}>
-                        <Link className={`work-row work-row--${work.tone}`} to={work.href}>
-                          <span className="work-row__rail" aria-hidden="true" />
-                          <span className="work-row__num">{String(index + 1).padStart(2, '0')}</span>
-                          <span className="work-row__glyph" aria-hidden="true">
-                            {work.glyph}
-                          </span>
-                          <div className="work-row__body">
-                            <div className="work-row__topline">
-                              <h2 className="work-row__name">{work.name}</h2>
-                              <span className="work-row__meta">
-                                {work.platform}
-                                <span aria-hidden="true"> · </span>
-                                {work.tag}
-                              </span>
-                            </div>
-                            <p className="work-row__desc">{work.desc}</p>
-                          </div>
-                          <span className="work-row__go" aria-hidden="true">
-                            →
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <div className="projects-stage" key="projects">
-                  <div className="works-stage__head">
-                    <div>
-                      <p className="works-kicker">Experience</p>
-                      <h1 className="works-title">项目经历</h1>
-                      <p className="lead">参与过的项目与角色</p>
-                    </div>
-                  </div>
-                  {projectsLoading ? (
-                    <p className="project-empty">加载中…</p>
-                  ) : projects.length === 0 ? (
-                    <p className="project-empty">暂无项目，可在后台「作品管理」中添加</p>
-                  ) : (
-                    <ul className="project-list">
-                      {projects.map((project, index) => (
-                        <li
-                          key={project.id}
-                          className={`project-item project-item--${PROJECT_TONES[index % PROJECT_TONES.length]}`}
-                        >
-                          <div className="project-item__media">
-                            <img src={project.image} alt="" loading="lazy" />
-                            <span className="project-item__veil" aria-hidden="true" />
-                          </div>
-                          <div className="project-item__body">
-                            <div className="project-item__meta">
-                              <span className="project-item__index">
-                                {String(index + 1).padStart(2, '0')}
-                              </span>
-                              <span className="project-item__period">{project.period}</span>
-                            </div>
-                            <h2 className="project-item__title">{project.title}</h2>
-                            <p className="project-item__role">{project.role}</p>
-                            <p className="project-item__desc">{project.description}</p>
-                          </div>
-                        </li>
+      {detailProject ? (
+        <div
+          className="project-detail-mask"
+          role="presentation"
+          onClick={() => setDetailProject(null)}
+        >
+          <div
+            className="project-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-detail-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="project-detail__close"
+              aria-label="关闭"
+              onClick={() => setDetailProject(null)}
+            >
+              ×
+            </button>
+            <p className="project-detail__notice">保密项目，不可预览，仅展示设计图、项目简介</p>
+            <h2 id="project-detail-title" className="project-detail__title">
+              {detailProject.title}
+            </h2>
+            <dl className="project-detail__fields">
+              {detailProject.badge ? (
+                <>
+                  <dt>标签</dt>
+                  <dd>{detailProject.badge}</dd>
+                </>
+              ) : null}
+              {detailProject.role ? (
+                <>
+                  <dt>角色</dt>
+                  <dd>{detailProject.role}</dd>
+                </>
+              ) : null}
+              {detailProject.company ? (
+                <>
+                  <dt>公司</dt>
+                  <dd>{detailProject.company}</dd>
+                </>
+              ) : null}
+              {detailProject.period ? (
+                <>
+                  <dt>周期</dt>
+                  <dd>{detailProject.period}</dd>
+                </>
+              ) : null}
+              {detailProject.platform ? (
+                <>
+                  <dt>平台</dt>
+                  <dd>{detailProject.platform}</dd>
+                </>
+              ) : null}
+              {detailProject.featured ? (
+                <>
+                  <dt>精选</dt>
+                  <dd>是</dd>
+                </>
+              ) : null}
+              {detailProject.description ? (
+                <>
+                  <dt>简介</dt>
+                  <dd className="project-detail__block">{detailProject.description}</dd>
+                </>
+              ) : null}
+              {splitStack(detailProject.stack).length > 0 ? (
+                <>
+                  <dt>技术栈</dt>
+                  <dd>
+                    <ul className="project-detail__tags">
+                      {splitStack(detailProject.stack).map((item) => (
+                        <li key={item}>{item}</li>
                       ))}
                     </ul>
-                  )}
-                </div>
-              )}
-
-              <p className="foot-note">共 {ALL_WORKS.length} 个作品 · 数据来自公开接口，仅供学习交流</p>
-            </div>
+                  </dd>
+                </>
+              ) : null}
+              {splitHighlights(detailProject.highlights).length > 0 ? (
+                <>
+                  <dt>亮点</dt>
+                  <dd>
+                    <ul className="project-detail__list">
+                      {splitHighlights(detailProject.highlights).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </dd>
+                </>
+              ) : null}
+              {detailProject.link ? (
+                <>
+                  <dt>链接</dt>
+                  <dd className="project-detail__muted">已隐藏（保密项目不可预览）</dd>
+                </>
+              ) : null}
+            </dl>
           </div>
         </div>
-      </div>
-
-      <DomainSelect />
+      ) : null}
     </Style>
   )
 }
 
 const Style = styled.div`
-  --ink: #0b1220;
-  --text: #e8eef8;
-  --text-soft: rgba(232, 238, 248, 0.72);
-  --muted: rgba(232, 238, 248, 0.48);
-  --line: rgba(255, 255, 255, 0.14);
-  --accent: #7dd3c0;
-  --font: 'Outfit', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  --display: 'Instrument Serif', 'Songti SC', 'STSong', serif;
+  --bg: #f5f6fb;
+  --bg-elevated: #ffffff;
+  --text: #0f172a;
+  --text-soft: #475569;
+  --muted: #94a3b8;
+  --line: rgba(15, 23, 42, 0.08);
+  --purple: #7c5cfc;
+  --purple-soft: #a78bfa;
+  --grad-btn: linear-gradient(90deg, #3b82f6, #06b6d4);
+  --shadow: 0 10px 30px rgba(99, 102, 241, 0.08);
+  --shadow-soft: 0 4px 18px rgba(15, 23, 42, 0.05);
+  --radius: 16px;
+  --radius-pill: 999px;
+  --nav-h: 64px;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  --serif: ui-serif, 'Songti SC', 'STSong', 'SimSun', serif;
 
-  height: 100svh;
-  background: var(--ink);
+  min-height: 100svh;
+  background:
+    radial-gradient(720px 420px at 12% -8%, rgba(99, 102, 241, 0.12), transparent 60%),
+    radial-gradient(640px 380px at 90% 8%, rgba(6, 182, 212, 0.1), transparent 55%),
+    var(--bg);
   color: var(--text);
   font-family: var(--font);
-  overflow: hidden;
 
-  /* 内容区：顶栏 sticky 吸顶，只有这里滚动 */
-  .shell {
-    height: 100svh;
-    overflow: hidden;
+  .top {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    height: var(--nav-h);
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    border-bottom: 1px solid var(--line);
   }
 
-  .works-panel {
-    position: relative;
-    height: 100svh;
-    width: 100%;
-    overflow: hidden;
-    background:
-      radial-gradient(900px 520px at 8% -8%, rgba(125, 211, 192, 0.14), transparent 58%),
-      radial-gradient(700px 480px at 92% 12%, rgba(96, 165, 250, 0.08), transparent 55%),
-      radial-gradient(640px 420px at 50% 100%, rgba(251, 191, 36, 0.05), transparent 50%),
-      linear-gradient(180deg, #0a101c 0%, var(--ink) 40%, #080e18 100%);
+  .inner {
+    width: min(90vw, 1400px);
+    max-width: 1400px;
+    margin: 0 auto;
+    height: var(--nav-h);
+    display: flex;
+    align-items: center;
+    gap: 20px;
   }
 
-  .works-scroll {
-    height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    flex-shrink: 0;
+    color: inherit;
+    margin-right: 12px;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--grad-btn);
+    color: #fff;
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 17px;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.28);
+  }
+
+  .brand-text {
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+
+  .nav-actions {
+    flex-shrink: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .admin-entry {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--bg-elevated);
+    color: var(--text-soft);
+    text-decoration: none;
+    transition:
+      transform 0.2s,
+      border-color 0.2s,
+      color 0.2s;
+
+    &:hover {
+      transform: scale(1.05);
+      border-color: var(--purple-soft);
+      color: var(--purple);
+    }
+  }
+
+  .nav-link {
+    appearance: none;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid color-mix(in srgb, var(--purple) 28%, transparent);
+    background: color-mix(in srgb, var(--purple) 8%, var(--bg-elevated));
+    color: var(--purple);
+    text-decoration: none;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition:
+      color 0.2s,
+      border-color 0.2s,
+      box-shadow 0.2s,
+      background 0.2s;
+
+    &:hover {
+      color: #5b3fd4;
+      border-color: color-mix(in srgb, var(--purple) 45%, transparent);
+      box-shadow: var(--shadow-soft);
+      background: color-mix(in srgb, var(--purple) 12%, var(--bg-elevated));
+    }
   }
 
   .main {
-    width: min(92vw, 1200px);
+    width: min(90vw, 1400px);
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 4px 0 88px;
+    padding: calc(var(--nav-h) + 40px) 0 64px;
   }
 
-  /* 无「回到首页」，切换器靠右 */
-  .main-toolbar {
+  .list-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .list-total {
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 14px 6px 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .list-total__label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+  }
+
+  .list-total__count {
+    color: var(--text);
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    background: linear-gradient(120deg, var(--purple), #06b6d4);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .nav-filter {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 16px;
-    margin-bottom: 32px;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
   }
 
-  .view-switch {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: min(100%, 320px);
-    padding: 4px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
+  .cats {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    transition: opacity 0.22s ease;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    &.is-dimmed {
+      opacity: 0.42;
+    }
   }
 
-  .view-switch__thumb {
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    left: 4px;
-    width: calc(50% - 4px);
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.92);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    pointer-events: none;
-  }
-
-  .view-switch.is-projects .view-switch__thumb {
-    transform: translateX(100%);
-  }
-
-  .view-switch__btn {
+  .cat {
     appearance: none;
     position: relative;
-    z-index: 1;
+    flex-shrink: 0;
     border: none;
     background: transparent;
-    color: var(--muted);
-    padding: 11px 14px;
-    margin: 0;
-    border-radius: 9px;
+    color: var(--text-soft);
+    padding: 8px 14px;
     font: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    line-height: 1.2;
+    font-size: 15px;
+    letter-spacing: 0.04em;
     cursor: pointer;
-    transition: color 0.25s ease;
+    transition: color 0.2s;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 2px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--purple);
+      transform: scaleX(0);
+      transform-origin: center;
+      transition: transform 0.22s ease;
+    }
 
     &:hover {
       color: var(--text);
     }
 
     &.is-active {
-      color: #0b1220;
+      color: var(--text);
+      font-weight: 600;
+
+      &::after {
+        transform: scaleX(1);
+      }
     }
   }
 
-  .works-stage,
-  .projects-stage {
-    animation: stage-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .works-stage__head {
-    display: flex;
-    align-items: end;
-    justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 28px;
-  }
-
-  .works-kicker {
-    margin: 0 0 8px;
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-  }
-
-  .works-title {
-    margin: 0;
-    font-family: var(--display);
-    font-size: clamp(34px, 5vw, 48px);
-    font-weight: 400;
-    letter-spacing: 0.08em;
-    line-height: 1.1;
-  }
-
-  .lead {
-    margin: 10px 0 0;
-    color: var(--muted);
-    font-size: 14px;
+  .mode-switch {
+    appearance: none;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 0 14px 0 12px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, #06b6d4 32%, var(--line));
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, #06b6d4 10%, var(--bg-elevated)),
+        color-mix(in srgb, #0ea5e9 4%, var(--bg-elevated))
+      );
+    color: color-mix(in srgb, #0e7490 55%, var(--text));
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
     letter-spacing: 0.06em;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
+    transition:
+      color 0.2s,
+      border-color 0.2s,
+      background 0.2s,
+      box-shadow 0.2s,
+      transform 0.2s;
+
+    svg {
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+
+    &:hover {
+      border-color: color-mix(in srgb, #06b6d4 55%, transparent);
+      color: #0e7490;
+      transform: translateY(-1px);
+      box-shadow:
+        inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent),
+        0 6px 14px rgba(6, 182, 212, 0.16);
+    }
+
+    &.is-active {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(135deg, #0891b2 0%, #0ea5e9 55%, #38bdf8 100%);
+      box-shadow: 0 6px 16px rgba(14, 165, 233, 0.28);
+      transform: none;
+
+      svg {
+        opacity: 1;
+      }
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(14, 165, 233, 0.34);
+      }
+    }
   }
 
-  .foot-note {
-    margin: 36px 0 0;
-    color: var(--muted);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-align: center;
-  }
-
-  .project-list {
+  .works-grid {
     list-style: none;
     margin: 0;
     padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .works-grid > li {
+    min-width: 0;
+    display: flex;
+  }
+
+  .work-card {
+    --card-tint: transparent;
+    box-sizing: border-box;
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    /* 对齐参考站视觉高度：content-box 200 + padding ≈ 240 */
+    min-height: 240px;
+    margin: 0;
+    padding: 1.2rem 1.25rem 1.15rem;
+    overflow: hidden;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-soft);
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition:
+      transform 0.25s,
+      box-shadow 0.25s;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow);
+
+      .work-card__arrow {
+        transform: translateX(4px);
+      }
+
+      .work-card__mark {
+        opacity: 0.14;
+        transform: scale(1.04);
+      }
+    }
+  }
+
+  .work-card__top,
+  .work-card__name,
+  .work-card__desc,
+  .work-card__go {
+    position: relative;
+    z-index: 1;
+  }
+
+  .work-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .work-card__meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.4rem;
+  }
+
+  .work-card__index {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--purple-soft);
+  }
+
+  .work-card__tag {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.18rem 0.52rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    color: var(--text-soft);
+    background: color-mix(in srgb, var(--bg) 65%, transparent);
+    white-space: nowrap;
+  }
+
+  .work-card__platform {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.18rem 0.52rem;
+    border-radius: var(--radius-pill);
+    color: var(--purple);
+    background: color-mix(in srgb, var(--purple) 10%, transparent);
+    white-space: nowrap;
+  }
+
+  .work-card__name {
+    margin: 1rem 0 0.55rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .work-card__desc {
+    margin: 0;
+    flex: 1 1 0%;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+
+  .work-card__go {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 1rem;
+    color: var(--purple);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .work-card__arrow {
+    display: inline-block;
+    transition: transform 0.2s;
+  }
+
+  .work-card__mark {
+    position: absolute;
+    right: -0.1em;
+    bottom: -0.25em;
+    font-family: var(--serif);
+    font-size: 7.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+    opacity: 0.06;
+    pointer-events: none;
+    transition:
+      opacity 0.25s,
+      transform 0.25s;
+  }
+
+  .work-card--violet {
+    --card-tint: rgba(124, 92, 252, 0.16);
+    background:
+      radial-gradient(320px 180px at 90% 0%, var(--card-tint), transparent 70%),
+      var(--bg-elevated);
+  }
+
+  .work-card--rose {
+    --card-tint: rgba(244, 63, 94, 0.14);
+    background:
+      radial-gradient(320px 180px at 90% 0%, var(--card-tint), transparent 70%),
+      var(--bg-elevated);
+  }
+
+  .work-card--ink {
+    --card-tint: rgba(15, 23, 42, 0.1);
+    background:
+      radial-gradient(320px 180px at 90% 0%, var(--card-tint), transparent 70%),
+      var(--bg-elevated);
+  }
+
+  .work-card--emerald {
+    --card-tint: rgba(16, 185, 129, 0.14);
+    background:
+      radial-gradient(320px 180px at 90% 0%, var(--card-tint), transparent 70%),
+      var(--bg-elevated);
+  }
+
+  .work-card--sky {
+    --card-tint: rgba(14, 165, 233, 0.14);
+    background:
+      radial-gradient(320px 180px at 90% 0%, var(--card-tint), transparent 70%),
+      var(--bg-elevated);
+  }
+
+  .work-card--cyan {
+    --card-tint: rgba(6, 182, 212, 0.14);
+    background:
+      radial-gradient(320px 180px at 90% 0%, var(--card-tint), transparent 70%),
+      var(--bg-elevated);
+  }
+
+  .work-card--amber {
+    --card-tint: rgba(245, 158, 11, 0.16);
+    background:
+      radial-gradient(320px 180px at 90% 0%, var(--card-tint), transparent 70%),
+      var(--bg-elevated);
+  }
+
+  .work-card.is-featured {
+    border-color: color-mix(in srgb, var(--purple) 28%, transparent);
   }
 
   .project-empty {
@@ -383,440 +968,267 @@ const Style = styled.div`
     text-align: center;
   }
 
-  .project-item {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    gap: 1.5rem;
-    align-items: stretch;
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid var(--line);
-
-    &:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-  }
-
-  .project-item__media {
-    position: relative;
-    overflow: hidden;
-    border-radius: 14px;
-    min-height: 180px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--line);
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
-      display: block;
-      transition: transform 0.45s ease;
-    }
-  }
-
-  .project-item__veil {
-    position: absolute;
+  .project-detail-mask {
+    position: fixed;
     inset: 0;
-    pointer-events: none;
+    z-index: 200;
+    display: grid;
+    place-items: start center;
+    padding: 24px;
+    box-sizing: border-box;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    overflow: auto;
   }
 
-  .project-item--teal .project-item__veil {
-    background: linear-gradient(135deg, rgba(125, 211, 192, 0.35), rgba(8, 16, 28, 0.35));
+  .project-detail {
+    position: relative;
+    width: min(100%, 520px);
+    margin: min(12vh, 72px) auto;
+    padding: 24px 24px 28px;
+    border-radius: 18px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+    color: var(--text);
   }
 
-  .project-item--amber .project-item__veil {
-    background: linear-gradient(135deg, rgba(245, 180, 90, 0.35), rgba(8, 16, 28, 0.35));
+  .project-detail__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    color: var(--text-soft);
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
   }
 
-  .project-item--sky .project-item__veil {
-    background: linear-gradient(135deg, rgba(110, 180, 230, 0.35), rgba(8, 16, 28, 0.35));
+  .project-detail__notice {
+    margin: 0 44px 12px 0;
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    background: color-mix(in srgb, #f59e0b 14%, transparent);
+    color: #b45309;
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
-  .project-item--rose .project-item__veil {
-    background: linear-gradient(135deg, rgba(230, 140, 160, 0.35), rgba(8, 16, 28, 0.35));
+  .project-detail__title {
+    margin: 0 44px 1rem 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
-  .project-item:hover .project-item__media img {
-    transform: scale(1.04);
+  .project-detail__fields {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.7rem 0.85rem;
+    margin: 0;
   }
 
-  .project-item__body {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 0;
-    padding: 0.35rem 0;
-  }
-
-  .project-item__meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 0.7rem;
-  }
-
-  .project-item__index {
+  .project-detail__fields dt {
+    margin: 0;
+    color: var(--muted);
     font-size: 0.78rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--accent);
-  }
-
-  .project-item__period {
-    color: var(--muted);
-    font-size: 0.78rem;
     letter-spacing: 0.06em;
+    line-height: 1.6;
   }
 
-  .project-item__title {
+  .project-detail__fields dd {
     margin: 0;
-    font-family: var(--display);
-    font-size: clamp(22px, 2.8vw, 30px);
-    font-weight: 400;
-    letter-spacing: 0.06em;
-  }
-
-  .project-item__role {
-    margin: 0.45rem 0 0;
-    color: color-mix(in srgb, var(--accent) 80%, #fff);
-    font-size: 0.88rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-  }
-
-  .project-item__desc {
-    margin: 0.75rem 0 0;
-    color: var(--text-soft);
     font-size: 0.92rem;
-    line-height: 1.7;
+    line-height: 1.6;
+    color: var(--text-soft);
   }
 
-  .cats {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
-    min-width: 0;
+  .project-detail__block {
+    white-space: pre-wrap;
   }
 
-  .cat {
-    appearance: none;
-    flex-shrink: 0;
-    border: 1px solid transparent;
-    background: transparent;
+  .project-detail__muted {
     color: var(--muted);
-    padding: 7px 12px;
-    border-radius: 8px;
-    font: inherit;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    transition:
-      color 0.2s,
-      background 0.2s,
-      border-color 0.2s;
-
-    &:hover {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    &.is-active {
-      color: var(--text);
-      border-color: rgba(125, 211, 192, 0.35);
-      background: rgba(125, 211, 192, 0.12);
-    }
   }
 
-  .work-rail {
+  .project-detail__tags,
+  .project-detail__list {
     list-style: none;
     margin: 0;
     padding: 0;
+  }
+
+  .project-detail__tags {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 0.35rem;
   }
 
-  .work-rail > li {
-    animation: row-in 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
-    animation-delay: calc(var(--i, 0) * 45ms);
+  .project-detail__tags li {
+    padding: 0.16rem 0.5rem;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--purple) 10%, transparent);
+    color: var(--purple);
+    font-size: 0.75rem;
+    font-weight: 600;
   }
 
-  .work-row {
-    --tone: 125, 211, 192;
-    position: relative;
+  .project-detail__list {
     display: grid;
-    grid-template-columns: 52px 56px minmax(0, 1fr) 36px;
-    align-items: center;
-    gap: 14px 16px;
-    min-height: 108px;
-    padding: 22px 22px 22px 18px;
-    overflow: hidden;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.025);
-    text-decoration: none;
-    color: inherit;
-    transition:
-      background 0.3s ease,
-      border-color 0.3s ease,
-      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-
-    &:hover {
-      background: rgba(var(--tone), 0.08);
-      border-color: rgba(var(--tone), 0.32);
-      transform: translateX(4px);
-
-      .work-row__rail {
-        transform: scaleY(1);
-        opacity: 1;
-      }
-
-      .work-row__go {
-        color: rgb(var(--tone));
-        transform: translateX(4px);
-      }
-
-      .work-row__glyph {
-        opacity: 0.9;
-        transform: scale(1.04);
-      }
-
-      .work-row__num {
-        color: rgb(var(--tone));
-      }
-    }
+    gap: 0.35rem;
   }
 
-  .work-row__rail {
+  .project-detail__list li {
+    position: relative;
+    padding-left: 0.85rem;
+  }
+
+  .project-detail__list li::before {
+    content: '';
     position: absolute;
     left: 0;
-    top: 14px;
-    bottom: 14px;
-    width: 3px;
-    border-radius: 0 3px 3px 0;
-    background: rgb(var(--tone));
-    opacity: 0.55;
-    transform: scaleY(0.72);
-    transform-origin: center;
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-  }
-
-  .work-row__num {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    color: var(--muted);
-    transition: color 0.25s;
-  }
-
-  .work-row__glyph {
-    display: grid;
-    place-items: center;
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    font-family: var(--display);
-    font-size: 28px;
-    line-height: 1;
-    color: rgb(var(--tone));
-    background: rgba(var(--tone), 0.12);
-    border: 1px solid rgba(var(--tone), 0.22);
-    transition:
-      opacity 0.3s,
-      transform 0.3s ease;
-  }
-
-  .work-row__body {
-    min-width: 0;
-  }
-
-  .work-row__topline {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  .work-row__name {
-    margin: 0;
-    font-family: var(--display);
-    font-size: clamp(22px, 2.4vw, 28px);
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    line-height: 1.2;
-  }
-
-  .work-row__meta {
-    flex-shrink: 0;
-    color: var(--muted);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    white-space: nowrap;
-  }
-
-  .work-row__desc {
-    margin: 8px 0 0;
-    color: var(--text-soft);
-    font-size: 14px;
-    line-height: 1.65;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-  }
-
-  .work-row__go {
-    justify-self: end;
-    color: var(--muted);
-    font-size: 20px;
-    line-height: 1;
-    transition:
-      color 0.25s,
-      transform 0.25s ease;
-  }
-
-  .work-row--violet {
-    --tone: 167, 139, 250;
-  }
-
-  .work-row--rose {
-    --tone: 244, 114, 182;
-  }
-
-  .work-row--ink {
-    --tone: 148, 163, 184;
-  }
-
-  .work-row--emerald {
-    --tone: 52, 211, 153;
-  }
-
-  .work-row--sky {
-    --tone: 56, 189, 248;
-  }
-
-  .work-row--cyan {
-    --tone: 34, 211, 238;
-  }
-
-  .work-row--amber {
-    --tone: 251, 191, 36;
-  }
-
-  @keyframes stage-in {
-    from {
-      opacity: 0;
-      transform: translateY(14px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes row-in {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    top: 0.55em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--purple-soft);
   }
 
   @media (max-width: 900px) {
-    .works-stage__head {
-      flex-direction: column;
-      align-items: stretch;
+    .works-grid {
+      grid-template-columns: repeat(2, 1fr);
     }
 
-    .cats {
-      justify-content: flex-start;
+    .nav-actions {
+      gap: 6px;
     }
 
-    .work-row {
-      grid-template-columns: 40px 48px minmax(0, 1fr) 28px;
-      gap: 12px;
-      padding: 18px 16px 18px 14px;
+    .admin-entry {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+
+      svg {
+        width: 16px;
+        height: 16px;
+      }
     }
 
-    .work-row__glyph {
-      width: 48px;
-      height: 48px;
-      font-size: 24px;
-      border-radius: 12px;
+    .nav-link {
+      padding: 0 10px;
+      font-size: 12px;
+      min-height: 32px;
     }
+  }
 
-    .work-row__topline {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 4px;
-    }
+  @media (max-width: 720px) {
+    --nav-h: 96px;
 
-    .project-item {
+    .inner {
+      display: grid;
       grid-template-columns: 1fr;
-      gap: 1rem;
+      grid-template-rows: 52px 44px;
+      height: var(--nav-h);
+      gap: 0;
+      align-items: center;
     }
 
-    .project-item__media {
-      min-height: 200px;
-      aspect-ratio: 16 / 10;
+    .brand {
+      grid-column: 1;
+      grid-row: 1;
+      margin-right: 0;
+    }
+
+    .brand-text {
+      font-size: 18px;
+    }
+
+    .nav-actions {
+      position: absolute;
+      top: 10px;
+      right: max(4vw, 12px);
+      margin-left: 0;
+    }
+
+    .nav-filter {
+      grid-column: 1;
+      grid-row: 2;
+      align-self: stretch;
+      margin: 0 -4px;
+      padding: 0 4px 2px;
+      gap: 8px;
+    }
+
+    .mode-switch {
+      min-height: 30px;
+      padding: 0 11px 0 9px;
+      font-size: 12px;
+      gap: 5px;
+      border-radius: 8px;
+    }
+
+    .cat {
+      padding: 6px 12px;
+      font-size: 14px;
+
+      &::after {
+        left: 12px;
+        right: 12px;
+        bottom: 0;
+      }
+    }
+
+    .main {
+      padding-top: calc(var(--nav-h) + 28px);
     }
   }
 
   @media (max-width: 560px) {
-    .main {
-      padding: 4px 0 64px;
+    .nav-actions {
+      gap: 4px;
     }
 
-    .main-toolbar {
-      gap: 14px;
+    .admin-entry {
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
+
+      svg {
+        width: 15px;
+        height: 15px;
+      }
     }
 
-    .view-switch {
-      width: 100%;
+    .nav-link {
+      padding: 0 8px;
+      font-size: 11px;
+      min-height: 30px;
     }
+  }
 
-    .work-row {
-      grid-template-columns: 36px minmax(0, 1fr) 24px;
-      min-height: 0;
-    }
-
-    .work-row__glyph {
-      display: none;
-    }
-
-    .project-item__media {
-      min-height: 160px;
+  @media (max-width: 560px) {
+    .works-grid {
+      grid-template-columns: 1fr;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .works-stage,
-    .projects-stage,
-    .work-rail > li {
-      animation: none;
-    }
-
-    .project-item__media img,
-    .work-row,
-    .work-row__rail,
-    .work-row__glyph,
-    .work-row__go,
-    .view-switch__thumb {
+    .work-card,
+    .work-card__mark,
+    .work-card__arrow {
       transition: none;
     }
 
-    .project-item:hover .project-item__media img,
-    .work-row:hover {
+    .work-card:hover,
+    .work-card:hover .work-card__arrow,
+    .work-card:hover .work-card__mark {
       transform: none;
     }
   }

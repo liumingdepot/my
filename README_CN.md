@@ -2,7 +2,7 @@
 
 # 刘铭 · 前端开发
 
-我的线上地址为 [http://www.liuming1234.xyz/](http://www.liuming1234.xyz/)
+我的线上地址为 [https://www.liuming1994.qzz.io/](https://www.liuming1994.qzz.io/)
 
 开放新机会 · 西安 / 前端开发
 
@@ -11,7 +11,7 @@
 拥有 10 年前端开发经验，专注微前端架构、多端交付与数据可视化。擅长 Vue / React / TypeScript，具备从 0 到 1 搭建前端基建、带领团队交付复杂业务系统的能力。求职意向：前端开发工程师 · 期望薪资 20–25K · 西安。
 
 - 电话：[15332335062](tel:15332335062)
-- 简历：[liuming-zh.pdf](http://www.liuming1234.xyz/resumes/liuming-zh.pdf)
+- 简历：[liuming-zh.pdf](https://www.liuming1994.qzz.io/resumes/liuming-zh.pdf)
 
 | 9+ | 99+ | 40% | 10 |
 | --- | --- | --- | --- |
@@ -23,43 +23,43 @@
 
 我的作品集
 
-### [个人简历](http://www.liuming1234.xyz/home) · 已上线
+### [个人简历](https://www.liuming1994.qzz.io/home) · 已上线
 
 刘铭的个人简历：简介、作品、技能、项目与经历，多语言与主题切换。
 
-### [无限画布](http://www.liuming1234.xyz/canvas) · 开发中
+### [无限画布](https://www.liuming1994.qzz.io/canvas) · 开发中
 
 AI 短剧无限画布：输入提示词即可生成内容。功能开发中。
 
-### [周易](http://www.liuming1234.xyz/fortune) · 已上线
+### [周易](https://www.liuming1994.qzz.io/fortune) · 已上线
 
 填写生辰与问题，生成一份周易命盘解读。观象于天，仅作传统文化与娱乐参考。
 
-### [音乐](http://www.liuming1234.xyz/music) · 已上线
+### [音乐](https://www.liuming1994.qzz.io/music) · 已上线
 
 搜索、推荐歌单、排行榜与分类标签，支持播放与歌词。数据来自公开接口，仅供学习交流。
 
-### [视频](http://www.liuming1234.xyz/video) · 已上线
+### [视频](https://www.liuming1994.qzz.io/video) · 已上线
 
 影视站：首页热播、电影/电视剧等分类筛选、搜索与播放，数据来自公开接口，仅供学习交流。
 
-### [红果短剧](http://www.liuming1234.xyz/hongguo) · 已上线
+### [红果短剧](https://www.liuming1994.qzz.io/hongguo) · 已上线
 
 红果站源短剧：首页热播、真人/漫剧/AI/动漫分类、搜索与分集播放。
 
-### [游戏](http://www.liuming1234.xyz/game) · 已上线
+### [游戏](https://www.liuming1994.qzz.io/game) · 已上线
 
 经典 FC / 街机在线玩：按平台与类型浏览、详情页网页端游玩。仅供学习交流。
 
-### [学习教育](http://www.liuming1234.xyz/education) · 已上线
+### [学习教育](https://www.liuming1994.qzz.io/education) · 已上线
 
 课程视频学习站：按学段/教材筛选、搜索与在线播放。仅供学习交流。
 
-### [摸鱼助手](http://www.liuming1234.xyz/fish) · 已上线
+### [摸鱼助手](https://www.liuming1994.qzz.io/fish) · 已上线
 
 铭摸鱼：模拟 Windows 故障/升级与 Mac 升级全屏画面，老板来了也不慌。仅供娱乐。
 
-[我的作品集 →](http://www.liuming1234.xyz/)
+[我的作品集 →](https://www.liuming1994.qzz.io/)
 
 ---
 
@@ -180,7 +180,7 @@ AI 短剧无限画布：输入提示词即可生成内容。功能开发中。
 目前开放全职前端开发 / 前端管理机会，也可交流微前端与 AI 工程化实践。欢迎直接联系。
 
 - 电话：[15332335062](tel:15332335062)
-- 简历：[下载简历](http://www.liuming1234.xyz/resumes/liuming-zh.pdf)
+- 简历：[下载简历](https://www.liuming1994.qzz.io/resumes/liuming-zh.pdf)
 
 ---
 

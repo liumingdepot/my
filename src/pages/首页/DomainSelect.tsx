@@ -27,8 +27,15 @@ function CheckIcon() {
   )
 }
 
+type Props = {
+  /** 嵌入顶栏等流式布局；默认固定右上角（欢迎首页） */
+  inline?: boolean
+  /** 浅色适配作品集顶栏；默认深色适配欢迎首页 */
+  tone?: 'dark' | 'light'
+}
+
 /** 右上角域名切换，仿照个人简历的语言下拉 */
-export default function DomainSelect() {
+export default function DomainSelect({ inline = false, tone = 'dark' }: Props) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const active = currentDomain()
@@ -50,7 +57,10 @@ export default function DomainSelect() {
   }, [open])
 
   return (
-    <Style className={`lang-dd${open ? ' is-open' : ''}`} ref={rootRef}>
+    <Style
+      className={`lang-dd${open ? ' is-open' : ''}${inline ? ' is-inline' : ''}${tone === 'light' ? ' is-light' : ''}`}
+      ref={rootRef}
+    >
       <button
         className="lang-dd__trigger"
         type="button"
@@ -99,11 +109,89 @@ const Style = styled.div`
   --dd-soft: rgba(232, 238, 248, 0.74);
   --dd-muted: rgba(232, 238, 248, 0.38);
 
-  /* 固定在容器右上角（与导航同一条右基线），作品面板也可见 */
+  /* 默认固定右上角；is-inline 时嵌入顶栏 */
   position: fixed;
   top: 22px;
   right: max(4vw, calc((100vw - 1120px) / 2));
   z-index: 60;
+
+  &.is-inline {
+    position: relative;
+    top: auto;
+    right: auto;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+
+  &.is-light {
+    --dd-accent: #7c5cfc;
+    --dd-soft: #475569;
+    --dd-muted: #94a3b8;
+    --dd-text: #0f172a;
+    --dd-line: rgba(15, 23, 42, 0.08);
+    --dd-panel: #ffffff;
+    --dd-hover: rgba(15, 23, 42, 0.04);
+    --dd-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+
+    .lang-dd__trigger {
+      border-color: color-mix(in srgb, var(--dd-accent) 28%, transparent);
+      background: color-mix(in srgb, var(--dd-accent) 8%, #fff);
+      color: var(--dd-accent);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .lang-dd__trigger:hover {
+      color: #5b3fd4;
+      border-color: color-mix(in srgb, var(--dd-accent) 45%, transparent);
+      background: color-mix(in srgb, var(--dd-accent) 12%, #fff);
+    }
+
+    &.is-open .lang-dd__trigger {
+      color: #fff;
+      border-color: transparent;
+      background: var(--dd-accent);
+    }
+
+    .lang-dd__panel {
+      border-color: var(--dd-line);
+      background: var(--dd-panel);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      box-shadow: var(--dd-shadow);
+    }
+
+    .lang-dd__head {
+      border-bottom-color: var(--dd-line);
+      color: var(--dd-muted);
+    }
+
+    .lang-dd__sep {
+      border-top-color: var(--dd-line);
+    }
+
+    .lang-dd__option {
+      color: var(--dd-text);
+    }
+
+    .lang-dd__option:hover {
+      background: var(--dd-hover);
+      color: var(--dd-text);
+    }
+
+    .lang-dd__option.is-active {
+      background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+      color: var(--dd-accent);
+    }
+
+    .lang-dd__badge {
+      color: var(--dd-muted);
+    }
+
+    .lang-dd__option.is-active .lang-dd__badge {
+      color: color-mix(in srgb, var(--dd-accent) 70%, #64748b);
+    }
+  }
 
   @keyframes ddIn {
     from {

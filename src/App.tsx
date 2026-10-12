@@ -32,6 +32,8 @@ const GamePage = lazy(() => import('./pages/游戏'))
 const EducationPage = lazy(() => import('./pages/学习教育'))
 const HongguoPage = lazy(() => import('./pages/红果短剧'))
 const FishPage = lazy(() => import('./pages/摸鱼助手'))
+const Placeholder1Page = lazy(() => import('./pages/占位1'))
+const Placeholder2Page = lazy(() => import('./pages/占位2'))
 const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
 const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/采集源'))
@@ -108,6 +110,8 @@ export default function App() {
             </WithWorkDisclaimer>
           }
         />
+        <Route path="/ph1/*" element={<Placeholder1Page />} />
+        <Route path="/ph2/*" element={<Placeholder2Page />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="works" replace />} />

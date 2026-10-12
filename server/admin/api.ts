@@ -588,7 +588,13 @@ type WorkBody = {
   role?: string
   period?: string
   description?: string
-  image?: string
+  badge?: string
+  company?: string
+  platform?: string
+  stack?: string
+  highlights?: string
+  link?: string
+  featured?: boolean
   enabled?: boolean
   sortOrder?: number
 }
@@ -599,7 +605,13 @@ function parseWorkBody(body: WorkBody | null): WorkInput {
     role: body?.role?.trim() ?? '',
     period: body?.period?.trim() ?? '',
     description: body?.description?.trim() ?? '',
-    image: body?.image?.trim() ?? '',
+    badge: body?.badge?.trim() ?? '',
+    company: body?.company?.trim() ?? '',
+    platform: body?.platform?.trim() ?? '',
+    stack: body?.stack?.trim() ?? '',
+    highlights: body?.highlights?.trim() ?? '',
+    link: body?.link?.trim() ?? '',
+    featured: body?.featured === true,
     enabled: body?.enabled !== false,
     sortOrder: Number.isFinite(body?.sortOrder) ? Number(body?.sortOrder) : 0,
   }

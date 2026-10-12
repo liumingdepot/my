@@ -75,11 +75,18 @@ CREATE TABLE IF NOT EXISTS `works` (
   `role` VARCHAR(191) NOT NULL DEFAULT '',
   `period` VARCHAR(191) NOT NULL DEFAULT '',
   `description` TEXT NOT NULL,
-  `image` MEDIUMTEXT NOT NULL,
+  `badge` VARCHAR(191) NOT NULL DEFAULT '',
+  `company` VARCHAR(191) NOT NULL DEFAULT '',
+  `platform` VARCHAR(64) NOT NULL DEFAULT '',
+  `stack` TEXT NULL,
+  `highlights` TEXT NULL,
+  `link` VARCHAR(512) NOT NULL DEFAULT '',
+  `featured` TINYINT NOT NULL DEFAULT 0,
   `sort_order` INT NOT NULL DEFAULT 0,
   `enabled` TINYINT NOT NULL DEFAULT 1,
   `created_at` VARCHAR(64) NOT NULL,
   `updated_at` VARCHAR(64) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_works_sort` (`sort_order`, `enabled`)
+  KEY `idx_works_sort` (`sort_order`, `enabled`),
+  KEY `idx_works_featured` (`featured`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

@@ -18,8 +18,15 @@ export const DOMAINS: DomainEntry[] = [
   { host: '192.168.0.233:10010', href: 'http://192.168.0.233:10010/', local: true },
 ]
 
+/** 切到目标域名，并保留当前 path / search / hash（如 /works） */
 export function toHref(domain: DomainEntry) {
-  return domain.href ?? `https://${domain.host}/`
+  const base = domain.href ?? `https://${domain.host}/`
+  if (typeof window === 'undefined') return base
+  const url = new URL(base)
+  url.pathname = window.location.pathname
+  url.search = window.location.search
+  url.hash = window.location.hash
+  return url.href
 }
 
 /** 短名称：主站 / 备用 / 本地 */
@@ -41,9 +48,9 @@ export function shortDomain(host: string) {
   return labels.length > 2 ? labels.slice(-2).join('.') : labels[labels.length - 1]
 }
 
-/** 当前正在访问的域名（未命中列表时返回 undefined） */
+/** 当前正在访问的域名（未命中列表时返回 undefined；含端口，如 192.168.0.233:10010） */
 export function currentDomain() {
   if (typeof window === 'undefined') return undefined
-  const host = window.location.hostname.toLowerCase()
+  const host = window.location.host.toLowerCase()
   return DOMAINS.find((domain) => domain.host.toLowerCase() === host)
 }

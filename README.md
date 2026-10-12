@@ -2,7 +2,7 @@
 
 # Liu Ming · Frontend
 
-My live site: [http://www.liuming1234.xyz/](http://www.liuming1234.xyz/)
+My live site: [https://www.liuming1994.qzz.io/](https://www.liuming1994.qzz.io/)
 
 Open to new opportunities · Xi'an / Frontend
 
@@ -11,7 +11,7 @@ Open to new opportunities · Xi'an / Frontend
 Senior frontend engineer with 10 years of experience in micro-frontend architecture, multi-end delivery, and data visualization. Strong in Vue / React / TypeScript; builds frontend infrastructure from scratch and leads teams on complex systems. Target role: Frontend Development Engineer · 20–25K · Xi'an.
 
 - Phone: [15332335062](tel:15332335062)
-- Resume: [liuming.pdf](http://www.liuming1234.xyz/resumes/liuming.pdf)
+- Resume: [liuming.pdf](https://www.liuming1994.qzz.io/resumes/liuming.pdf)
 
 | 9+ | 99+ | 40% | 10 |
 | --- | --- | --- | --- |
@@ -23,39 +23,39 @@ Senior frontend engineer with 10 years of experience in micro-frontend architect
 
 My Portfolio
 
-### [Resume](http://www.liuming1234.xyz/home) · Live
+### [Resume](https://www.liuming1994.qzz.io/home) · Live
 
 Liu Ming's personal resume site: intro, works, skills, projects and experience, with i18n and theme toggle.
 
-### [Infinite Canvas](http://www.liuming1234.xyz/canvas) · WIP
+### [Infinite Canvas](https://www.liuming1994.qzz.io/canvas) · WIP
 
 AI short-drama infinite canvas: enter a prompt to generate content. Under development.
 
-### [Zhouyi](http://www.liuming1234.xyz/fortune) · Live
+### [Zhouyi](https://www.liuming1994.qzz.io/fortune) · Live
 
 Enter birth details and a question, then get an I Ching reading. For traditional culture and entertainment only.
 
-### [Music](http://www.liuming1234.xyz/music) · Live
+### [Music](https://www.liuming1994.qzz.io/music) · Live
 
 Search, playlists, charts and tags — play with lyrics. Powered by public APIs; for learning & exchange only.
 
-### [Video](http://www.liuming1234.xyz/video) · Live
+### [Video](https://www.liuming1994.qzz.io/video) · Live
 
 Video site: home feed, movie / TV categories, search and playback. Public APIs; for learning & exchange only.
 
-### [Hongguo Drama](http://www.liuming1234.xyz/hongguo) · Live
+### [Hongguo Drama](https://www.liuming1994.qzz.io/hongguo) · Live
 
 Hongguo short dramas: hot home, live/comic/AI/anime categories, search and episode playback.
 
-### [Games](http://www.liuming1234.xyz/game) · Live
+### [Games](https://www.liuming1994.qzz.io/game) · Live
 
 Play classic FC / arcade games in the browser: switch platforms, browse by genre, and play on detail pages. For learning & exchange only.
 
-### [Education](http://www.liuming1234.xyz/education) · Live
+### [Education](https://www.liuming1994.qzz.io/education) · Live
 
 Course video learning: filter by grade/textbook, search, and play online. For learning & exchange only.
 
-[My Portfolio →](http://www.liuming1234.xyz/)
+[My Portfolio →](https://www.liuming1994.qzz.io/)
 
 ---
 
@@ -176,7 +176,7 @@ Let's work together.
 Open to full-time frontend engineering / leadership roles. Happy to discuss micro-frontends and AI-assisted engineering. Feel free to reach out.
 
 - Phone: [15332335062](tel:15332335062)
-- Resume: [Download Resume](http://www.liuming1234.xyz/resumes/liuming.pdf)
+- Resume: [Download Resume](https://www.liuming1994.qzz.io/resumes/liuming.pdf)
 
 ---
 

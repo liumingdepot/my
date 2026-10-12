@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import {
   ApiError,
@@ -10,14 +10,19 @@ import {
   type Work,
 } from '../auth'
 import ListPagination, { LIST_PAGE_SIZE } from '../model/ListPagination'
-import { estimateImageSize, fileToImageDataUrl } from '../model/imageInput'
 
 type Draft = {
   title: string
   role: string
   period: string
   description: string
-  image: string
+  badge: string
+  company: string
+  platform: string
+  stack: string
+  highlights: string
+  link: string
+  featured: boolean
   enabled: boolean
   sortOrder: string
 }
@@ -27,10 +32,18 @@ const EMPTY_DRAFT: Draft = {
   role: '',
   period: '',
   description: '',
-  image: '',
+  badge: '',
+  company: '',
+  platform: '',
+  stack: '',
+  highlights: '',
+  link: '',
+  featured: false,
   enabled: true,
   sortOrder: '0',
 }
+
+const PLATFORM_OPTIONS = ['PC', '移动', 'PC + 移动', '大屏', '小程序', '多端'] as const
 
 function formatDate(iso: string) {
   try {
@@ -45,7 +58,12 @@ function formatDate(iso: string) {
 }
 
 function sortWorks(list: Work[]) {
-  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title))
+  return [...list].sort(
+    (a, b) =>
+      Number(b.featured) - Number(a.featured) ||
+      a.sortOrder - b.sortOrder ||
+      a.title.localeCompare(b.title),
+  )
 }
 
 export default function WorksPage() {
@@ -59,10 +77,8 @@ export default function WorksPage() {
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [formError, setFormError] = useState('')
   const [page, setPage] = useState(1)
-  const fileRef = useRef<HTMLInputElement>(null)
 
   useLayoutEffect(() => {
     document.title = '作品管理 · 后台管理'
@@ -102,7 +118,11 @@ export default function WorksPage() {
       (work) =>
         work.title.toLowerCase().includes(q) ||
         work.role.toLowerCase().includes(q) ||
-        work.description.toLowerCase().includes(q),
+        work.description.toLowerCase().includes(q) ||
+        work.company.toLowerCase().includes(q) ||
+        work.platform.toLowerCase().includes(q) ||
+        work.stack.toLowerCase().includes(q) ||
+        work.badge.toLowerCase().includes(q),
     )
   }, [works, query])
 
@@ -148,7 +168,13 @@ export default function WorksPage() {
       role: work.role,
       period: work.period,
       description: work.description,
-      image: work.image,
+      badge: work.badge,
+      company: work.company,
+      platform: work.platform,
+      stack: work.stack,
+      highlights: work.highlights,
+      link: work.link,
+      featured: work.featured,
       enabled: work.enabled,
       sortOrder: String(work.sortOrder),
     })
@@ -159,40 +185,17 @@ export default function WorksPage() {
     setCreating(false)
     setEditing(null)
     setSaving(false)
-    setUploading(false)
     setFormError('')
     setDraft(EMPTY_DRAFT)
-  }
-
-  async function onPickImage(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-
-    setUploading(true)
-    setFormError('')
-    try {
-      const dataUrl = await fileToImageDataUrl(file)
-      setDraft((prev) => ({ ...prev, image: dataUrl }))
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : '图片处理失败')
-    } finally {
-      setUploading(false)
-    }
   }
 
   async function onSave(event: FormEvent) {
     event.preventDefault()
     const title = draft.title.trim()
-    const image = draft.image.trim()
     const sortOrder = Number(draft.sortOrder)
 
     if (!title) {
       setFormError('请填写作品标题')
-      return
-    }
-    if (!image) {
-      setFormError('请上传作品图片或填写图片地址')
       return
     }
     if (!Number.isFinite(sortOrder)) {
@@ -208,7 +211,13 @@ export default function WorksPage() {
         role: draft.role.trim(),
         period: draft.period.trim(),
         description: draft.description.trim(),
-        image,
+        badge: draft.badge.trim(),
+        company: draft.company.trim(),
+        platform: draft.platform.trim(),
+        stack: draft.stack.trim(),
+        highlights: draft.highlights.trim(),
+        link: draft.link.trim(),
+        featured: draft.featured,
         enabled: draft.enabled,
         sortOrder,
       }
@@ -253,7 +262,6 @@ export default function WorksPage() {
   }
 
   const dialogOpen = creating || Boolean(editing)
-  const isBase64 = draft.image.startsWith('data:image/')
 
   return (
     <Style>
@@ -263,7 +271,7 @@ export default function WorksPage() {
         <div>
           <h1 className="title">作品管理</h1>
           <p className="desc">
-            维护前台「作品集 → 项目经历」的每一条记录；停用后前台不再展示，排序越小越靠前。
+            维护前台「项目经历」页的每一条记录；停用后前台不再展示，排序越小越靠前。
           </p>
         </div>
         <button type="button" className="btn-primary" onClick={openCreate}>
@@ -296,7 +304,7 @@ export default function WorksPage() {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') setQuery(draftQuery)
               }}
-              placeholder="搜索标题 / 角色 / 描述"
+              placeholder="搜索标题 / 角色 / 公司 / 技术栈"
             />
             <button type="button" className="btn-primary" onClick={() => setQuery(draftQuery)}>
               搜索
@@ -309,9 +317,9 @@ export default function WorksPage() {
           <table>
             <thead>
               <tr>
-                <th>作品图</th>
                 <th>标题</th>
-                <th>角色</th>
+                <th>角色 / 公司</th>
+                <th>端类型</th>
                 <th>时间</th>
                 <th>状态</th>
                 <th>排序</th>
@@ -336,17 +344,19 @@ export default function WorksPage() {
                 paged.map((work) => (
                   <tr key={work.id}>
                     <td>
-                      <div className="thumb">
-                        <img src={work.image} alt="" loading="lazy" />
+                      <div className="name">
+                        {work.featured ? <span className="tag tag-featured">精选</span> : null}
+                        {work.title}
+                      </div>
+                      <div className="sub" title={work.badge || work.description}>
+                        {work.badge || work.description || '—'}
                       </div>
                     </td>
                     <td>
-                      <div className="name">{work.title}</div>
-                      <div className="sub" title={work.description}>
-                        {work.description || '—'}
-                      </div>
+                      <div>{work.role || '—'}</div>
+                      <div className="sub">{work.company || '—'}</div>
                     </td>
-                    <td>{work.role || '—'}</td>
+                    <td>{work.platform || '—'}</td>
                     <td>{work.period || '—'}</td>
                     <td>
                       <span className={`tag${work.enabled ? ' tag-ok' : ''}`}>
@@ -406,10 +416,31 @@ export default function WorksPage() {
                 value={draft.title}
                 onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
                 autoComplete="off"
-                placeholder="如：内容创作中台"
+                placeholder="如：陕西省总队水气综合分析平台"
                 required
               />
             </label>
+
+            <div className="row">
+              <label className="field">
+                <span>角标</span>
+                <input
+                  value={draft.badge}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, badge: event.target.value }))}
+                  placeholder="如：精选 · 省级核心系统"
+                />
+              </label>
+              <label className="field">
+                <span>公司 / 团队</span>
+                <input
+                  value={draft.company}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, company: event.target.value }))
+                  }
+                  placeholder="如：环信恒辉"
+                />
+              </label>
+            </div>
 
             <div className="row">
               <label className="field">
@@ -417,7 +448,7 @@ export default function WorksPage() {
                 <input
                   value={draft.role}
                   onChange={(event) => setDraft((prev) => ({ ...prev, role: event.target.value }))}
-                  placeholder="如：全栈开发"
+                  placeholder="如：前端开发经理"
                 />
               </label>
               <label className="field">
@@ -426,6 +457,33 @@ export default function WorksPage() {
                   value={draft.period}
                   onChange={(event) => setDraft((prev) => ({ ...prev, period: event.target.value }))}
                   placeholder="如：2023.06 — 2024.02"
+                />
+              </label>
+            </div>
+
+            <div className="row">
+              <label className="field">
+                <span>端类型</span>
+                <input
+                  list="work-platform-options"
+                  value={draft.platform}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, platform: event.target.value }))
+                  }
+                  placeholder="PC / 移动 / 大屏…"
+                />
+                <datalist id="work-platform-options">
+                  {PLATFORM_OPTIONS.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="field">
+                <span>项目链接</span>
+                <input
+                  value={draft.link}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, link: event.target.value }))}
+                  placeholder="https://… 或 /path"
                 />
               </label>
             </div>
@@ -439,63 +497,31 @@ export default function WorksPage() {
                   setDraft((prev) => ({ ...prev, description: event.target.value }))
                 }
                 rows={3}
-                placeholder="一句话说明项目背景与成果"
+                placeholder="项目背景、业务覆盖与成果"
               />
             </label>
 
-            <div className="field">
-              <span>作品图片</span>
-              <div className="picker">
-                <div className="picker__preview">
-                  {draft.image ? (
-                    <img src={draft.image} alt="作品图片预览" />
-                  ) : (
-                    <span className="picker__empty">暂无图片</span>
-                  )}
-                </div>
-                <div className="picker__body">
-                  <div className="picker__actions">
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={uploading}
-                      onClick={() => fileRef.current?.click()}
-                    >
-                      {uploading ? '处理中…' : '选择图片'}
-                    </button>
-                    {draft.image ? (
-                      <button
-                        type="button"
-                        className="link-btn danger"
-                        onClick={() => setDraft((prev) => ({ ...prev, image: '' }))}
-                      >
-                        移除
-                      </button>
-                    ) : null}
-                  </div>
-                  <input
-                    className="picker__url"
-                    value={isBase64 ? '' : draft.image}
-                    onChange={(event) =>
-                      setDraft((prev) => ({ ...prev, image: event.target.value }))
-                    }
-                    placeholder="或填写图片地址：/xxx.jpg"
-                    disabled={isBase64}
-                  />
-                  <span className="picker__hint">
-                    上传的图片会自动压缩并转成 base64 存库
-                    {isBase64 ? `（当前约 ${estimateImageSize(draft.image)}）` : ''}
-                  </span>
-                </div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(event) => void onPickImage(event)}
-                />
-              </div>
-            </div>
+            <label className="field">
+              <span>技术栈（逗号分隔）</span>
+              <input
+                value={draft.stack}
+                onChange={(event) => setDraft((prev) => ({ ...prev, stack: event.target.value }))}
+                placeholder="如：Vue3, TypeScript, qiankun, ECharts"
+              />
+            </label>
+
+            <label className="field">
+              <span>亮点（每行一条）</span>
+              <textarea
+                className="textarea"
+                value={draft.highlights}
+                onChange={(event) =>
+                  setDraft((prev) => ({ ...prev, highlights: event.target.value }))
+                }
+                rows={4}
+                placeholder={'如：\n采用微前端拆分子系统\n大屏首屏从 4.2s 优化至 1.5s'}
+              />
+            </label>
 
             <div className="row">
               <label className="field">
@@ -507,6 +533,16 @@ export default function WorksPage() {
                     setDraft((prev) => ({ ...prev, sortOrder: event.target.value }))
                   }
                 />
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={draft.featured}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, featured: event.target.checked }))
+                  }
+                />
+                <span>精选置顶</span>
               </label>
               <label className="check">
                 <input
@@ -526,7 +562,7 @@ export default function WorksPage() {
               <button type="button" className="btn" onClick={closeDialog}>
                 取消
               </button>
-              <button type="submit" className="btn-primary" disabled={saving || uploading}>
+              <button type="submit" className="btn-primary" disabled={saving}>
                 {saving ? '保存中…' : '保存'}
               </button>
             </div>
@@ -720,7 +756,7 @@ const Style = styled.div`
   table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 980px;
+    min-width: 960px;
   }
 
   th,
@@ -746,22 +782,6 @@ const Style = styled.div`
     text-align: center;
     color: #9ca3af;
     padding: 32px 16px;
-  }
-
-  .thumb {
-    width: 88px;
-    height: 56px;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #e5e7eb;
-    background: #f3f4f6;
-  }
-
-  .thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
   }
 
   .name {
@@ -796,6 +816,13 @@ const Style = styled.div`
     color: #0f766e;
   }
 
+  .tag-featured {
+    margin-right: 6px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    vertical-align: middle;
+  }
+
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -827,7 +854,9 @@ const Style = styled.div`
   }
 
   .modal {
-    width: min(100%, 520px);
+    width: min(100%, 640px);
+    max-height: calc(100vh - 32px);
+    overflow: auto;
     background: #fff;
     border-radius: 14px;
     padding: 20px;
@@ -878,12 +907,6 @@ const Style = styled.div`
     border-color: #0f766e;
   }
 
-  .field input:disabled {
-    background: #f9fafb;
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-
   .row {
     display: flex;
     flex-wrap: wrap;
@@ -899,61 +922,6 @@ const Style = styled.div`
     font-size: 14px;
     color: #374151;
     cursor: pointer;
-  }
-
-  .picker {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-  }
-
-  .picker__preview {
-    width: 120px;
-    height: 80px;
-    flex-shrink: 0;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    background: #f9fafb;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .picker__preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .picker__empty {
-    color: #9ca3af;
-    font-size: 12px;
-  }
-
-  .picker__body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .picker__actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .picker__url {
-    height: 36px;
-  }
-
-  .picker__hint {
-    color: #9ca3af;
-    font-size: 12px;
-    line-height: 1.4;
   }
 
   .form-error {
@@ -988,15 +956,6 @@ const Style = styled.div`
       flex: 1;
       width: auto;
       min-width: 0;
-    }
-
-    .picker {
-      flex-direction: column;
-    }
-
-    .picker__preview {
-      width: 100%;
-      height: 140px;
     }
   }
 `

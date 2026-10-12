@@ -8,6 +8,8 @@ export type WorkItem = {
   tone: 'violet' | 'rose' | 'ink' | 'emerald' | 'sky' | 'cyan' | 'amber'
   glyph: string
   platform: 'PC' | 'PC + 移动'
+  /** 作品首屏截图，用于卡片封面 */
+  image: string
   /** 所属分类；全部(all) 展示全部，不单独写入 */
   categories: Exclude<WorkCategory, 'all'>[]
 }
@@ -20,18 +22,8 @@ export const WORK_CATEGORIES: { id: WorkCategory; label: string }[] = [
   { id: 'fish', label: '摸鱼' },
 ]
 
-/** 全部作品（中文），个人简历最多展示前 6 项 */
+/** 全部作品（中文），首页欢迎页「浏览作品」与 /works 列表共用 */
 export const ALL_WORKS: WorkItem[] = [
-  {
-    name: '个人简历',
-    desc: '刘铭的个人简历：简介、作品、技能、项目与经历，多语言与主题切换。',
-    href: '/home',
-    tag: '已上线',
-    tone: 'ink',
-    glyph: '铭',
-    platform: 'PC + 移动',
-    categories: [],
-  },
   {
     name: '无限画布',
     desc: 'AI 短剧无限画布：输入提示词即可生成内容。功能开发中。',
@@ -40,6 +32,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'violet',
     glyph: '画',
     platform: 'PC',
+    image: '/images/works/canvas.webp',
     categories: ['ai'],
   },
   {
@@ -50,7 +43,8 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'violet',
     glyph: '易',
     platform: 'PC + 移动',
-    categories: [],
+    image: '/images/works/fortune.webp',
+    categories: ['ai'],
   },
   {
     name: '音乐',
@@ -60,6 +54,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'rose',
     glyph: '音',
     platform: 'PC + 移动',
+    image: '/images/works/music.webp',
     categories: ['av'],
   },
   {
@@ -70,6 +65,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'ink',
     glyph: '影',
     platform: 'PC + 移动',
+    image: '/images/works/video.webp',
     categories: ['av'],
   },
   {
@@ -80,6 +76,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'amber',
     glyph: '剧',
     platform: 'PC + 移动',
+    image: '/images/works/short.webp',
     categories: ['av'],
   },
   {
@@ -90,6 +87,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'amber',
     glyph: '果',
     platform: 'PC + 移动',
+    image: '/images/works/hongguo.webp',
     categories: ['av'],
   },
   {
@@ -100,6 +98,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'emerald',
     glyph: '游',
     platform: 'PC',
+    image: '/images/works/game.webp',
     categories: ['fish'],
   },
   {
@@ -110,6 +109,7 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'sky',
     glyph: '教',
     platform: 'PC + 移动',
+    image: '/images/works/education.webp',
     categories: ['av'],
   },
   {
@@ -120,7 +120,118 @@ export const ALL_WORKS: WorkItem[] = [
     tone: 'cyan',
     glyph: '鱼',
     platform: 'PC + 移动',
+    image: '/images/works/fish.webp',
     categories: ['fish', 'tool'],
+  },
+  {
+    name: '占位项目 01',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph1/1',
+    tag: '占位',
+    tone: 'cyan',
+    glyph: '一',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 02',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph1/2',
+    tag: '占位',
+    tone: 'sky',
+    glyph: '二',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 03',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph1/3',
+    tag: '占位',
+    tone: 'emerald',
+    glyph: '三',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 04',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph1/4',
+    tag: '占位',
+    tone: 'amber',
+    glyph: '四',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 05',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph1/5',
+    tag: '占位',
+    tone: 'violet',
+    glyph: '五',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 06',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph2/1',
+    tag: '占位',
+    tone: 'rose',
+    glyph: '六',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 07',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph2/2',
+    tag: '占位',
+    tone: 'ink',
+    glyph: '七',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 08',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph2/3',
+    tag: '占位',
+    tone: 'cyan',
+    glyph: '八',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 09',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph2/4',
+    tag: '占位',
+    tone: 'sky',
+    glyph: '九',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
+  },
+  {
+    name: '占位项目 10',
+    desc: '摸鱼占位页，功能开发中。',
+    href: '/ph2/5',
+    tag: '占位',
+    tone: 'emerald',
+    glyph: '十',
+    platform: 'PC',
+    image: '/images/works/fish.webp',
+    categories: ['fish'],
   },
 ]
 
@@ -130,8 +241,9 @@ export function filterWorksByCategory(category: WorkCategory, works = ALL_WORKS)
 }
 
 export const WORKS_HOME_LIMIT = 6
-/** 作品集独立路由；首页只做首屏展示 */
+/** 欢迎页 /；作品集 /works；项目经历 /projects */
 export const WORKS_PATH = '/works'
+export const PROJECTS_PATH = '/projects'
 export const HOME_PATH = '/'
 
 /** 后台「作品管理」维护的项目经历记录，由 /api/works 提供 */
@@ -141,7 +253,33 @@ export type ProjectWork = {
   role: string
   period: string
   description: string
-  image: string
+  badge?: string
+  company?: string
+  platform?: string
+  /** 技术栈，逗号分隔 */
+  stack?: string
+  /** 亮点，换行分隔 */
+  highlights?: string
+  link?: string
+  featured?: boolean
+}
+
+/** 把后台存的逗号/顿号分隔技术栈拆成展示用数组 */
+export function splitStack(stack?: string) {
+  if (!stack?.trim()) return []
+  return stack
+    .split(/[,，、|/]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+/** 把后台存的换行亮点拆成展示用数组 */
+export function splitHighlights(highlights?: string) {
+  if (!highlights?.trim()) return []
+  return highlights
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 /** 项目经历的配色遮罩，按顺序循环 */

@@ -278,8 +278,15 @@ export type Work = {
   role: string
   period: string
   description: string
-  /** 站内路径、http(s) 地址或 data:image/*;base64 */
-  image: string
+  badge: string
+  company: string
+  platform: string
+  /** 技术栈，逗号分隔 */
+  stack: string
+  /** 亮点，换行分隔 */
+  highlights: string
+  link: string
+  featured: boolean
   sortOrder: number
   enabled: boolean
   createdAt: string
@@ -291,7 +298,13 @@ export type WorkInput = {
   role: string
   period: string
   description: string
-  image: string
+  badge: string
+  company: string
+  platform: string
+  stack: string
+  highlights: string
+  link: string
+  featured: boolean
   enabled: boolean
   sortOrder: number
 }

@@ -4,6 +4,9 @@ import styled from 'styled-components'
 
 const STORAGE_PREFIX = 'work-disclaimer-dismissed:'
 
+/** 截图期间临时关闭；截完改回 true */
+const ENABLED = true
+
 type Props = {
   /** 模块标识，用于按模块单独记住「不再提示」 */
   moduleId: string
@@ -36,7 +39,7 @@ function persistDismissed(moduleId: string) {
  * 周易等自有内容作品勿包裹此组件。
  */
 export default function WorkDisclaimer({ moduleId, children }: Props) {
-  const [open, setOpen] = useState(() => !isDismissed(moduleId))
+  const [open, setOpen] = useState(() => ENABLED && !isDismissed(moduleId))
   const [mute, setMute] = useState(false)
   const titleId = useId()
   const descId = useId()
@@ -64,6 +67,8 @@ export default function WorkDisclaimer({ moduleId, children }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
+
+  if (!ENABLED) return <>{children}</>
 
   return (
     <>
