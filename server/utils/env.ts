@@ -8,6 +8,7 @@ import { DB } from './db.js'
 const MODULE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 let cachedAgnesKey: string | null = null
+let cachedBiliCookie: string | null = null
 
 function stripQuotes(value: string) {
   const text = value.trim()
@@ -49,17 +50,22 @@ function pickRichestKeySource(...candidates: string[]) {
   return usable[0] || ''
 }
 
+/** 读 nitro runtimeConfig；不在请求上下文（如 CLI 脚本）时返回空串 */
+function readRuntimeConfigValue(key: string): string {
+  try {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- nitro 的 useRuntimeConfig，非 React Hook
+    return stripQuotes(String(useRuntimeConfig()[key] ?? ''))
+  } catch {
+    return ''
+  }
+}
+
 function readAgnesApiKey() {
   if (cachedAgnesKey != null) return cachedAgnesKey
 
   const fromFile = readEnvFileValue('AGNES_API_KEY')
   const fromProcess = stripQuotes(process.env.AGNES_API_KEY || '')
-  let fromRuntime = ''
-  try {
-    fromRuntime = stripQuotes(String(useRuntimeConfig().agnesApiKey || ''))
-  } catch {
-    /* not in nitro request context */
-  }
+  const fromRuntime = readRuntimeConfigValue('agnesApiKey')
 
   // 优先选 key 数量最多的来源，避免 process.env 只注入了第一个 key
   const chosen = pickRichestKeySource(fromFile, fromProcess, fromRuntime)
@@ -69,10 +75,22 @@ function readAgnesApiKey() {
   return chosen
 }
 
+/** B 站登录 Cookie：可选，仅增强 Web WBI 线路；缺省时只用 anti-crawl 自动 cookie */
+function readBiliCookie() {
+  if (cachedBiliCookie != null) return cachedBiliCookie
+
+  cachedBiliCookie =
+    readEnvFileValue('BILI_COOKIE') ||
+    stripQuotes(process.env.BILI_COOKIE || '') ||
+    readRuntimeConfigValue('biliCookie')
+  return cachedBiliCookie
+}
+
 export function getAppEnv() {
   return {
     DB,
     AGNES_API_KEY: readAgnesApiKey(),
+    BILI_COOKIE: readBiliCookie(),
   }
 }
 

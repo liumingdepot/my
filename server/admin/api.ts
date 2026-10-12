@@ -29,16 +29,6 @@ import {
   updateVideoSource,
 } from '../video/sources.js'
 import {
-  createEducationSource,
-  deleteEducationSource,
-  findEducationSourceById,
-  listEducationSources,
-  resolveEducationExtInput,
-  resolveEducationImport,
-  updateEducationSource,
-} from '../education/sources.js'
-import { getEducationCookie, setEducationCookie } from '../education/config.js'
-import {
   createAgnesApiKey,
   deleteAgnesApiKey,
   findAgnesApiKeyById,
@@ -48,6 +38,15 @@ import {
   patchAgnesApiKeysEnabledByBase,
   updateAgnesApiKey,
 } from './agnesKeys.js'
+import {
+  createWork,
+  deleteWork,
+  findWorkById,
+  listWorks,
+  patchWorkEnabled,
+  updateWork,
+  type WorkInput,
+} from '../works/works.js'
 
 function isSecure(request: Request) {
   return new URL(request.url).protocol === 'https:'
@@ -123,30 +122,6 @@ export async function handleAdminApi(request: Request, env: AdminEnv) {
     )
   }
 
-  if (pathname === '/api/admin/education-sources' && method === 'GET') {
-    return handleListEducationSources(request, env)
-  }
-  if (pathname === '/api/admin/education-sources' && method === 'POST') {
-    return handleCreateEducationSource(request, env)
-  }
-  if (pathname === '/api/admin/education-sources/import' && method === 'POST') {
-    return handleImportEducationSources(request, env)
-  }
-
-  if (pathname === '/api/admin/education-cookie' && method === 'GET') {
-    return handleGetEducationCookie(request, env)
-  }
-  if (pathname === '/api/admin/education-cookie' && method === 'PUT') {
-    return handlePutEducationCookie(request, env)
-  }
-
-  const educationMatch = pathname.match(/^\/api\/admin\/education-sources\/([^/]+)$/)
-  if (educationMatch) {
-    const id = decodeURIComponent(educationMatch[1]!)
-    if (method === 'PUT') return handleUpdateEducationSource(request, env, id)
-    if (method === 'DELETE') return handleDeleteEducationSource(request, env, id)
-  }
-
   if (pathname === '/api/admin/agnes-keys' && method === 'GET') {
     return handleListAgnesKeys(request, env)
   }
@@ -167,6 +142,25 @@ export async function handleAdminApi(request: Request, env: AdminEnv) {
   const agnesEnabledMatch = pathname.match(/^\/api\/admin\/agnes-keys\/([^/]+)\/enabled$/)
   if (agnesEnabledMatch && method === 'PATCH') {
     return handlePatchAgnesKeyEnabled(request, env, decodeURIComponent(agnesEnabledMatch[1]!))
+  }
+
+  if (pathname === '/api/admin/works' && method === 'GET') {
+    return handleListWorks(request, env)
+  }
+  if (pathname === '/api/admin/works' && method === 'POST') {
+    return handleCreateWork(request, env)
+  }
+
+  const workMatch = pathname.match(/^\/api\/admin\/works\/([^/]+)$/)
+  if (workMatch) {
+    const id = decodeURIComponent(workMatch[1]!)
+    if (method === 'PUT') return handleUpdateWork(request, env, id)
+    if (method === 'DELETE') return handleDeleteWork(request, env, id)
+  }
+
+  const workEnabledMatch = pathname.match(/^\/api\/admin\/works\/([^/]+)\/enabled$/)
+  if (workEnabledMatch && method === 'PATCH') {
+    return handlePatchWorkEnabled(request, env, decodeURIComponent(workEnabledMatch[1]!))
   }
 
   return json({ error: 'Not found' }, 404)
@@ -491,162 +485,6 @@ async function invalidateVideoSourceCache(_env: AdminEnv) {
   }
 }
 
-type EducationBody = {
-  name?: string
-  ext?: string
-  sortOrder?: number
-}
-
-async function handleListEducationSources(request: Request, env: AdminEnv) {
-  const session = await requireSession(env, request)
-  if (!session) return json({ error: '未登录' }, 401)
-  const sources = await listEducationSources(env.DB)
-  return json({ sources })
-}
-
-async function handleCreateEducationSource(request: Request, env: AdminEnv) {
-  const session = await requireSession(env, request)
-  if (!session) return json({ error: '未登录' }, 401)
-
-  const body = await readJson<EducationBody>(request)
-  const resolved = await resolveEducationExtInput(body?.ext ?? '', body?.name?.trim() ?? '')
-  if (!resolved.ok) return json({ error: resolved.error }, 400)
-
-  const sortOrder = Number(body?.sortOrder ?? 0)
-  if (!Number.isFinite(sortOrder)) return json({ error: '排序需为数字' }, 400)
-
-  try {
-    const source = await createEducationSource(env.DB, {
-      name: resolved.name,
-      ext: resolved.ext,
-      sortOrder: Math.trunc(sortOrder),
-    })
-    return json({ source }, 201)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '创建失败'
-    if (message.includes('已存在')) return json({ error: message }, 409)
-    return json({ error: message }, 500)
-  }
-}
-
-async function handleUpdateEducationSource(request: Request, env: AdminEnv, id: string) {
-  const session = await requireSession(env, request)
-  if (!session) return json({ error: '未登录' }, 401)
-
-  const existing = await findEducationSourceById(env.DB, id)
-  if (!existing) return json({ error: '教育源不存在' }, 404)
-
-  const body = await readJson<EducationBody>(request)
-  const resolved = await resolveEducationExtInput(
-    body?.ext ?? '',
-    body?.name?.trim() || existing.name,
-  )
-  if (!resolved.ok) return json({ error: resolved.error }, 400)
-
-  const sortOrder = Number(body?.sortOrder ?? existing.sortOrder)
-  if (!Number.isFinite(sortOrder)) return json({ error: '排序需为数字' }, 400)
-
-  try {
-    const source = await updateEducationSource(env.DB, id, {
-      name: resolved.name,
-      ext: resolved.ext,
-      sortOrder: Math.trunc(sortOrder),
-    })
-    return json({ source })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '更新失败'
-    if (message.includes('不存在')) return json({ error: message }, 404)
-    if (message.includes('已存在')) return json({ error: message }, 409)
-    return json({ error: message }, 500)
-  }
-}
-
-async function handleImportEducationSources(request: Request, env: AdminEnv) {
-  const session = await requireSession(env, request)
-  if (!session) return json({ error: '未登录' }, 401)
-
-  const body = await readJson<{ raw?: string }>(request)
-  const raw = typeof body?.raw === 'string' ? body.raw : ''
-  const resolved = await resolveEducationImport(raw)
-  if (!resolved.ok) return json({ error: resolved.error }, 400)
-
-  const existing = await listEducationSources(env.DB)
-  const byName = new Map(existing.map((item) => [item.name.toLowerCase(), item]))
-  let nextOrder =
-    existing.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1
-
-  const created: Awaited<ReturnType<typeof createEducationSource>>[] = []
-  const updated: Awaited<ReturnType<typeof updateEducationSource>>[] = []
-  const failed = [...resolved.failed]
-
-  for (const site of resolved.sites) {
-    const prev = byName.get(site.name.toLowerCase())
-    try {
-      if (prev) {
-        const source = await updateEducationSource(env.DB, prev.id, {
-          name: site.name,
-          ext: site.ext,
-          sortOrder: prev.sortOrder,
-        })
-        updated.push(source)
-        byName.set(site.name.toLowerCase(), source)
-      } else {
-        const source = await createEducationSource(env.DB, {
-          name: site.name,
-          ext: site.ext,
-          sortOrder: nextOrder,
-        })
-        created.push(source)
-        byName.set(site.name.toLowerCase(), source)
-        nextOrder += 1
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '写入失败'
-      failed.push({ label: site.name, reason: message })
-    }
-  }
-
-  const sources = await listEducationSources(env.DB)
-  return json({
-    created: created.length,
-    updated: updated.length,
-    failed,
-    sources,
-  })
-}
-
-async function handleDeleteEducationSource(request: Request, env: AdminEnv, id: string) {
-  const session = await requireSession(env, request)
-  if (!session) return json({ error: '未登录' }, 401)
-
-  const existing = await findEducationSourceById(env.DB, id)
-  if (!existing) return json({ error: '教育源不存在' }, 404)
-
-  const ok = await deleteEducationSource(env.DB, id)
-  if (!ok) return json({ error: '删除失败' }, 500)
-  return json({ ok: true })
-}
-
-async function handleGetEducationCookie(request: Request, env: AdminEnv) {
-  const session = await requireSession(env, request)
-  if (!session) return json({ error: '未登录' }, 401)
-  const config = await getEducationCookie(env.DB)
-  return json({ cookie: config.cookie, updatedAt: config.updatedAt })
-}
-
-async function handlePutEducationCookie(request: Request, env: AdminEnv) {
-  const session = await requireSession(env, request)
-  if (!session) return json({ error: '未登录' }, 401)
-
-  const body = await readJson<{ cookie?: string }>(request)
-  if (typeof body?.cookie !== 'string') {
-    return json({ error: '请填写 cookie' }, 400)
-  }
-
-  const config = await setEducationCookie(env.DB, body.cookie.trim())
-  return json({ cookie: config.cookie, updatedAt: config.updatedAt })
-}
-
 async function handleListAgnesKeys(request: Request, env: AdminEnv) {
   const session = await requireSession(env, request)
   if (!session) return json({ error: '未登录' }, 401)
@@ -743,4 +581,95 @@ async function handleBulkPatchAgnesKeysEnabled(request: Request, env: AdminEnv) 
 
   const result = await patchAgnesApiKeysEnabledByBase(env.DB, baseUrl, body.enabled)
   return json(result)
+}
+
+type WorkBody = {
+  title?: string
+  role?: string
+  period?: string
+  description?: string
+  image?: string
+  enabled?: boolean
+  sortOrder?: number
+}
+
+function parseWorkBody(body: WorkBody | null): WorkInput {
+  return {
+    title: body?.title?.trim() ?? '',
+    role: body?.role?.trim() ?? '',
+    period: body?.period?.trim() ?? '',
+    description: body?.description?.trim() ?? '',
+    image: body?.image?.trim() ?? '',
+    enabled: body?.enabled !== false,
+    sortOrder: Number.isFinite(body?.sortOrder) ? Number(body?.sortOrder) : 0,
+  }
+}
+
+async function handleListWorks(request: Request, env: AdminEnv) {
+  const session = await requireSession(env, request)
+  if (!session) return json({ error: '未登录' }, 401)
+  const works = await listWorks(env.DB)
+  return json({ works })
+}
+
+async function handleCreateWork(request: Request, env: AdminEnv) {
+  const session = await requireSession(env, request)
+  if (!session) return json({ error: '未登录' }, 401)
+
+  const body = await readJson<WorkBody>(request)
+  try {
+    const work = await createWork(env.DB, parseWorkBody(body))
+    return json({ work }, 201)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '创建失败'
+    return json({ error: message }, 400)
+  }
+}
+
+async function handleUpdateWork(request: Request, env: AdminEnv, id: string) {
+  const session = await requireSession(env, request)
+  if (!session) return json({ error: '未登录' }, 401)
+
+  const existing = await findWorkById(env.DB, id)
+  if (!existing) return json({ error: '作品不存在' }, 404)
+
+  const body = await readJson<WorkBody>(request)
+  try {
+    const work = await updateWork(env.DB, id, parseWorkBody(body))
+    return json({ work })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '更新失败'
+    return json({ error: message }, 400)
+  }
+}
+
+async function handlePatchWorkEnabled(request: Request, env: AdminEnv, id: string) {
+  const session = await requireSession(env, request)
+  if (!session) return json({ error: '未登录' }, 401)
+
+  const existing = await findWorkById(env.DB, id)
+  if (!existing) return json({ error: '作品不存在' }, 404)
+
+  const body = await readJson<{ enabled?: boolean }>(request)
+  if (typeof body?.enabled !== 'boolean') return json({ error: '状态无效' }, 400)
+
+  try {
+    const work = await patchWorkEnabled(env.DB, id, body.enabled)
+    return json({ work })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '操作失败'
+    return json({ error: message }, 500)
+  }
+}
+
+async function handleDeleteWork(request: Request, env: AdminEnv, id: string) {
+  const session = await requireSession(env, request)
+  if (!session) return json({ error: '未登录' }, 401)
+
+  const existing = await findWorkById(env.DB, id)
+  if (!existing) return json({ error: '作品不存在' }, 404)
+
+  const ok = await deleteWork(env.DB, id)
+  if (!ok) return json({ error: '删除失败' }, 500)
+  return json({ ok: true })
 }

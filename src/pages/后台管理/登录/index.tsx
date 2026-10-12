@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
     setError('')
     try {
       await login(username.trim(), password)
-      navigate('/admin/users', { replace: true })
+      navigate('/admin/works', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '用户名或密码错误')
     } finally {
@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
   }
 
   if (authed) {
-    return <Navigate to="/admin/users" replace />
+    return <Navigate to="/admin/works" replace />
   }
 
   return (

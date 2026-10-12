@@ -49,26 +49,6 @@ CREATE TABLE IF NOT EXISTS `games` (
   KEY `idx_games_recommended` (`recommended`, `updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE IF NOT EXISTS `education_sources` (
-  `id` VARCHAR(64) NOT NULL,
-  `name` VARCHAR(191) NOT NULL,
-  `ext` MEDIUMTEXT NOT NULL,
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `created_at` VARCHAR(64) NOT NULL,
-  `updated_at` VARCHAR(64) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_education_sources_name` (`name`),
-  KEY `idx_education_sources_sort` (`sort_order`, `name`),
-  KEY `idx_education_sources_updated` (`updated_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
-CREATE TABLE IF NOT EXISTS `education_config` (
-  `id` VARCHAR(64) NOT NULL,
-  `cookie` MEDIUMTEXT NOT NULL,
-  `updated_at` VARCHAR(64) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
 CREATE TABLE IF NOT EXISTS `sessions` (
   `token` VARCHAR(128) NOT NULL,
   `payload` JSON NOT NULL,
@@ -98,4 +78,19 @@ CREATE TABLE IF NOT EXISTS `agnes_api_keys` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_agnes_api_keys_key` (`api_key`),
   KEY `idx_agnes_api_keys_enabled` (`enabled`, `updated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `works` (
+  `id` VARCHAR(64) NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `role` VARCHAR(191) NOT NULL DEFAULT '',
+  `period` VARCHAR(191) NOT NULL DEFAULT '',
+  `description` TEXT NOT NULL,
+  `image` MEDIUMTEXT NOT NULL,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `enabled` TINYINT NOT NULL DEFAULT 1,
+  `created_at` VARCHAR(64) NOT NULL,
+  `updated_at` VARCHAR(64) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_works_sort` (`sort_order`, `enabled`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

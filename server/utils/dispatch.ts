@@ -13,6 +13,11 @@ export async function dispatchApi(request: Request, env: AppEnv): Promise<Respon
     return handleAdminApi(request, env)
   }
 
+  if (url.pathname.startsWith('/api/works')) {
+    const { handleWorksApi } = await import('../works/api.js')
+    return handleWorksApi(request, env)
+  }
+
   if (url.pathname.startsWith('/api/music')) {
     const { handleMusicApi } = await import('../music/api.js')
     return handleMusicApi(request, url)

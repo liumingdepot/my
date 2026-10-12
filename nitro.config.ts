@@ -14,6 +14,7 @@ export default defineConfig({
     mysqlPassword: process.env.MYSQL_PASSWORD || '123456',
     mysqlDatabase: process.env.MYSQL_DATABASE || 'liuming',
     agnesApiKey: process.env.AGNES_API_KEY || '',
+    biliCookie: process.env.BILI_COOKIE || '',
   },
   hooks: {
     /** 打包后把签名运行时放到 .output/hongguo-work，与 public、server 同级 */

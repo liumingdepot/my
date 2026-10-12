@@ -2,9 +2,8 @@ import { useLocation, useNavigate } from 'react-router'
 import styled from 'styled-components'
 
 const NAV_ITEMS = [
-  { key: '/admin/users', label: '用户管理' },
+  { key: '/admin/works', label: '作品管理' },
   { key: '/admin/video-sources', label: '视频管理' },
-  { key: '/admin/education', label: '教育管理' },
   { key: '/admin/agnes-keys', label: '密钥管理' },
 ] as const
 

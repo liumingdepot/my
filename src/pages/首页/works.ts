@@ -20,8 +20,18 @@ export const WORK_CATEGORIES: { id: WorkCategory; label: string }[] = [
   { id: 'fish', label: '摸鱼' },
 ]
 
-/** 全部作品（中文），首页最多展示前 6 项 */
+/** 全部作品（中文），个人简历最多展示前 6 项 */
 export const ALL_WORKS: WorkItem[] = [
+  {
+    name: '个人简历',
+    desc: '刘铭的个人简历：简介、作品、技能、项目与经历，多语言与主题切换。',
+    href: '/home',
+    tag: '已上线',
+    tone: 'ink',
+    glyph: '铭',
+    platform: 'PC + 移动',
+    categories: [],
+  },
   {
     name: '无限画布',
     desc: 'AI 短剧无限画布：输入提示词即可生成内容。功能开发中。',
@@ -120,4 +130,31 @@ export function filterWorksByCategory(category: WorkCategory, works = ALL_WORKS)
 }
 
 export const WORKS_HOME_LIMIT = 6
+/** 作品集独立路由；首页只做首屏展示 */
 export const WORKS_PATH = '/works'
+export const HOME_PATH = '/'
+
+/** 后台「作品管理」维护的项目经历记录，由 /api/works 提供 */
+export type ProjectWork = {
+  id: string
+  title: string
+  role: string
+  period: string
+  description: string
+  image: string
+}
+
+/** 项目经历的配色遮罩，按顺序循环 */
+export const PROJECT_TONES = ['teal', 'amber', 'sky', 'rose'] as const
+
+/** 拉取后台配置的项目经历；接口不可用时降级为空列表 */
+export async function fetchProjectWorks(): Promise<ProjectWork[]> {
+  try {
+    const response = await fetch('/api/works', { headers: { Accept: 'application/json' } })
+    if (!response.ok) return []
+    const data = (await response.json()) as { works?: ProjectWork[] }
+    return Array.isArray(data.works) ? data.works : []
+  } catch {
+    return []
+  }
+}

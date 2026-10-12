@@ -198,85 +198,6 @@ export async function deleteVideoSource(id: string) {
   })
 }
 
-export type EducationSource = {
-  id: string
-  name: string
-  ext: string
-  sortOrder: number
-  createdAt: string
-  updatedAt: string
-}
-
-export type EducationSourceInput = {
-  name: string
-  ext: string
-  sortOrder: number
-}
-
-type EducationSourcesResponse = { sources: EducationSource[] }
-type EducationSourceResponse = { source: EducationSource }
-
-export async function listEducationSources() {
-  const data = await request<EducationSourcesResponse>('/api/admin/education-sources')
-  return data.sources
-}
-
-export async function createEducationSource(input: EducationSourceInput) {
-  const data = await request<EducationSourceResponse>('/api/admin/education-sources', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  })
-  return data.source
-}
-
-export async function updateEducationSource(id: string, input: EducationSourceInput) {
-  const data = await request<EducationSourceResponse>(
-    `/api/admin/education-sources/${encodeURIComponent(id)}`,
-    {
-      method: 'PUT',
-      body: JSON.stringify(input),
-    },
-  )
-  return data.source
-}
-
-export async function deleteEducationSource(id: string) {
-  await request<{ ok: boolean }>(`/api/admin/education-sources/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
-}
-
-export type EducationImportResult = {
-  created: number
-  updated: number
-  failed: Array<{ label: string; reason: string }>
-  sources: EducationSource[]
-}
-
-/** 粘贴 TVBox csp_Bili 站点数组 / 单条 / ext URL，批量导入 */
-export async function importEducationSources(raw: string) {
-  return request<EducationImportResult>('/api/admin/education-sources/import', {
-    method: 'POST',
-    body: JSON.stringify({ raw }),
-  })
-}
-
-export type EducationCookieConfig = {
-  cookie: string
-  updatedAt: string
-}
-
-export async function getEducationCookie() {
-  return request<EducationCookieConfig>('/api/admin/education-cookie')
-}
-
-export async function updateEducationCookie(cookie: string) {
-  return request<EducationCookieConfig>('/api/admin/education-cookie', {
-    method: 'PUT',
-    body: JSON.stringify({ cookie }),
-  })
-}
-
 export type AgnesBaseUrl =
   | 'https://api.agnes-ai.cn/v1'
   | 'https://apihub.agnes-ai.com/v1'
@@ -349,5 +270,73 @@ export async function deleteAgnesKey(id: string) {
   await request<{ ok: boolean }>(`/api/admin/agnes-keys/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
+}
+
+export type Work = {
+  id: string
+  title: string
+  role: string
+  period: string
+  description: string
+  /** 站内路径、http(s) 地址或 data:image/*;base64 */
+  image: string
+  sortOrder: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type WorkInput = {
+  title: string
+  role: string
+  period: string
+  description: string
+  image: string
+  enabled: boolean
+  sortOrder: number
+}
+
+type WorksResponse = { works: Work[] }
+type WorkResponse = { work: Work }
+
+export async function listWorks() {
+  const data = await request<WorksResponse>('/api/admin/works')
+  return data.works
+}
+
+export async function createWork(input: WorkInput) {
+  const data = await request<WorkResponse>('/api/admin/works', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return data.work
+}
+
+export async function updateWork(id: string, input: WorkInput) {
+  const data = await request<WorkResponse>(`/api/admin/works/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+  return data.work
+}
+
+export async function patchWorkEnabled(id: string, enabled: boolean) {
+  const data = await request<WorkResponse>(`/api/admin/works/${encodeURIComponent(id)}/enabled`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  })
+  return data.work
+}
+
+export async function deleteWork(id: string) {
+  await request<{ ok: boolean }>(`/api/admin/works/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+/** 前台公开接口：作品集「项目经历」列表（仅启用项） */
+export async function fetchPublicWorks() {
+  const data = await request<WorksResponse>('/api/works')
+  return data.works
 }
 

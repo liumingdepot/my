@@ -1,14 +1,14 @@
 import type { AdminEnv } from './types.js'
-import { ensureEducationConfigTable } from '../education/config.js'
 import { ensureAgnesApiKeysTable, importEnvAgnesKeysIfEmpty } from './agnesKeys.js'
+import { ensureWorksTable } from '../works/works.js'
 
 const SEED_USERNAME = 'admin'
 const SEED_PASSWORD = 'admin123'
 
 export async function ensureSchema(env: AdminEnv) {
   // Tables come from scripts/mysql-schema.sql — only seed defaults here.
-  await ensureEducationConfigTable(env.DB)
   await ensureAgnesApiKeysTable(env.DB)
+  await ensureWorksTable(env.DB)
   await importEnvAgnesKeysIfEmpty(env.DB, env.AGNES_API_KEY)
 
   const count = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>()

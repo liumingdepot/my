@@ -1,48 +1,35 @@
-import { type FormEvent, useEffect, useLayoutEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router'
+import { type ChangeEvent, type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import styled from 'styled-components'
-import type { AdminOutletContext } from '../Layout'
 import {
   ApiError,
-  createUser,
-  deleteUser,
-  listUsers,
-  patchUserStatus,
-  updateUser,
-  type AdminUser,
-  type UserRole,
-  type UserStatus,
+  createWork,
+  deleteWork,
+  listWorks,
+  patchWorkEnabled,
+  updateWork,
+  type Work,
 } from '../auth'
-import Select from '../../../components/Select'
 import ListPagination, { LIST_PAGE_SIZE } from '../model/ListPagination'
+import { estimateImageSize, fileToImageDataUrl } from '../model/imageInput'
 
 type Draft = {
-  username: string
-  displayName: string
-  email: string
-  role: UserRole
-  status: UserStatus
-  password: string
-}
-
-const ROLE_LABEL: Record<UserRole, string> = {
-  admin: '管理员',
-  editor: '编辑',
-  viewer: '访客',
-}
-
-const STATUS_LABEL: Record<UserStatus, string> = {
-  active: '启用',
-  disabled: '停用',
+  title: string
+  role: string
+  period: string
+  description: string
+  image: string
+  enabled: boolean
+  sortOrder: string
 }
 
 const EMPTY_DRAFT: Draft = {
-  username: '',
-  displayName: '',
-  email: '',
-  role: 'viewer',
-  status: 'active',
-  password: '',
+  title: '',
+  role: '',
+  period: '',
+  description: '',
+  image: '',
+  enabled: true,
+  sortOrder: '0',
 }
 
 function formatDate(iso: string) {
@@ -57,29 +44,28 @@ function formatDate(iso: string) {
   }
 }
 
-function initials(name: string) {
-  const text = name.trim()
-  if (!text) return '?'
-  return text.slice(0, 1).toUpperCase()
+function sortWorks(list: Work[]) {
+  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title))
 }
 
-export default function UsersPage() {
-  const { session } = useOutletContext<AdminOutletContext>()
-  const [users, setUsers] = useState<AdminUser[]>([])
+export default function WorksPage() {
+  const [works, setWorks] = useState<Work[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState('')
   const [draftQuery, setDraftQuery] = useState('')
   const [query, setQuery] = useState('')
   const [toast, setToast] = useState('')
-  const [editing, setEditing] = useState<AdminUser | null>(null)
+  const [editing, setEditing] = useState<Work | null>(null)
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [formError, setFormError] = useState('')
   const [page, setPage] = useState(1)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useLayoutEffect(() => {
-    document.title = '用户管理 · 后台管理'
+    document.title = '作品管理 · 后台管理'
   }, [])
 
   useEffect(() => {
@@ -88,11 +74,11 @@ export default function UsersPage() {
       setLoading(true)
       setListError('')
       try {
-        const next = await listUsers()
-        if (!cancelled) setUsers(next)
+        const next = await listWorks()
+        if (!cancelled) setWorks(sortWorks(next))
       } catch (error) {
         if (!cancelled) {
-          setListError(error instanceof ApiError ? error.message : '用户列表加载失败')
+          setListError(error instanceof ApiError ? error.message : '作品列表加载失败')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -111,14 +97,14 @@ export default function UsersPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return users
-    return users.filter(
-      (user) =>
-        user.username.toLowerCase().includes(q) ||
-        user.displayName.toLowerCase().includes(q) ||
-        user.email.toLowerCase().includes(q),
+    if (!q) return works
+    return works.filter(
+      (work) =>
+        work.title.toLowerCase().includes(q) ||
+        work.role.toLowerCase().includes(q) ||
+        work.description.toLowerCase().includes(q),
     )
-  }, [users, query])
+  }, [works, query])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE))
   const safePage = Math.min(page, pageCount)
@@ -137,31 +123,34 @@ export default function UsersPage() {
 
   const stats = useMemo(
     () => ({
-      total: users.length,
-      active: users.filter((user) => user.status === 'active').length,
-      disabled: users.filter((user) => user.status === 'disabled').length,
-      admin: users.filter((user) => user.role === 'admin').length,
+      total: works.length,
+      enabled: works.filter((work) => work.enabled).length,
+      disabled: works.filter((work) => !work.enabled).length,
     }),
-    [users],
+    [works],
   )
 
   function openCreate() {
     setEditing(null)
     setCreating(true)
-    setDraft(EMPTY_DRAFT)
+    setDraft({
+      ...EMPTY_DRAFT,
+      sortOrder: String(works.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1),
+    })
     setFormError('')
   }
 
-  function openEdit(user: AdminUser) {
+  function openEdit(work: Work) {
     setCreating(false)
-    setEditing(user)
+    setEditing(work)
     setDraft({
-      username: user.username,
-      displayName: user.displayName,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      password: '',
+      title: work.title,
+      role: work.role,
+      period: work.period,
+      description: work.description,
+      image: work.image,
+      enabled: work.enabled,
+      sortOrder: String(work.sortOrder),
     })
     setFormError('')
   }
@@ -170,27 +159,44 @@ export default function UsersPage() {
     setCreating(false)
     setEditing(null)
     setSaving(false)
+    setUploading(false)
     setFormError('')
     setDraft(EMPTY_DRAFT)
   }
 
+  async function onPickImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setUploading(true)
+    setFormError('')
+    try {
+      const dataUrl = await fileToImageDataUrl(file)
+      setDraft((prev) => ({ ...prev, image: dataUrl }))
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '图片处理失败')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function onSave(event: FormEvent) {
     event.preventDefault()
-    const username = draft.username.trim()
-    const displayName = draft.displayName.trim()
-    const email = draft.email.trim()
-    const password = draft.password
+    const title = draft.title.trim()
+    const image = draft.image.trim()
+    const sortOrder = Number(draft.sortOrder)
 
-    if (!username || !displayName) {
-      setFormError('请填写用户名和显示名称')
+    if (!title) {
+      setFormError('请填写作品标题')
       return
     }
-    if (creating && password.length < 6) {
-      setFormError('密码至少 6 位')
+    if (!image) {
+      setFormError('请上传作品图片或填写图片地址')
       return
     }
-    if (!creating && password && password.length < 6) {
-      setFormError('密码至少 6 位')
+    if (!Number.isFinite(sortOrder)) {
+      setFormError('排序需为数字')
       return
     }
 
@@ -198,20 +204,21 @@ export default function UsersPage() {
     setFormError('')
     try {
       const payload = {
-        username,
-        displayName,
-        email,
-        role: draft.role,
-        status: draft.status,
-        ...(password ? { password } : {}),
+        title,
+        role: draft.role.trim(),
+        period: draft.period.trim(),
+        description: draft.description.trim(),
+        image,
+        enabled: draft.enabled,
+        sortOrder,
       }
       if (editing) {
-        const updated = await updateUser(editing.id, payload)
-        setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)))
+        const updated = await updateWork(editing.id, payload)
+        setWorks((current) => sortWorks(current.map((item) => (item.id === updated.id ? updated : item))))
         setToast('已保存')
       } else {
-        const created = await createUser({ ...payload, password })
-        setUsers((current) => [created, ...current])
+        const created = await createWork(payload)
+        setWorks((current) => sortWorks([...current, created]))
         setToast('已创建')
       }
       closeDialog()
@@ -221,23 +228,24 @@ export default function UsersPage() {
     }
   }
 
-  async function toggleStatus(user: AdminUser) {
-    const nextStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active'
+  async function toggleEnabled(work: Work) {
     try {
-      const updated = await patchUserStatus(user.id, nextStatus)
-      setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-      setToast(nextStatus === 'active' ? '已启用' : '已停用')
+      const updated = await patchWorkEnabled(work.id, !work.enabled)
+      setWorks((current) =>
+        sortWorks(current.map((item) => (item.id === updated.id ? updated : item))),
+      )
+      setToast(updated.enabled ? '已启用' : '已停用')
     } catch (error) {
       setToast(error instanceof ApiError ? error.message : '操作失败')
     }
   }
 
-  async function removeUser(user: AdminUser) {
-    const ok = window.confirm(`确定删除「${user.displayName}」(@${user.username})？`)
+  async function removeWork(work: Work) {
+    const ok = window.confirm(`确定删除作品「${work.title}」？`)
     if (!ok) return
     try {
-      await deleteUser(user.id)
-      setUsers((current) => current.filter((item) => item.id !== user.id))
+      await deleteWork(work.id)
+      setWorks((current) => current.filter((item) => item.id !== work.id))
       setToast('已删除')
     } catch (error) {
       setToast(error instanceof ApiError ? error.message : '操作失败')
@@ -245,6 +253,7 @@ export default function UsersPage() {
   }
 
   const dialogOpen = creating || Boolean(editing)
+  const isBase64 = draft.image.startsWith('data:image/')
 
   return (
     <Style>
@@ -252,11 +261,13 @@ export default function UsersPage() {
 
       <div className="head">
         <div>
-          <h1 className="title">用户管理</h1>
-          <p className="desc">查看与维护后台账号权限与状态</p>
+          <h1 className="title">作品管理</h1>
+          <p className="desc">
+            维护前台「作品集 → 项目经历」的每一条记录；停用后前台不再展示，排序越小越靠前。
+          </p>
         </div>
         <button type="button" className="btn-primary" onClick={openCreate}>
-          + 新增用户
+          + 新增作品
         </button>
       </div>
 
@@ -266,16 +277,12 @@ export default function UsersPage() {
           <strong>{stats.total}</strong>
         </div>
         <div className="stat">
-          <span>启用</span>
-          <strong className="ok">{stats.active}</strong>
+          <span>展示中</span>
+          <strong className="ok">{stats.enabled}</strong>
         </div>
         <div className="stat">
-          <span>停用</span>
+          <span>已停用</span>
           <strong>{stats.disabled}</strong>
-        </div>
-        <div className="stat">
-          <span>管理员</span>
-          <strong className="ok">{stats.admin}</strong>
         </div>
       </div>
 
@@ -289,7 +296,7 @@ export default function UsersPage() {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') setQuery(draftQuery)
               }}
-              placeholder="搜索用户名 / 姓名 / 邮箱"
+              placeholder="搜索标题 / 角色 / 描述"
             />
             <button type="button" className="btn-primary" onClick={() => setQuery(draftQuery)}>
               搜索
@@ -302,69 +309,68 @@ export default function UsersPage() {
           <table>
             <thead>
               <tr>
-                <th>用户</th>
+                <th>作品图</th>
+                <th>标题</th>
                 <th>角色</th>
+                <th>时间</th>
                 <th>状态</th>
-                <th>邮箱</th>
-                <th>创建时间</th>
+                <th>排序</th>
+                <th>更新时间</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="empty">
+                  <td colSpan={8} className="empty">
                     加载中…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty">
-                    {listError || '暂无用户'}
+                  <td colSpan={8} className="empty">
+                    {listError || '暂无作品'}
                   </td>
                 </tr>
               ) : (
-                paged.map((user) => (
-                  <tr key={user.id}>
+                paged.map((work) => (
+                  <tr key={work.id}>
                     <td>
-                      <div className="user-cell">
-                        <span className="avatar">{initials(user.displayName)}</span>
-                        <div>
-                          <div className="user-name">{user.displayName}</div>
-                          <div className="user-handle">@{user.username}</div>
-                        </div>
+                      <div className="thumb">
+                        <img src={work.image} alt="" loading="lazy" />
                       </div>
                     </td>
                     <td>
-                      <span className={`tag${user.role === 'admin' ? ' tag-ok' : ''}`}>
-                        {ROLE_LABEL[user.role]}
-                      </span>
+                      <div className="name">{work.title}</div>
+                      <div className="sub" title={work.description}>
+                        {work.description || '—'}
+                      </div>
                     </td>
+                    <td>{work.role || '—'}</td>
+                    <td>{work.period || '—'}</td>
                     <td>
-                      <span className={`tag${user.status === 'active' ? ' tag-ok' : ''}`}>
-                        {STATUS_LABEL[user.status]}
+                      <span className={`tag${work.enabled ? ' tag-ok' : ''}`}>
+                        {work.enabled ? '展示中' : '已停用'}
                       </span>
                     </td>
-                    <td>{user.email || '—'}</td>
-                    <td>{formatDate(user.createdAt)}</td>
+                    <td>{work.sortOrder}</td>
+                    <td>{formatDate(work.updatedAt)}</td>
                     <td>
                       <div className="actions">
-                        <button type="button" className="link-btn" onClick={() => openEdit(user)}>
+                        <button type="button" className="link-btn" onClick={() => openEdit(work)}>
                           编辑
                         </button>
                         <button
                           type="button"
                           className="link-btn"
-                          disabled={user.id === session.userId && user.status === 'active'}
-                          onClick={() => void toggleStatus(user)}
+                          onClick={() => void toggleEnabled(work)}
                         >
-                          {user.status === 'active' ? '停用' : '启用'}
+                          {work.enabled ? '停用' : '启用'}
                         </button>
                         <button
                           type="button"
                           className="link-btn danger"
-                          disabled={user.id === session.userId}
-                          onClick={() => void removeUser(user)}
+                          onClick={() => void removeWork(work)}
                         >
                           删除
                         </button>
@@ -392,73 +398,125 @@ export default function UsersPage() {
             onClick={(event) => event.stopPropagation()}
             onSubmit={(event) => void onSave(event)}
           >
-            <h2 className="modal-title">{creating ? '新增用户' : '编辑用户'}</h2>
+            <h2 className="modal-title">{creating ? '新增作品' : '编辑作品'}</h2>
 
             <label className="field">
-              <span>用户名</span>
+              <span>标题</span>
               <input
-                value={draft.username}
-                onChange={(event) => setDraft((prev) => ({ ...prev, username: event.target.value }))}
+                value={draft.title}
+                onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
                 autoComplete="off"
+                placeholder="如：内容创作中台"
                 required
-              />
-            </label>
-
-            <label className="field">
-              <span>显示名称</span>
-              <input
-                value={draft.displayName}
-                onChange={(event) => setDraft((prev) => ({ ...prev, displayName: event.target.value }))}
-                required
-              />
-            </label>
-
-            <label className="field">
-              <span>邮箱</span>
-              <input
-                type="email"
-                value={draft.email}
-                onChange={(event) => setDraft((prev) => ({ ...prev, email: event.target.value }))}
-              />
-            </label>
-
-            <label className="field">
-              <span>{creating ? '密码' : '密码（可选）'}</span>
-              <input
-                type="password"
-                value={draft.password}
-                onChange={(event) => setDraft((prev) => ({ ...prev, password: event.target.value }))}
-                autoComplete="new-password"
-                placeholder={creating ? '至少 6 位' : '留空则不修改'}
-                required={creating}
               />
             </label>
 
             <div className="row">
               <label className="field">
                 <span>角色</span>
-                <Select
+                <input
                   value={draft.role}
-                  aria-label="角色"
-                  options={[
-                    { value: 'admin', label: '管理员' },
-                    { value: 'editor', label: '编辑' },
-                    { value: 'viewer', label: '访客' },
-                  ]}
-                  onChange={(role) => setDraft((prev) => ({ ...prev, role }))}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, role: event.target.value }))}
+                  placeholder="如：全栈开发"
                 />
               </label>
               <label className="field">
-                <span>状态</span>
-                <Select
-                  value={draft.status}
-                  aria-label="状态"
-                  options={[
-                    { value: 'active', label: '启用' },
-                    { value: 'disabled', label: '停用' },
-                  ]}
-                  onChange={(status) => setDraft((prev) => ({ ...prev, status }))}
+                <span>时间</span>
+                <input
+                  value={draft.period}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, period: event.target.value }))}
+                  placeholder="如：2023.06 — 2024.02"
                 />
+              </label>
+            </div>
+
+            <label className="field">
+              <span>描述</span>
+              <textarea
+                className="textarea"
+                value={draft.description}
+                onChange={(event) =>
+                  setDraft((prev) => ({ ...prev, description: event.target.value }))
+                }
+                rows={3}
+                placeholder="一句话说明项目背景与成果"
+              />
+            </label>
+
+            <div className="field">
+              <span>作品图片</span>
+              <div className="picker">
+                <div className="picker__preview">
+                  {draft.image ? (
+                    <img src={draft.image} alt="作品图片预览" />
+                  ) : (
+                    <span className="picker__empty">暂无图片</span>
+                  )}
+                </div>
+                <div className="picker__body">
+                  <div className="picker__actions">
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={uploading}
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      {uploading ? '处理中…' : '选择图片'}
+                    </button>
+                    {draft.image ? (
+                      <button
+                        type="button"
+                        className="link-btn danger"
+                        onClick={() => setDraft((prev) => ({ ...prev, image: '' }))}
+                      >
+                        移除
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    className="picker__url"
+                    value={isBase64 ? '' : draft.image}
+                    onChange={(event) =>
+                      setDraft((prev) => ({ ...prev, image: event.target.value }))
+                    }
+                    placeholder="或填写图片地址：/xxx.jpg"
+                    disabled={isBase64}
+                  />
+                  <span className="picker__hint">
+                    上传的图片会自动压缩并转成 base64 存库
+                    {isBase64 ? `（当前约 ${estimateImageSize(draft.image)}）` : ''}
+                  </span>
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(event) => void onPickImage(event)}
+                />
+              </div>
+            </div>
+
+            <div className="row">
+              <label className="field">
+                <span>排序（越小越靠前）</span>
+                <input
+                  type="number"
+                  value={draft.sortOrder}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, sortOrder: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={draft.enabled}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, enabled: event.target.checked }))
+                  }
+                />
+                <span>前台展示</span>
               </label>
             </div>
 
@@ -468,7 +526,7 @@ export default function UsersPage() {
               <button type="button" className="btn" onClick={closeDialog}>
                 取消
               </button>
-              <button type="submit" className="btn-primary" disabled={saving}>
+              <button type="submit" className="btn-primary" disabled={saving || uploading}>
                 {saving ? '保存中…' : '保存'}
               </button>
             </div>
@@ -561,13 +619,18 @@ const Style = styled.div`
     color: #374151;
   }
 
-  .btn:hover {
+  .btn:hover:not(:disabled) {
     background: #f9fafb;
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 16px;
     flex-shrink: 0;
@@ -657,7 +720,7 @@ const Style = styled.div`
   table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 720px;
+    min-width: 980px;
   }
 
   th,
@@ -685,34 +748,33 @@ const Style = styled.div`
     padding: 32px 16px;
   }
 
-  .user-cell {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .avatar {
-    width: 36px;
-    height: 36px;
+  .thumb {
+    width: 88px;
+    height: 56px;
     border-radius: 8px;
-    background: #ecfdf5;
-    color: #0f766e;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
-    line-height: 1;
-    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    background: #f3f4f6;
   }
 
-  .user-name {
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .name {
     font-weight: 600;
     line-height: 1.3;
   }
 
-  .user-handle {
+  .sub {
     margin-top: 2px;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: #9ca3af;
     font-size: 12px;
     line-height: 1.3;
@@ -753,11 +815,6 @@ const Style = styled.div`
     color: #dc2626;
   }
 
-  .link-btn:disabled {
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-
   .modal-mask {
     position: fixed;
     inset: 0;
@@ -766,10 +823,11 @@ const Style = styled.div`
     display: grid;
     place-items: center;
     padding: 16px;
+    overflow: auto;
   }
 
   .modal {
-    width: min(100%, 460px);
+    width: min(100%, 520px);
     background: #fff;
     border-radius: 14px;
     padding: 20px;
@@ -794,7 +852,9 @@ const Style = styled.div`
     flex: 1;
   }
 
-  .field input {
+  .field input,
+  .textarea {
+    width: 100%;
     height: 38px;
     padding: 0 10px;
     border: 1px solid #d1d5db;
@@ -803,15 +863,97 @@ const Style = styled.div`
     color: #111827;
     background: #fff;
     outline: none;
+    font-family: inherit;
   }
 
-  .field input:focus {
+  .textarea {
+    height: auto;
+    padding: 9px 10px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  .field input:focus,
+  .textarea:focus {
     border-color: #0f766e;
+  }
+
+  .field input:disabled {
+    background: #f9fafb;
+    color: #9ca3af;
+    cursor: not-allowed;
   }
 
   .row {
     display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 16px;
+  }
+
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+  }
+
+  .picker {
+    display: flex;
     gap: 12px;
+    align-items: flex-start;
+  }
+
+  .picker__preview {
+    width: 120px;
+    height: 80px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .picker__preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .picker__empty {
+    color: #9ca3af;
+    font-size: 12px;
+  }
+
+  .picker__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .picker__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .picker__url {
+    height: 36px;
+  }
+
+  .picker__hint {
+    color: #9ca3af;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .form-error {
@@ -831,7 +973,7 @@ const Style = styled.div`
 
   @media (max-width: 860px) {
     .stats {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: 1fr;
     }
 
     .toolbar {
@@ -846,6 +988,15 @@ const Style = styled.div`
       flex: 1;
       width: auto;
       min-width: 0;
+    }
+
+    .picker {
+      flex-direction: column;
+    }
+
+    .picker__preview {
+      width: 100%;
+      height: 140px;
     }
   }
 `

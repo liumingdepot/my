@@ -1,5 +1,3 @@
-import type { AppDb } from '../utils/db.js'
-import { getEducationCookie } from './config.js'
 import {
   ANTI_CRAWL_MSG,
   AntiCrawlError,
@@ -106,12 +104,12 @@ function toSearchResult(
 }
 
 export async function searchBiliVideos(
-  db: AppDb,
   options: {
     keyword: string
     page?: number
     duration?: number
   },
+  adminCookie = '',
 ): Promise<BiliSearchResult> {
   const keyword = options.keyword.trim()
   const page = Math.max(1, Math.floor(options.page ?? 1))
@@ -121,7 +119,6 @@ export async function searchBiliVideos(
     return { items: [], page, pageSize: 20, total: 0, pageCount: 1 }
   }
 
-  const { cookie: adminCookie } = await getEducationCookie(db)
   const cookie = await buildBiliCookie(adminCookie)
   const headers = biliHeaders(cookie)
 

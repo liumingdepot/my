@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const tmpDir = path.join(root, 'tmp')
 
-const TABLES = ['users', 'video_sources', 'games', 'education_sources', 'education_config']
+const TABLES = ['users', 'video_sources', 'games']
 
 function loadEnv() {
   const envPath = path.join(root, '.env')

@@ -23,6 +23,10 @@ Senior frontend engineer with 10 years of experience in micro-frontend architect
 
 My Portfolio
 
+### [Resume](http://www.liuming1234.xyz/home) · Live
+
+Liu Ming's personal resume site: intro, works, skills, projects and experience, with i18n and theme toggle.
+
 ### [Infinite Canvas](http://www.liuming1234.xyz/canvas) · WIP
 
 AI short-drama infinite canvas: enter a prompt to generate content. Under development.
@@ -51,7 +55,7 @@ Play classic FC / arcade games in the browser: switch platforms, browse by genre
 
 Course video learning: filter by grade/textbook, search, and play online. For learning & exchange only.
 
-[My Portfolio →](http://www.liuming1234.xyz/works)
+[My Portfolio →](http://www.liuming1234.xyz/)
 
 ---
 

@@ -1,8 +1,9 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useParams } from 'react-router'
 import WorkDisclaimer from './components/WorkDisclaimer'
-import BackToWorks from './pages/我的作品集/BackToWorks'
-import Home from './pages/首页'
+import BackToWorks from './pages/首页/BackToWorks'
+import HomePage from './pages/首页'
+import WorksPage from './pages/首页/作品集'
 
 function WithWorkDisclaimer({
   moduleId,
@@ -20,6 +21,7 @@ function ArcadeIdRedirect() {
   return <Navigate to={id ? `/game/${id}` : '/game?platform=街机'} replace />
 }
 
+const Resume = lazy(() => import('./pages/个人简历'))
 const CanvasPage = lazy(() => import('./pages/无限画布'))
 const ZhouyiPage = lazy(() => import('./pages/周易'))
 const ReportPage = lazy(() => import('./pages/周易/model/ReportPage'))
@@ -28,15 +30,13 @@ const VideoPage = lazy(() => import('./pages/视频'))
 const ShortDramaPage = lazy(() => import('./pages/短剧'))
 const GamePage = lazy(() => import('./pages/游戏'))
 const EducationPage = lazy(() => import('./pages/学习教育'))
-const MoreWorksPage = lazy(() => import('./pages/我的作品集'))
 const HongguoPage = lazy(() => import('./pages/红果短剧'))
 const FishPage = lazy(() => import('./pages/摸鱼助手'))
 const AdminLayout = lazy(() => import('./pages/后台管理/Layout'))
 const AdminLoginPage = lazy(() => import('./pages/后台管理/登录'))
-const AdminUsersPage = lazy(() => import('./pages/后台管理/用户管理'))
 const AdminVideoSourcesPage = lazy(() => import('./pages/后台管理/采集源'))
-const AdminEducationPage = lazy(() => import('./pages/后台管理/教育管理'))
 const AdminAgnesKeysPage = lazy(() => import('./pages/后台管理/密钥管理'))
+const AdminWorksPage = lazy(() => import('./pages/后台管理/作品管理'))
 
 export default function App() {
   return (
@@ -44,7 +44,9 @@ export default function App() {
       <BackToWorks />
       <Suspense fallback={null}>
         <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/works" element={<WorksPage />} />
+        <Route path="/home" element={<Resume />} />
         <Route path="/canvas/*" element={<CanvasPage />} />
         <Route path="/fortune" element={<ZhouyiPage />} />
         <Route path="/fortune/report" element={<ReportPage />} />
@@ -89,7 +91,6 @@ export default function App() {
             </WithWorkDisclaimer>
           }
         />
-        <Route path="/works" element={<MoreWorksPage />} />
         <Route
           path="/hongguo/*"
           element={
@@ -109,12 +110,12 @@ export default function App() {
         />
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="users" replace />} />
-          <Route path="users" element={<AdminUsersPage />} />
+          <Route index element={<Navigate to="works" replace />} />
+          <Route path="works" element={<AdminWorksPage />} />
           <Route path="video-sources" element={<AdminVideoSourcesPage />} />
           <Route path="games" element={<Navigate to="/admin" replace />} />
           <Route path="arcade" element={<Navigate to="/admin" replace />} />
-          <Route path="education" element={<AdminEducationPage />} />
+          <Route path="education" element={<Navigate to="/admin" replace />} />
           <Route path="agnes-keys" element={<AdminAgnesKeysPage />} />
         </Route>
         <Route path="/无限画布" element={<Navigate to="/canvas" replace />} />
@@ -136,6 +137,9 @@ export default function App() {
         <Route path="/学习教育/*" element={<Navigate to="/education" replace />} />
         <Route path="/更多作品" element={<Navigate to="/works" replace />} />
         <Route path="/我的作品集" element={<Navigate to="/works" replace />} />
+        <Route path="/作品" element={<Navigate to="/works" replace />} />
+        <Route path="/作品集" element={<Navigate to="/works" replace />} />
+        <Route path="/个人简历" element={<Navigate to="/home" replace />} />
         <Route path="/测试" element={<Navigate to="/hongguo" replace />} />
         <Route path="/测试模块" element={<Navigate to="/hongguo" replace />} />
         <Route path="/红果短剧" element={<Navigate to="/hongguo" replace />} />
@@ -145,14 +149,15 @@ export default function App() {
         <Route path="/铭摸鱼" element={<Navigate to="/fish" replace />} />
         <Route path="/后台管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/登录" element={<Navigate to="/admin/login" replace />} />
-        <Route path="/后台管理/用户管理" element={<Navigate to="/admin/users" replace />} />
+        <Route path="/后台管理/用户管理" element={<Navigate to="/admin" replace />} />
+        <Route path="/后台管理/作品管理" element={<Navigate to="/admin/works" replace />} />
         <Route path="/后台管理/采集源" element={<Navigate to="/admin/video-sources" replace />} />
         <Route path="/后台管理/视频管理" element={<Navigate to="/admin/video-sources" replace />} />
         <Route path="/后台管理/游戏管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/FC游戏管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/FC管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/街机管理" element={<Navigate to="/admin" replace />} />
-        <Route path="/后台管理/教育管理" element={<Navigate to="/admin/education" replace />} />
+        <Route path="/后台管理/教育管理" element={<Navigate to="/admin" replace />} />
         <Route path="/后台管理/密钥管理" element={<Navigate to="/admin/agnes-keys" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
