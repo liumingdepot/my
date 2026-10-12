@@ -1,10 +1,18 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { Link, useOutletContext, useParams } from 'react-router'
 import styled from 'styled-components'
-import { fetchGameDetail, type PublicGame } from '../utils/server'
-import ArcadePlayer from './ArcadePlayer'
+import { listFavorites, subscribeFavorites, toggleFavorite } from '../utils/favorites'
+import { listSaves } from '../utils/saveStore'
+import {
+  fetchGameCheats,
+  fetchGameDetail,
+  type GameCheat,
+  type PublicGame,
+} from '../utils/server'
+import ArcadePlayer, { type ArcadePlayerControls } from './ArcadePlayer'
 import FcPlayer, { type FcPlayerControls } from './FcPlayer'
 import JavaPlayer from './JavaPlayer'
+import SaveStatePanel from './SaveStatePanel'
 import WebPlayer from './WebPlayer'
 import { GameCover, GameFrame, GameThemeToggle } from './Layout'
 
@@ -68,6 +76,15 @@ export default function DetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [controls, setControls] = useState<FcPlayerControls | null>(null)
+  const [arcadeControls, setArcadeControls] = useState<ArcadePlayerControls | null>(null)
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [saveCount, setSaveCount] = useState(0)
+  const favorites = useSyncExternalStore(subscribeFavorites, listFavorites, listFavorites)
+  const faved = Boolean(game && favorites.some((item) => item.id === game.id))
+  const [cheats, setCheats] = useState<GameCheat[]>([])
+  const [cheatsLoading, setCheatsLoading] = useState(false)
+  const [cheatsOpen, setCheatsOpen] = useState(false)
+  const [enabledCheats, setEnabledCheats] = useState<ReadonlySet<number>>(() => new Set())
 
   useLayoutEffect(() => {
     document.body.classList.remove('site-home')
@@ -98,6 +115,8 @@ export default function DetailPage() {
         if (ac.signal.aborted) return
         setGame(data)
         setControls(null)
+        setArcadeControls(null)
+        setSaveOpen(false)
         document.title = `${data.name} · 铭游戏`
       } catch (err) {
         if (!ac.signal.aborted) {
@@ -110,6 +129,76 @@ export default function DetailPage() {
     })()
     return () => ac.abort()
   }, [id])
+
+  const gameId = game?.id ?? ''
+  const isFcGame = game?.category === 'FC'
+
+  // 金手指：仅 FC（jsnes）支持按内存地址改写；开关状态不持久化，刷新后默认全关
+  useEffect(() => {
+    setCheatsOpen(false)
+    setEnabledCheats(new Set())
+    if (!isFcGame || !gameId) {
+      setCheats([])
+      return
+    }
+
+    const ac = new AbortController()
+    ;(async () => {
+      setCheatsLoading(true)
+      try {
+        const list = await fetchGameCheats(gameId, ac.signal)
+        if (ac.signal.aborted) return
+        setCheats(list)
+      } catch {
+        if (!ac.signal.aborted) setCheats([])
+      } finally {
+        if (!ac.signal.aborted) setCheatsLoading(false)
+      }
+    })()
+    return () => ac.abort()
+  }, [gameId, isFcGame])
+
+  function toggleCheat(index: number) {
+    setEnabledCheats((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }
+
+  function setAllCheats(value: boolean) {
+    setEnabledCheats(value ? new Set(cheats.map((cheat) => cheat.index)) : new Set<number>())
+  }
+
+  function onToggleFavorite() {
+    if (game) toggleFavorite(game)
+  }
+
+  // 存档数量角标
+  useEffect(() => {
+    if (!gameId) {
+      setSaveCount(0)
+      return
+    }
+    const ac = new AbortController()
+    ;(async () => {
+      const list = await listSaves(gameId)
+      if (ac.signal.aborted) return
+      setSaveCount(list.length)
+    })()
+    return () => ac.abort()
+  }, [gameId, saveOpen])
+
+  // Esc 关闭弹窗
+  useEffect(() => {
+    if (!cheatsOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCheatsOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cheatsOpen])
 
   const isFc = game?.category === 'FC'
   const isArcade = game?.category === '街机'
@@ -155,6 +244,41 @@ export default function DetailPage() {
           ) : (
             <article className="card">
               <aside className="side">
+                <div className="side__nav">
+                  <Link to={listHref()} className="goback" aria-label="返回列表">
+                    <span className="goback__icon" aria-hidden>
+                      <svg viewBox="0 0 16 16" width="12" height="12" fill="none">
+                        <path
+                          d="M10 3.5 5.5 8l4.5 4.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    返回
+                  </Link>
+
+                  <button
+                    type="button"
+                    className={`favbtn${faved ? ' is-on' : ''}`}
+                    aria-pressed={faved}
+                    onClick={onToggleFavorite}
+                  >
+                    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden>
+                      <path
+                        d="M12 3.6l2.5 5.1 5.6.8-4 3.9 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4-3.9 5.6-.8z"
+                        fill={faved ? 'currentColor' : 'none'}
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {faved ? '已收藏' : '收藏'}
+                  </button>
+                </div>
+
                 <div className="cover">
                   <GameCover src={game.imageUrl} />
                 </div>
@@ -231,6 +355,8 @@ export default function DetailPage() {
                       gameId={game.id}
                       gameName={game.name}
                       hideBar
+                      cheats={cheats}
+                      enabledCheats={enabledCheats}
                       onControlsChange={setControls}
                     />
                     <div className="actions">
@@ -252,14 +378,131 @@ export default function DetailPage() {
                       >
                         重新开始
                       </button>
+                      <button
+                        type="button"
+                        className={`btn btn--cheat${enabledCheats.size ? ' btn--on' : ''}`}
+                        onClick={() => setCheatsOpen((open) => !open)}
+                        aria-expanded={cheatsOpen}
+                        aria-controls="game-cheat-panel"
+                      >
+                        金手指
+                        {enabledCheats.size ? ` ${enabledCheats.size}` : ''}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--cheat"
+                        onClick={() => setSaveOpen(true)}
+                        aria-haspopup="dialog"
+                      >
+                        存档
+                        {saveCount ? <b className="btn__badge">{saveCount}</b> : null}
+                      </button>
                     </div>
+
+                    {cheatsOpen ? (
+                      <div
+                        className="cheats"
+                        id="game-cheat-panel"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="金手指"
+                        onClick={(event) => {
+                          // 点击遮罩关闭
+                          if (event.target === event.currentTarget) setCheatsOpen(false)
+                        }}
+                      >
+                        <div className="cheats__panel">
+                          <div className="cheats__head">
+                            <h3>金手指</h3>
+                            <div className="cheats__ops">
+                              <button
+                                type="button"
+                                disabled={!cheats.length}
+                                onClick={() => setAllCheats(true)}
+                              >
+                                全开
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!cheats.length}
+                                onClick={() => setAllCheats(false)}
+                              >
+                                全关
+                              </button>
+                              <button
+                                type="button"
+                                className="cheats__close"
+                                aria-label="关闭"
+                                onClick={() => setCheatsOpen(false)}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                          {cheatsLoading ? (
+                            <p className="cheats__empty">金手指加载中…</p>
+                          ) : cheats.length === 0 ? (
+                            <p className="cheats__empty">该游戏还没有金手指</p>
+                          ) : (
+                            <ul className="cheats__list">
+                              {cheats.map((cheat) => (
+                                <li key={cheat.index}>
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      checked={enabledCheats.has(cheat.index)}
+                                      onChange={() => toggleCheat(cheat.index)}
+                                    />
+                                    <span className="cheats__name">{cheat.name}</span>
+                                    <code className="cheats__code">{cheat.code}</code>
+                                  </label>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </>
                 ) : isArcade ? (
-                  <ArcadePlayer
-                    gameId={game.id}
-                    gameName={game.name}
-                    downloadUrl={game.downloadUrl}
-                  />
+                  <>
+                    <ArcadePlayer
+                      gameId={game.id}
+                      gameName={game.name}
+                      downloadUrl={game.downloadUrl}
+                      onControlsChange={setArcadeControls}
+                    />
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        disabled={!arcadeControls || arcadeControls.status !== 'ready'}
+                        onClick={() => arcadeControls?.togglePause()}
+                      >
+                        {arcadeControls?.paused ? '继续游戏' : '暂停'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={
+                          !arcadeControls ||
+                          (arcadeControls.status !== 'ready' && arcadeControls.status !== 'error')
+                        }
+                        onClick={() => arcadeControls?.hardReset()}
+                      >
+                        重新开始
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--cheat"
+                        onClick={() => setSaveOpen(true)}
+                        aria-haspopup="dialog"
+                      >
+                        存档
+                        {saveCount ? <b className="btn__badge">{saveCount}</b> : null}
+                      </button>
+                    </div>
+                  </>
                 ) : isWeb ? (
                   <WebPlayer
                     gameId={game.id}
@@ -276,6 +519,17 @@ export default function DetailPage() {
                   </div>
                 )}
               </section>
+
+              {saveOpen && game ? (
+                <SaveStatePanel
+                  gameId={game.id}
+                  platform={isArcade ? '街机' : 'FC'}
+                  saveApi={
+                    (isArcade ? arcadeControls?.getSaveApi() : controls?.getSaveApi()) ?? null
+                  }
+                  onClose={() => setSaveOpen(false)}
+                />
+              ) : null}
             </article>
           )}
         </main>
@@ -417,6 +671,118 @@ const Style = styled.div`
     overflow: hidden;
     border: 1px solid var(--line);
     background: var(--cover-ph);
+  }
+
+  .goback {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    padding: 0.32rem 0.8rem 0.32rem 0.34rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg-elev) 72%, transparent);
+    color: var(--text-soft);
+    font-size: 0.8rem;
+    font-weight: 620;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    box-shadow: var(--shadow-soft);
+    transition:
+      color 0.18s ease,
+      border-color 0.18s ease,
+      background 0.18s ease,
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .goback__icon {
+    display: grid;
+    place-items: center;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--purple);
+    transition:
+      background 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .goback:hover {
+    color: var(--purple);
+    border-color: color-mix(in srgb, var(--purple) 38%, transparent);
+    background: var(--accent-soft);
+    transform: translateX(-2px);
+    box-shadow:
+      var(--shadow-soft),
+      0 4px 14px color-mix(in srgb, var(--purple) 18%, transparent);
+  }
+
+  .goback:hover .goback__icon {
+    background: var(--purple);
+    color: #fff;
+  }
+
+  .goback:active {
+    transform: translateX(0);
+  }
+
+  .goback:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--purple) 60%, transparent);
+    outline-offset: 2px;
+  }
+
+  .side__nav {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .favbtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    padding: 0.32rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg-elev) 72%, transparent);
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 620;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: var(--shadow-soft);
+    transition:
+      color 0.18s ease,
+      border-color 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .favbtn:hover {
+    color: var(--amber);
+    border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+    background: var(--amber-soft);
+  }
+
+  .favbtn.is-on {
+    color: var(--amber);
+    border-color: color-mix(in srgb, var(--amber) 52%, transparent);
+    background: var(--amber-soft);
+    box-shadow:
+      var(--shadow-soft),
+      0 4px 14px color-mix(in srgb, var(--amber) 22%, transparent);
+  }
+
+  .favbtn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--amber) 60%, transparent);
+    outline-offset: 2px;
   }
 
   .cover img {
@@ -608,6 +974,186 @@ const Style = styled.div`
     cursor: not-allowed;
   }
 
+  .btn--cheat {
+    min-width: 6rem;
+  }
+
+  .btn--cheat.btn--on {
+    border-color: color-mix(in srgb, var(--purple) 45%, transparent);
+    color: var(--purple);
+    background: var(--accent-soft);
+  }
+
+  .btn__badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.05rem;
+    height: 1.05rem;
+    margin-left: 0.3rem;
+    padding: 0 0.22rem;
+    border-radius: 999px;
+    background: var(--purple);
+    color: #fff;
+    font-size: 0.64rem;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  .cheats {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+    background: rgba(8, 10, 18, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: cheats-fade 0.16s ease;
+  }
+
+  .cheats__panel {
+    width: min(30rem, 100%);
+    max-height: min(70dvh, 32rem);
+    display: flex;
+    flex-direction: column;
+    border-radius: 1rem;
+    border: 1px solid var(--line);
+    background: var(--bg-elev);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+    overflow: hidden;
+    animation: cheats-pop 0.18s ease;
+  }
+
+  @keyframes cheats-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes cheats-pop {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+
+  .cheats__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.7rem 0.75rem 0.7rem 0.95rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .cheats__head h3 {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 720;
+  }
+
+  .cheats__ops {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .cheats__ops button {
+    height: 26px;
+    padding: 0 0.6rem;
+    border-radius: 0.45rem;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text-soft);
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .cheats__ops button:hover:not(:disabled) {
+    color: var(--purple);
+    border-color: color-mix(in srgb, var(--purple) 40%, transparent);
+  }
+
+  .cheats__ops button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .cheats__ops .cheats__close {
+    width: 26px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.8rem;
+  }
+
+  .cheats__empty {
+    margin: 0;
+    padding: 1.6rem 0.95rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  .cheats__list {
+    margin: 0;
+    padding: 0.35rem;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    overflow-y: auto;
+  }
+
+  .cheats__list label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.45rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .cheats__list label:hover {
+    background: color-mix(in srgb, var(--purple) 8%, transparent);
+  }
+
+  .cheats__list input {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    accent-color: var(--purple);
+    cursor: pointer;
+  }
+
+  .cheats__name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.82rem;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cheats__code {
+    flex-shrink: 0;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.35rem;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+  }
+
   .unavailable {
     margin: auto;
     padding: 1.5rem 1rem;
@@ -683,6 +1229,18 @@ const Style = styled.div`
 
     .actions .btn {
       flex: 1;
+      min-width: 0;
+    }
+
+    .cheats {
+      padding: 0.9rem;
+    }
+
+    .cheats__panel {
+      max-height: 78dvh;
+    }
+
+    .actions .btn--cheat {
       min-width: 0;
     }
 

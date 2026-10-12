@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router'
 import styled from 'styled-components'
+import { listFavorites, subscribeFavorites } from '../utils/favorites'
 import {
   fetchGameList,
   GAME_PLATFORMS,
@@ -22,11 +23,14 @@ function parsePlatform(value: string | null): GamePlatform {
   return 'FC'
 }
 
+/** 列表项与收藏项共用的最小字段集合 */
+type GameCardData = Pick<PublicGame, 'id' | 'name' | 'imageUrl' | 'genre'>
+
 function GameCard({
   game,
   hideGenre = false,
 }: {
-  game: PublicGame
+  game: GameCardData
   hideGenre?: boolean
 }) {
   const genreLabel = game.genre?.split(/[、,/|]/)[0] || ''
@@ -59,10 +63,18 @@ export default function ListPage() {
   const [query, setQuery] = useState('')
   const platform = parsePlatform(searchParams.get('platform'))
   const [filter, setFilter] = useState('')
+  const [favOnly, setFavOnly] = useState(false)
   const [listLoading, setListLoading] = useState(false)
   const [error, setError] = useState('')
 
   const genres = genresForPlatform(platform)
+
+  // 收藏为本地数据，用 useSyncExternalStore 保证快照引用稳定
+  const favorites = useSyncExternalStore(subscribeFavorites, listFavorites, listFavorites)
+  const favCount = favorites.length
+
+  /** 收藏是独立列表：不区分平台，直接用本地缓存渲染，不请求列表接口 */
+  const favItems = useMemo(() => favorites, [favorites])
 
   useLayoutEffect(() => {
     document.title = '铭游戏'
@@ -87,6 +99,15 @@ export default function ListPage() {
   }, [filter])
 
   useEffect(() => {
+    // 收藏视图完全走本地缓存，不发请求
+    if (favOnly) {
+      setItems([])
+      setPageCount(1)
+      setListLoading(false)
+      setError('')
+      return
+    }
+
     const ac = new AbortController()
     ;(async () => {
       setListLoading(true)
@@ -111,7 +132,7 @@ export default function ListPage() {
       }
     })()
     return () => ac.abort()
-  }, [page, filter, platform])
+  }, [page, filter, platform, favOnly])
 
   function onSearch(e: FormEvent) {
     e.preventDefault()
@@ -119,14 +140,18 @@ export default function ListPage() {
   }
 
   function switchPlatform(next: GamePlatform) {
-    if (next === platform) return
+    // 收藏是跨平台的独立列表，点平台 tab 即退出收藏、回到该平台浏览
+    if (!favOnly && next === platform) return
+    setFavOnly(false)
     setSearchParams(next === 'FC' ? {} : { platform: next }, { replace: true })
     setQuery('')
     setPage(1)
   }
 
   const safePage = Math.min(page, pageCount)
-  const hasListContent = items.length > 0
+  const shownItems = favOnly ? favItems : items
+  const hasListContent = shownItems.length > 0
+  const showPager = !favOnly
 
   return (
     <GameFrame>
@@ -155,8 +180,8 @@ export default function ListPage() {
                   key={item}
                   type="button"
                   role="tab"
-                  aria-selected={platform === item}
-                  className={`cat${platform === item ? ' is-active' : ''}`}
+                  aria-selected={!favOnly && platform === item}
+                  className={`cat${!favOnly && platform === item ? ' is-active' : ''}`}
                   onClick={() => switchPlatform(item)}
                 >
                   {item}
@@ -187,6 +212,25 @@ export default function ListPage() {
             </form>
 
             <div className="top__actions">
+              <button
+                type="button"
+                className={`favtab${favOnly ? ' is-active' : ''}`}
+                aria-pressed={favOnly}
+                onClick={() => setFavOnly((v) => !v)}
+                title={favCount ? `已收藏 ${favCount} 个游戏` : '查看收藏的游戏'}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden>
+                  <path
+                    d="M12 3.6l2.5 5.1 5.6.8-4 3.9 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4-3.9 5.6-.8z"
+                    fill={favOnly ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                收藏
+                {favCount ? <b className="favtab__count">{favCount}</b> : null}
+              </button>
               <GameThemeToggle onToggle={toggleTheme} />
             </div>
           </div>
@@ -194,31 +238,33 @@ export default function ListPage() {
       </header>
 
       <main className="shell main">
-        <div className="toolbar">
-          <div className="cats" role="tablist" aria-label="类型筛选">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!filter}
-              className={`cat${!filter ? ' is-active' : ''}`}
-              onClick={() => setFilter('')}
-            >
-              全部
-            </button>
-            {genres.map((item) => (
+        {favOnly ? null : (
+          <div className="toolbar">
+            <div className="cats" role="tablist" aria-label="类型筛选">
               <button
-                key={item}
                 type="button"
                 role="tab"
-                aria-selected={filter === item}
-                className={`cat${filter === item ? ' is-active' : ''}`}
-                onClick={() => setFilter(item)}
+                aria-selected={!filter}
+                className={`cat${!filter ? ' is-active' : ''}`}
+                onClick={() => setFilter('')}
               >
-                {item}
+                全部
               </button>
-            ))}
+              {genres.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === item}
+                  className={`cat${filter === item ? ' is-active' : ''}`}
+                  onClick={() => setFilter(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <section className="section section--list">
           <div className="section__body">
@@ -226,18 +272,25 @@ export default function ListPage() {
               <p className="status status--err">{error}</p>
             ) : listLoading && !hasListContent ? (
               <p className="status">加载中…</p>
-            ) : items.length === 0 ? (
-              <p className="status">没有找到相关游戏</p>
+            ) : shownItems.length === 0 ? (
+              <p className="status">
+                {favOnly ? '还没有收藏任何游戏，去游戏详情页点「收藏」试试' : '没有找到相关游戏'}
+              </p>
             ) : (
               <div className={`grid${listLoading ? ' grid--dim' : ''}`}>
-                {items.map((game) => (
-                  <GameCard key={game.id} game={game} hideGenre={Boolean(filter)} />
+                {shownItems.map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    hideGenre={Boolean(filter)}
+                  />
                 ))}
               </div>
             )}
           </div>
 
-          <div className="pager">
+          {showPager ? (
+            <div className="pager">
             <button
               type="button"
               className="pager__btn"
@@ -256,6 +309,7 @@ export default function ListPage() {
               下一页
             </button>
           </div>
+          ) : null}
         </section>
       </main>
       </Style>
@@ -327,6 +381,64 @@ const Style = styled.div`
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+    min-width: 0;
+  }
+
+  .favtab {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg-elev);
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow: var(--shadow-soft);
+    cursor: pointer;
+    transition:
+      color 0.18s ease,
+      border-color 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .favtab:hover {
+    color: var(--amber);
+    border-color: color-mix(in srgb, var(--amber) 42%, transparent);
+    background: var(--amber-soft);
+  }
+
+  .favtab.is-active {
+    color: var(--amber);
+    border-color: color-mix(in srgb, var(--amber) 55%, transparent);
+    background: var(--amber-soft);
+  }
+
+  .favtab:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--amber) 60%, transparent);
+    outline-offset: 2px;
+  }
+
+  .favtab__count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.05rem;
+    height: 1.05rem;
+    padding: 0 0.25rem;
+    border-radius: 999px;
+    background: var(--amber);
+    color: #1a1203;
+    font-size: 0.64rem;
+    font-weight: 750;
+    line-height: 1;
   }
 
   .cats {
@@ -886,6 +998,19 @@ const Style = styled.div`
     .platforms {
       grid-area: platforms;
       justify-self: start;
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .platforms::-webkit-scrollbar {
+      display: none;
+    }
+
+    .favtab {
+      height: 28px;
+      padding: 0 0.55rem;
+      font-size: 0.75rem;
     }
 
     .search {

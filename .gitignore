@@ -19,6 +19,12 @@ dist-ssr
 .tmp
 tmp
 
+# 本地密钥（勿提交）：AGNES_API_KEY 等
+.dev.vars
+.dev.vars.*
+# Cloudflare 本地状态（wrangler dev / D1 本地库）
+.wrangler/
+
 # 红果签名：运行时不入库（本地/打包用 setup 脚本生成）
 # jdk17 是完整 JDK（~310M），jre 是 jlink 裁剪出的自带运行时（~33M），两者都重建成本极低
 hongguo-work/jdk17/

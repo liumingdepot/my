@@ -1,4 +1,5 @@
 import type { AppDb } from '../utils/db.js'
+import { fetchYikmGameCheats } from './cheat.js'
 import { findGameById, listFeaturedGames, listPublicGames } from './games.js'
 import {
   browseYikmArcadePage,
@@ -265,6 +266,7 @@ export function isGameApi(pathname: string) {
     pathname === '/api/game/featured' ||
     pathname === '/api/game/list' ||
     pathname === '/api/game/detail' ||
+    pathname === '/api/game/cheat' ||
     pathname === '/api/game/java-embed' ||
     isRomApiPath(pathname) ||
     isBiosApiPath(pathname) ||
@@ -584,6 +586,23 @@ export async function handleGameApi(request: Request, url: URL, env: { DB: AppDb
     const game = await findGameById(env.DB, id)
     if (!game) return json({ error: '游戏不存在' }, 404)
     return json({ game })
+  }
+
+  if (url.pathname === '/api/game/cheat') {
+    const id = url.searchParams.get('id')?.trim() ?? ''
+    if (!id) return json({ error: '缺少游戏 id' }, 400)
+
+    const playId = normalizeYikmFcPlayId(id)
+    // 非 yikm playId（本地入库数据）没有金手指源，返回空列表而非报错
+    if (!playId) return json({ cheats: [] })
+
+    try {
+      const cheats = await fetchYikmGameCheats(playId)
+      return json({ cheats })
+    } catch (err) {
+      console.error('[game api] cheat', err)
+      return json({ cheats: [] })
+    }
   }
 
   if (url.pathname === '/api/game/java-embed') {

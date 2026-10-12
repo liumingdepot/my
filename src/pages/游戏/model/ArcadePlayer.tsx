@@ -1,5 +1,7 @@
-import { useEffect, useEffectEvent, useMemo, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import styled from 'styled-components'
+import { captureThumbnail } from '../utils/fcSaveState'
+import type { PlayerSaveApi } from '../utils/saveStore'
 import {
   arcadeRomsetFile,
   gameRomUrl,
@@ -11,6 +13,25 @@ export type ArcadePlayerControls = {
   paused: boolean
   togglePause: () => void
   hardReset: () => void
+  /** 即时存档能力；在打开面板时才求值，避免启动早期误判为不可用 */
+  getSaveApi: () => PlayerSaveApi | null
+}
+
+/** EmulatorJS 内部 gameManager 的存档相关成员（未公开 API） */
+type ArcadeGameManager = {
+  getState?: () => Uint8Array | null
+  loadState?: (state: Uint8Array) => void
+  supportsStates?: () => boolean
+}
+
+/** srcDoc iframe 的 window 上挂着的 EmulatorJS 实例（未公开 API） */
+type ArcadeWindow = Window & {
+  EJS_emulator?: {
+    play?: () => void
+    pause?: () => void
+    paused?: boolean
+    gameManager?: ArcadeGameManager
+  }
 }
 
 type Props = {
@@ -208,6 +229,8 @@ export default function ArcadePlayer({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [error, setError] = useState('')
   const [bootKey, setBootKey] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const frameRef = useRef<HTMLIFrameElement>(null)
 
   const srcDoc = useMemo(() => {
     const romsetFile = arcadeRomsetFile(downloadUrl)
@@ -216,23 +239,92 @@ export default function ArcadePlayer({
     return buildPlayerHtml({ romUrl, romsetName, gameId })
   }, [gameId, downloadUrl, bootKey])
 
+  function arcadeWindow(): ArcadeWindow | null {
+    return (frameRef.current?.contentWindow as ArcadeWindow | null) ?? null
+  }
+
   function hardReset() {
     if (status !== 'ready' && status !== 'error') return
+    setPaused(false)
     setBootKey((n) => n + 1)
+  }
+
+  /** 走 EmulatorJS 的 play()/pause()，实测可真正冻结与恢复核心 */
+  function togglePause() {
+    if (status !== 'ready') return
+    const emu = arcadeWindow()?.EJS_emulator
+    if (!emu) return
+    try {
+      if (paused) {
+        emu.play?.()
+        setPaused(false)
+      } else {
+        emu.pause?.()
+        setPaused(true)
+      }
+    } catch {
+      setPaused(false)
+    }
   }
 
   const reportControls = useEffectEvent((next: ArcadePlayerControls) => {
     onControlsChange?.(next)
   })
 
+  /**
+   * 街机即时存档走 EmulatorJS 内部 API：`EJS_emulator.gameManager.getState()`。
+   * 模拟器跑在 srcDoc iframe 里且未加 sandbox，故与父页面同源，可直接访问。
+   * 官方只文档化了内部回调（EJS_onSaveState），可编程存取接口属于未公开 API，
+   * 因此取不到时安全降级为 null（禁用存档），不影响游玩。
+   */
+  const getSaveApi = (): PlayerSaveApi | null => {
+    const gm = arcadeWindow()?.EJS_emulator?.gameManager
+    const getState = gm?.getState
+    const loadState = gm?.loadState
+    if (!gm || typeof getState !== 'function' || typeof loadState !== 'function') {
+      return null
+    }
+    try {
+      if (gm.supportsStates && !gm.supportsStates()) return null
+    } catch {
+      return null
+    }
+
+    const thumbnail = () =>
+      captureThumbnail(frameRef.current?.contentDocument?.querySelector('canvas'))
+
+    return {
+      save: () => {
+        try {
+          const state = getState.call(gm)
+          if (!state) return null
+          // getState 返回的可能仍是核心内部缓冲区，拷贝一份避免后续被改写
+          return { data: Uint8Array.from(state), thumbnail: thumbnail() }
+        } catch {
+          return null
+        }
+      },
+      load: (data) => {
+        if (!(data instanceof Uint8Array)) return false
+        try {
+          loadState.call(gm, data)
+          return true
+        } catch {
+          return false
+        }
+      },
+    }
+  }
+
   useEffect(() => {
     reportControls({
       status,
-      paused: false,
-      togglePause: () => {},
+      paused,
+      togglePause,
       hardReset,
+      getSaveApi: getSaveApi,
     })
-  }, [status, bootKey])
+  }, [status, bootKey, paused])
 
   useEffect(() => {
     setStatus('loading')
@@ -266,6 +358,7 @@ export default function ArcadePlayer({
       <div className="stage">
         <iframe
           key={bootKey}
+          ref={frameRef}
           className="screen"
           title={`${gameName} 街机模拟器`}
           srcDoc={srcDoc}

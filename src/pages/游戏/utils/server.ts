@@ -90,6 +90,15 @@ export type GameDetailResult = {
   game: PublicGame
 }
 
+/** 单条金手指：从 address 起按小端顺序连续写入 bytes */
+export type GameCheat = {
+  index: number
+  name: string
+  address: number
+  bytes: number[]
+  code: string
+}
+
 export function genresForPlatform(platform: GamePlatform) {
   if (platform === '街机') return ARCADE_GENRES
   if (platform === '网页游戏') return WEB_GENRES
@@ -133,6 +142,16 @@ export async function fetchGameDetail(id: string, signal?: AbortSignal): Promise
   const data = (await res.json()) as GameDetailResult & { error?: string }
   if (!res.ok) throw new Error(data.error || '游戏详情加载失败')
   return data.game
+}
+
+export async function fetchGameCheats(id: string, signal?: AbortSignal): Promise<GameCheat[]> {
+  const res = await fetch(
+    `/api/game/cheat?id=${encodeURIComponent(id)}`,
+    signal ? { signal } : undefined,
+  )
+  const data = (await res.json()) as { cheats?: GameCheat[]; error?: string }
+  if (!res.ok) throw new Error(data.error || '金手指加载失败')
+  return data.cheats ?? []
 }
 
 /** FBNeo 用 zip 文件名识别 romset，必须与 CDN 上一致 */

@@ -7,6 +7,8 @@ export default defineConfig({
   routeRules: {
     '/api/**': { cors: true },
   },
+  // 预压缩静态资源：构建时生成 .gz/.br，运行时直出，省 CPU 且省流量
+  compressPublicAssets: true,
   runtimeConfig: {
     mysqlHost: process.env.MYSQL_HOST || '192.168.0.233',
     mysqlPort: Number(process.env.MYSQL_PORT || 3306),

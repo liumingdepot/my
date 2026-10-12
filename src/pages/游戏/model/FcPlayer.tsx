@@ -1,13 +1,17 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { Browser, Controller } from 'jsnes'
 import styled from 'styled-components'
-import { gameRomUrl } from '../utils/server'
+import { captureThumbnail, decodeFcState, encodeFcState } from '../utils/fcSaveState'
+import type { PlayerSaveApi } from '../utils/saveStore'
+import { gameRomUrl, type GameCheat } from '../utils/server'
 
 export type FcPlayerControls = {
   status: 'idle' | 'loading' | 'ready' | 'error'
   paused: boolean
   togglePause: () => void
   hardReset: () => void
+  /** 即时存档能力；在打开面板时才求值 */
+  getSaveApi: () => PlayerSaveApi | null
 }
 
 type Props = {
@@ -16,6 +20,10 @@ type Props = {
   /** 由外层渲染暂停/重置时传入，组件内不再显示底部栏 */
   onControlsChange?: (controls: FcPlayerControls) => void
   hideBar?: boolean
+  /** 可用金手指 */
+  cheats?: GameCheat[]
+  /** 已开启的金手指下标集合 */
+  enabledCheats?: ReadonlySet<number>
 }
 
 type KeyMap = Record<number, [number, number, string]>
@@ -58,7 +66,10 @@ type FrameTimerLike = {
   onAnimationFrame: (time: number) => void
 }
 
-function applyControlsAndSpeed(browser: Browser) {
+/** jsnes 未在类型里暴露 cpu，这里只用到主内存 */
+type NesMemory = { cpu?: { mem?: Uint8Array } }
+
+function applyControlsAndSpeed(browser: Browser, onBeforeFrame: () => void) {
   browser.keyboard.setKeys(PLAYER_KEYS)
 
   const timer = (browser as unknown as { _frameTimer: FrameTimerLike })._frameTimer
@@ -74,6 +85,7 @@ function applyControlsAndSpeed(browser: Browser) {
     const numFrames = Math.round((newFrameTime - timer.lastFrameTime) / timer.interval)
     if (numFrames === 0) return
     // Cap at 1 frame — avoid multi-frame catch-up that makes games feel sped up
+    onBeforeFrame()
     timer.generateFrame()
     timer.onWriteFrame()
     timer.lastFrameTime = newFrameTime
@@ -105,7 +117,14 @@ function formatEmulatorError(err: unknown): string {
   return message
 }
 
-export default function FcPlayer({ gameId, gameName, onControlsChange, hideBar }: Props) {
+export default function FcPlayer({
+  gameId,
+  gameName,
+  onControlsChange,
+  hideBar,
+  cheats,
+  enabledCheats,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const browserRef = useRef<Browser | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
@@ -134,9 +153,47 @@ export default function FcPlayer({ gameId, gameName, onControlsChange, hideBar }
     onControlsChange?.(next)
   })
 
+  const getSaveApi = (): PlayerSaveApi | null => {
+    const browser = browserRef.current
+    if (!browser || status !== 'ready') return null
+    return {
+      save: () => {
+        const live = browserRef.current
+        if (!live) return null
+        try {
+          return {
+            data: encodeFcState(live.nes),
+            thumbnail: captureThumbnail(containerRef.current?.querySelector('canvas')),
+          }
+        } catch {
+          return null
+        }
+      },
+      load: (data) => {
+        const live = browserRef.current
+        if (!live || typeof data !== 'string') return false
+        return decodeFcState(live.nes, data)
+      },
+    }
+  }
+
   useEffect(() => {
-    reportControls({ status, paused, togglePause, hardReset })
+    reportControls({ status, paused, togglePause, hardReset, getSaveApi })
   }, [status, paused, bootKey])
+
+  // 金手指在每帧渲染前写入 NES 主内存；游戏本帧若改写该地址，下一帧会被再次覆盖，
+  // 达到「生命数 / 无敌 / 道具」这类持续生效的效果。
+  const writeCheats = useEffectEvent(() => {
+    if (!cheats?.length || !enabledCheats?.size) return
+    const mem = (browserRef.current?.nes as NesMemory | undefined)?.cpu?.mem
+    if (!mem) return
+    for (const cheat of cheats) {
+      if (!enabledCheats.has(cheat.index)) continue
+      for (let i = 0; i < cheat.bytes.length; i++) {
+        mem[(cheat.address + i) & 0xffff] = cheat.bytes[i] & 0xff
+      }
+    }
+  })
 
   useEffect(() => {
     const container = containerRef.current
@@ -160,7 +217,7 @@ export default function FcPlayer({ gameId, gameName, onControlsChange, hideBar }
             setError(formatEmulatorError(err))
           },
         })
-        applyControlsAndSpeed(browser)
+        applyControlsAndSpeed(browser, writeCheats)
         browserRef.current = browser
         browser.loadROM(romData)
         browser.fitInParent()
